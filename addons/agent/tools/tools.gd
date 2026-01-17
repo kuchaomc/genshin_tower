@@ -356,8 +356,8 @@ func get_tools_list() -> Array[Dictionary]:
 			"type": "function",
 			"function": {
 				"name": "write_file",
-				"description": "写入文件内容。文件格式应为资源文件(.tres)或者脚本文件(.gd)、Godot着色器(.gdshader)、场景文件(.tscn)、文本文件(.txt或.md)、CSV文件(.csv)，当明确提及创建或修改文件时再调用该工具",
-				#"description": "全量替换写入文件内容。文件格式应为资源文件(.tres)、Godot着色器(.gdshader)、文本文件(.txt或.md)、CSV文件(.csv)，当明确提及创建或修改文件时再调用该工具。",
+				#"description": "写入文件内容。文件格式应为资源文件(.tres)或者脚本文件(.gd)、Godot着色器(.gdshader)、场景文件(.tscn)、文本文件(.txt或.md)、CSV文件(.csv)，当明确提及创建或修改文件时再调用该工具",
+				"description": "全量替换写入文件内容。文件格式应为资源文件(.tres)、Godot着色器(.gdshader)、文本文件(.txt或.md)、CSV文件(.csv)，当明确提及创建或修改文件时再调用该工具。**限制**：不应使用本工具修改脚本和场景文件。",
 				"parameters": {
 					"type": "object",
 					"properties": {
@@ -1206,7 +1206,7 @@ func use_tool(tool_call: AgentModelUtils.ToolCallsInfo) -> String:
 
 #写入文件
 func write_file(path: String, content: String) -> bool:
-	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	DirAccess.make_dir_recursive_absolute(path)
 	var file = FileAccess.open(path, FileAccess.WRITE)
 	if not file == null:
 		file.store_string(content)
