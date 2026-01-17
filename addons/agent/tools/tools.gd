@@ -432,7 +432,7 @@ func get_tools_list() -> Array[Dictionary]:
 							"description": "需要检查的脚本路径，必须是以res://开头的绝对路径。",
 						},
 					},
-					"required": ["name"]
+					"required": ["path"]
 				}
 			}
 		},
@@ -994,10 +994,13 @@ func use_tool(tool_call: AgentModelUtils.ToolCallsInfo) -> String:
 			if not json == null and json.has("path"):
 				var log_file_path = AlphaAgentPlugin.project_alpha_dir + "check_script.temp"
 				var path = json.path
+				var dir = DirAccess.open("res://")
+				if dir:
+					dir.make_dir_recursive(AlphaAgentPlugin.project_alpha_dir.get_base_dir())
 				if FileAccess.file_exists(log_file_path):
 					DirAccess.remove_absolute(log_file_path)
 
-				var instance_pid = OS.create_instance(["--head-less", "--script", path, "--check-only", "--log-file", log_file_path])
+				var instance_pid = OS.create_instance(["--headless", "--script", path, "--check-only", "--log-file", log_file_path])
 
 				await get_tree().create_timer(3.0).timeout
 				OS.kill(instance_pid)
