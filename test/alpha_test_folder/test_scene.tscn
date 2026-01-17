@@ -1,5 +1,9 @@
 [gd_scene format=3 uid="uid://cy3ew2n0rvjk0"]
 
 [node name="TestNode" type="Node2D"]
+position = Vector2(100, 100)
 
 [node name="TestChild" type="Sprite2D" parent="."]
+visible = false
+position = Vector2(400, 300)
+scale = Vector2(2, 2)

@@ -294,7 +294,7 @@ func get_tools_list() -> Array[Dictionary]:
 					"properties": {
 						"scene_path": {
 							"type": "string",
-							"description": "想获取的TileSet所在的场景路径，必须是以res://开头的路径。",
+							"description": "想获取的TileSet被挂载在的TileMapLayer节点在场景树中的路径。遵循Godot场景树路径规则：根节点用'.'表示，子节点直接用名称，嵌套子节点用'/'分隔。示例：'.'表示根节点，'TileMap'表示根节点的TileMap子节点，'World/MapLayer'表示World节点的MapLayer子节点。",
 						},
 						"tile_map_path": {
 							"type": "string",
@@ -514,7 +514,7 @@ func get_tools_list() -> Array[Dictionary]:
 						},
 						"node_path": {
 							"type": "string",
-							"description": "想修改的节点在场景树中的路径。从场景的根节点开始，用“/”分隔。",
+							"description": "想修改的节点在场景树中的路径。遵循Godot场景树路径规则：根节点用'.'表示，子节点直接用名称，嵌套子节点用'/'分隔。示例：'.'表示根节点，'Sprite'表示根节点的Sprite子节点，'Player/Body'表示Player节点的Body子节点。",
 						},
 						"property_name": {
 							"type": "string",
@@ -544,7 +544,7 @@ func get_tools_list() -> Array[Dictionary]:
 						},
 						"node_path": {
 							"type": "string",
-							"description": "想修改的节点在场景树中的路径。从场景的根节点开始，用“/”分隔。",
+							"description": "想修改的节点在场景树中的路径。遵循Godot场景树路径规则：根节点用'.'表示，子节点直接用名称，嵌套子节点用'/'分隔。示例：'.'表示根节点，'Sprite'表示根节点的Sprite子节点，'Player/Body'表示Player节点的Body子节点。",
 						},
 						"property_path": {
 							"type": "string",
