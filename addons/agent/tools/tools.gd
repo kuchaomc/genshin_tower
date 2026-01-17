@@ -465,7 +465,7 @@ func get_tools_list() -> Array[Dictionary]:
 							"description": "如果打开的是脚本，可以指定列号，默认是0",
 						},
 					},
-					"required": ["name", "type"]
+					"required": ["path", "type"]
 				}
 			}
 		},
