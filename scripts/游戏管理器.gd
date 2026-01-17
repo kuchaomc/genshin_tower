@@ -5,14 +5,12 @@ var main_menu_scene: PackedScene
 enum GameState {
 	PLAYING,
 	GAME_OVER
-\tVICTORY,
 }
 
 # 导出的敌人场景引用
 @export var enemy_scene: PackedScene
 
 # 当前游戏状态
-# 敌人击杀计数\nvar enemies_killed: int = 0
 var current_state: GameState = GameState.PLAYING
 # 分数
 var score: int = 0
@@ -24,7 +22,6 @@ var game_over_timer: Timer
 var score_label: Label
 
 # 当节点第一次进入场景树时调用
-# 胜利/失败UI Label引用\nvar victory_label: Label\nvar game_over_label: Label
 func _ready() -> void:
 	main_menu_scene = load("res://scenes/主界面.tscn")
 	if main_menu_scene == null:
@@ -35,7 +32,6 @@ func _ready() -> void:
 		update_score_display()
 	
 	# 如果没有手动分配敌人场景，则预加载默认敌人场景
-\n\t# 获取胜利/失败Label引用\n\tvictory_label = get_node(\"CanvasLayer/VictoryLabel\")\n\tif victory_label:\n\t\tvictory_label.hide()\n\tgame_over_label = get_node(\"CanvasLayer/GameOverLabel\")\n\tif game_over_label:\n\t\tgame_over_label.hide()
 	if enemy_scene == null:
 		enemy_scene = preload("res://scenes/敌人.tscn")
 	
@@ -88,7 +84,6 @@ func game_over() -> void:
 	
 	current_state = GameState.GAME_OVER
 	
-\t\n\t# 显示游戏结束Label\n\tif game_over_label:\n\t\tgame_over_label.show()
 	# 停止敌人生成计时器
 	if enemy_spawn_timer:
 		enemy_spawn_timer.stop()
@@ -99,14 +94,17 @@ func game_over() -> void:
 	game_over_timer.wait_time = 3.0
 	game_over_timer.start()
 
-\n# 胜利方法\nfunc victory() -> void:\n\tif current_state != GameState.PLAYING:\n\t\treturn\n\t\n\tcurrent_state = GameState.VICTORY\n\t\n\t# 停止敌人生成计时器\n\tif enemy_spawn_timer:\n\t\tenemy_spawn_timer.stop()\n\t\n\t# 显示胜利Label\n\tif victory_label:\n\t\tvictory_label.show()\n\t\n\tprint(\"游戏胜利！击杀10名敌人完成！3秒后返回主界面...\")\n\t\n\t# 设置3秒后返回主界面\n\tgame_over_timer.wait_time = 3.0\n\tgame_over_timer.start()
 # 修改游戏结束计时器回调
 func _on_game_over_timer_timeout() -> void:
 	print("返回主界面...")
 	# 修改这里：从重新加载场景改为切换到主界面
 	get_tree().change_scene_to_packed(main_menu_scene)
 
-# 增加分数\nfunc add_score(points: int) -> void:\n\tscore += points\n\tprint(\"增加\", points, \"分，当前总分：\", score)\n\t\n\t# 如果是敌人死亡（10分），增加击杀计数\n\tif points == 10:\n\t\tenemies_killed += 1\n\t\tprint(\"击杀敌人！累计击杀：\", enemies_killed, \"/10\")\n\t\t\n\t\t# 检查是否达到胜利条件（击杀10名敌人）\n\t\tif enemies_killed >= 10 and current_state == GameState.PLAYING:\n\t\t\tvictory()\n\t\n\tupdate_score_display()
+# 增加分数
+func add_score(points: int) -> void:
+	score += points
+	print("增加", points, "分，当前总分：", score)
+	update_score_display()
 
 # 更新分数显示
 func update_score_display() -> void:
@@ -125,10 +123,8 @@ func get_game_state() -> GameState:
 func start_new_game() -> void:
 	current_state = GameState.PLAYING
 	score = 0
-\tenemies_killed = 0
 	update_score_display()
 	
-\t\n\t# 隐藏胜利/失败Label\n\tif victory_label:\n\t\tvictory_label.hide()\n\tif game_over_label:\n\t\tgame_over_label.hide()
 	# 重新启动敌人生成计时器
 	if enemy_spawn_timer:
 		enemy_spawn_timer.start()
