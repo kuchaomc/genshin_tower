@@ -65,3 +65,23 @@ offset_bottom = 132.0
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 96
 text = "score:"
+
+[node name="VictoryLabel" type="Label" parent="CanvasLayer"]
+visible = false
+offset_left = -400
+offset_top = -100
+offset_right = 400
+offset_bottom = 100
+theme_override_colors/font_color = Color(0, 1, 0, 1)
+theme_override_font_sizes/font_size = 96
+text = "胜利！击杀10名敌人！"
+
+[node name="GameOverLabel" type="Label" parent="CanvasLayer"]
+visible = false
+offset_left = -400
+offset_top = -100
+offset_right = 400
+offset_bottom = 100
+theme_override_colors/font_color = Color(1, 0, 0, 1)
+theme_override_font_sizes/font_size = 96
+text = "游戏结束！"
