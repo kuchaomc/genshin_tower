@@ -1,0 +1,34 @@
+[gd_scene load_steps=6 format=3 uid="uid://cb6ii837bhcf7"]
+
+[ext_resource type="Texture2D" uid="uid://clbhlbi0nuca0" path="res://textures/敌人.png" id="1_8ikh3"]
+[ext_resource type="Script" uid="uid://cjcvg4aw3axbu" path="res://scripts/敌人.gd" id="1_xw40f"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xw40f"]
+atlas = ExtResource("1_8ikh3")
+region = Rect2(768, 518, 768, 259)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_qxw6m"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xw40f")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_sgph2"]
+size = Vector2(768, 260)
+
+[node name="Area2D" type="Area2D" groups=["enemies"]]
+script = ExtResource("1_xw40f")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_qxw6m")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+visible = false
+shape = SubResource("RectangleShape2D_sgph2")
+
+[connection signal="body_entered" from="." to="." method="_on_body_entered"]

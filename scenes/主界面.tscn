@@ -1,0 +1,72 @@
+[gd_scene load_steps=2 format=3 uid="uid://ckqkugmg6abgw"]
+
+[ext_resource type="Script" uid="uid://ci5nhsa7nvglw" path="res://scripts/主界面.gd" id="1_ki7t4"]
+
+[node name="Node2D" type="Node2D"]
+script = ExtResource("1_ki7t4")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="CanvasLayer"]
+offset_left = 480.0
+offset_top = 99.0
+offset_right = 683.0
+offset_bottom = 168.0
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 50
+text = "test v1.2"
+
+[node name="Button" type="Button" parent="CanvasLayer"]
+offset_left = 505.00006
+offset_top = 196.0
+offset_right = 577.00006
+offset_bottom = 227.0
+scale = Vector2(2.580492, 2.8543859)
+text = "开始游戏"
+
+[node name="Button2" type="Button" parent="CanvasLayer"]
+offset_left = 507.0
+offset_top = 302.00003
+offset_right = 579.0
+offset_bottom = 333.00003
+scale = Vector2(2.5840127, 2.3165236)
+text = "游戏说明"
+
+[node name="Button3" type="Button" parent="CanvasLayer"]
+offset_left = 503.00003
+offset_top = 404.00003
+offset_right = 575.0
+offset_bottom = 435.00003
+scale = Vector2(2.6329544, 2.203075)
+text = "退出游戏"
+
+[node name="Panel" type="Panel" parent="CanvasLayer"]
+offset_left = 391.0
+offset_top = 258.0
+offset_right = 391.0
+offset_bottom = 258.0
+
+[node name="Label" type="Label" parent="CanvasLayer/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "游戏说明：
+操作方式：
+WASD键 - 控制角色移动
+鼠标左键 - 射击"
+
+[node name="CloseButton" type="Button" parent="CanvasLayer/Panel"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -31.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "关闭"

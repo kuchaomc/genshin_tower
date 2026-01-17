@@ -1,0 +1,67 @@
+[gd_scene load_steps=5 format=3 uid="uid://c5vy4j04yih54"]
+
+[ext_resource type="Texture2D" uid="uid://qfej3gbql253" path="res://textures/游戏背景.png" id="1_0d42y"]
+[ext_resource type="Script" uid="uid://ct7eofqpxpx0q" path="res://scripts/游戏管理器.gd" id="1_3ma01"]
+[ext_resource type="PackedScene" uid="uid://bb2kswvspaq4f" path="res://scenes/玩家.tscn" id="3_3epie"]
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_yqjtg"]
+
+[node name="Node2D" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_3ma01")
+
+[node name="background" type="Sprite2D" parent="."]
+z_index = -1
+position = Vector2(592, 329.00006)
+scale = Vector2(1.2890625, 1.2617188)
+texture = ExtResource("1_0d42y")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(578, 322)
+scale = Vector2(1.2890625, 1.2617188)
+
+[node name="player" parent="." instance=ExtResource("3_3epie")]
+position = Vector2(553, 249)
+
+[node name="空气墙" type="Node2D" parent="."]
+position = Vector2(649, 387)
+
+[node name="StaticBody2D" type="StaticBody2D" parent="空气墙"]
+position = Vector2(-43, -43)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="空气墙/StaticBody2D"]
+position = Vector2(0, 300)
+shape = SubResource("WorldBoundaryShape2D_yqjtg")
+
+[node name="StaticBody2D2" type="StaticBody2D" parent="空气墙"]
+position = Vector2(-350, -43)
+rotation = 1.5707964
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="空气墙/StaticBody2D2"]
+position = Vector2(0, 300)
+shape = SubResource("WorldBoundaryShape2D_yqjtg")
+
+[node name="StaticBody2D3" type="StaticBody2D" parent="空气墙"]
+position = Vector2(-73, -91)
+rotation = -3.1415925
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="空气墙/StaticBody2D3"]
+position = Vector2(0, 300)
+shape = SubResource("WorldBoundaryShape2D_yqjtg")
+
+[node name="StaticBody2D4" type="StaticBody2D" parent="空气墙"]
+position = Vector2(205, -32)
+rotation = -1.5707964
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="空气墙/StaticBody2D4"]
+position = Vector2(0, 300)
+shape = SubResource("WorldBoundaryShape2D_yqjtg")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="CanvasLayer"]
+offset_right = 276.0
+offset_bottom = 132.0
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 96
+text = "score:"
