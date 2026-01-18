@@ -692,12 +692,13 @@ func use_tool(tool_call: AgentModelUtils.ToolCallsInfo) -> String:
 					edit_file_list.push_back(file_path)
 					if select_index == index:
 						current_opend_script = file_path
+			var scene_root = EditorInterface.get_edited_scene_root()
 			result = {
 				"editor": {
 					# 当前编辑器信息
 					"opened_scenes": EditorInterface.get_open_scenes(),
-					"current_edited_scene": EditorInterface.get_edited_scene_root().get_scene_file_path(),
-					"current_scene_root_node": EditorInterface.get_edited_scene_root(),
+					"current_edited_scene": scene_root.get_scene_file_path() if scene_root else "",
+					"current_scene_root_node": scene_root,
 					"current_opend_script": current_opend_script,
 					"opend_scripts": edit_file_list
 				},
@@ -726,29 +727,31 @@ func use_tool(tool_call: AgentModelUtils.ToolCallsInfo) -> String:
 					continue
 				var dir = DirAccess.open(current_dir)
 				if dir:
-					dir.list_dir_begin()
-					var file_name = dir.get_next()
-					while file_name != "":
-						var match_result = true
-						for reg in ignore_files:
-							match_result = match_result and (not file_name.match(reg))
-						if match_result:
-							if dir.current_is_dir():
-								file_list.push_back({
-									"path": current_dir + file_name,
-									"type": "directory"
-								})
-								queue.push_back({
-									"path": current_dir + file_name + '/',
-									"interation": current_interation - 1
-								})
-							else:
-								file_list.push_back({
-									"path": current_dir + file_name,
-									"uid": ResourceUID.path_to_uid(current_dir + file_name),
-									"type": "file"
-								})
-						file_name = dir.get_next()
+					var error = dir.list_dir_begin()
+					if error == OK:
+						var file_name = dir.get_next()
+						while file_name != "":
+							var match_result = true
+							for reg in ignore_files:
+								match_result = match_result and (not file_name.match(reg))
+							if match_result:
+								if dir.current_is_dir():
+									file_list.push_back({
+										"path": current_dir + file_name,
+										"type": "directory"
+									})
+									queue.push_back({
+										"path": current_dir + file_name + '/',
+										"interation": current_interation - 1
+									})
+								else:
+									file_list.push_back({
+										"path": current_dir + file_name,
+										"uid": ResourceUID.path_to_uid(current_dir + file_name),
+										"type": "file"
+									})
+							file_name = dir.get_next()
+						dir.list_dir_end()
 				else:
 					print("尝试访问路径时出错。")
 			result = {
@@ -1032,27 +1035,44 @@ func use_tool(tool_call: AgentModelUtils.ToolCallsInfo) -> String:
 			if not json == null and json.has("image_path"):
 				var image_path := json.image_path as String
 				var texture := load(image_path) as Texture2D
-				var image = texture.get_image() as Image
-				result = {
-					"uid": ResourceUID.path_to_uid(image_path),
-					"image_path": image_path,
-					"image_file_type": image_path.get_extension(),
-					"image_width": image.get_width(),
-					"image_height": image.get_height(),
-					"image_format": image.get_format(),
-					"image_format_name": image.data.format,
-					"data_size": image.get_data_size()
-				}
+				if texture == null:
+					result = {
+						"error": "无法加载图片文件: " + image_path
+					}
+				else:
+					var image = texture.get_image()
+					if image == null:
+						result = {
+							"error": "无法从纹理获取图片数据: " + image_path
+						}
+					else:
+						result = {
+							"uid": ResourceUID.path_to_uid(image_path),
+							"image_path": image_path,
+							"image_file_type": image_path.get_extension(),
+							"image_width": image.get_width(),
+							"image_height": image.get_height(),
+							"image_format": image.get_format(),
+							"data_size": image.get_data_size()
+						}
 		"get_tileset_info":
 			var json = JSON.parse_string(tool_call.function.arguments)
 			if not json == null and json.has("scene_path") and json.has("tile_map_path"):
 				var node = get_target_node(json.scene_path, json.tile_map_path)
-				if node:
-					result = get_tileset_info(node.tile_set)
-				else:
+				if node == null:
 					result = {
-						"error": "没有找到对应TileMapLayer节点"
+						"error": "没有找到对应节点"
 					}
+				elif not "tile_set" in node:
+					result = {
+						"error": "节点不是TileMapLayer类型，没有tile_set属性"
+					}
+				elif node.tile_set == null:
+					result = {
+						"error": "节点的tile_set属性为空"
+					}
+				else:
+					result = get_tileset_info(node.tile_set)
 
 		"set_singleton":
 			var json = JSON.parse_string(tool_call.function.arguments)
@@ -1129,28 +1149,45 @@ func use_tool(tool_call: AgentModelUtils.ToolCallsInfo) -> String:
 				var line := json.line as int
 				var delete_line_count = json.delete_line_count
 				var resource: Script = load(script_path)
+				
+				if resource == null:
+					result = {
+						"error": "无法加载脚本文件: " + script_path
+					}
+				else:
+					EditorInterface.set_main_screen_editor("Script")
+					EditorInterface.edit_script(resource)
 
-				EditorInterface.set_main_screen_editor("Script")
-				EditorInterface.edit_script(resource)
+					var script_editor = EditorInterface.get_script_editor()
+					var current_editor = script_editor.get_current_editor()
+					if current_editor == null:
+						result = {
+							"error": "无法获取当前脚本编辑器"
+						}
+					else:
+						var editor: CodeEdit = current_editor.get_base_editor()
+						if editor == null:
+							result = {
+								"error": "无法获取代码编辑器"
+							}
+						else:
+							for i in delete_line_count:
+								editor.remove_line_at(max(line - 1, 0))
+							editor.insert_line_at(max(line - 1, 0), content)
 
-				var editor: CodeEdit = EditorInterface.get_script_editor().get_current_editor().get_base_editor()
-				for i in delete_line_count:
-					editor.remove_line_at(max(line - 1, 0))
-				editor.insert_line_at(max(line - 1, 0), content)
+							await get_tree().process_frame
+							var save_input_key := InputEventKey.new()
+							save_input_key.pressed = true
+							save_input_key.keycode = KEY_S
+							save_input_key.alt_pressed = true
+							save_input_key.command_or_control_autoremap = true
 
-				await get_tree().process_frame
-				var save_input_key := InputEventKey.new()
-				save_input_key.pressed = true
-				save_input_key.keycode = KEY_S
-				save_input_key.alt_pressed = true
-				save_input_key.command_or_control_autoremap = true
+							EditorInterface.get_base_control().get_viewport().push_input(save_input_key)
 
-				EditorInterface.get_base_control().get_viewport().push_input(save_input_key)
-
-				result = {
-					#"file_content": editor.text,
-					"success": "更新成功，使用read_file工具查看结果。"
-				}
+							result = {
+								#"file_content": editor.text,
+								"success": "更新成功，使用read_file工具查看结果。"
+							}
 		"update_scene_node_property":
 			var json = JSON.parse_string(tool_call.function.arguments)
 
@@ -1186,38 +1223,40 @@ func use_tool(tool_call: AgentModelUtils.ToolCallsInfo) -> String:
 
 			if not json == null and json.has("command") and json.has("args"):
 				var is_timeout: bool = false
-				thread = Thread.new()
-				thread.start(execute_command.bind(json.command, json.args))
-				while not thread.is_started():
+				var current_thread = Thread.new()
+				current_thread.start(execute_command.bind(json.command, json.args))
+				while not current_thread.is_started():
 					# 等待线程启动
 					await get_tree().process_frame
 
-				get_tree().create_timer(30.0).timeout.connect(func():
-					#print("计时结束")
-					#print(thread)
-					if thread and thread.is_alive():
+				var timeout_timer = get_tree().create_timer(30.0)
+				timeout_timer.timeout.connect(func():
+					if current_thread and current_thread.is_alive():
 						is_timeout = true
-						thread = Thread.new()
-					)
-				while thread.is_alive():
+						# 注意：无法强制停止线程，只能标记超时
+				)
+				while current_thread.is_alive() and not is_timeout:
 					# 等待线程结束
-					#print("thread alive")
 					await get_tree().process_frame
-				#print(is_timeout)
-				if is_timeout or !thread.is_started():
+				
+				if is_timeout:
 					result = {
-							"error": "命令行执行因超时停止"
-						}
-					#thread.free()
-					thread = null
+						"error": "命令行执行因超时停止"
+					}
+					# 等待线程结束以清理资源
+					if current_thread.is_started():
+						current_thread.wait_to_finish()
+				elif not current_thread.is_started():
+					result = {
+						"error": "线程启动失败"
+					}
 				else:
 					# 获取结果并释放线程
-					var command_result = thread.wait_to_finish()
-					# 清除数据，防止内存泄漏
-					thread = null
-					# print("command_result: ", command_result)
-
+					var command_result = current_thread.wait_to_finish()
 					result = command_result
+				
+				# 清理线程引用
+				current_thread = null
 
 		#本工具目前具有较大不确定性，暂不提供调用
 		"editor_script_feature":
@@ -1456,6 +1495,8 @@ func get_tileset_info(tileset: TileSet) -> Dictionary:
 	var tileset_data = {}
 	for source_index in tileset.get_source_count():
 		var source = tileset.get_source(tileset.get_source_id(source_index))
+		if source == null:
+			continue
 		if source is TileSetAtlasSource:
 			var atlas_data = {}
 			for tile_index in source.get_tiles_count():
@@ -1463,7 +1504,11 @@ func get_tileset_info(tileset: TileSet) -> Dictionary:
 				atlas_data[source.get_tile_id(tile_index)] = tile_data_to_dict(tile_data, tileset)
 
 			tileset_data[tileset.get_source_id(source_index)] = atlas_data
-		tileset_data["texture/" + str(tileset.get_source_id(source_index))] = source.texture.resource_path
+		# 安全地访问texture属性
+		if source.has_method("get_texture") or "texture" in source:
+			var texture = source.texture if "texture" in source else null
+			if texture != null:
+				tileset_data["texture/" + str(tileset.get_source_id(source_index))] = texture.resource_path
 	return tileset_data
 
 # 将 TileData 转换为字典的核心函数
