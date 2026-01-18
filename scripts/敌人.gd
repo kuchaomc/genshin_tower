@@ -9,6 +9,8 @@ var current_health : float = 100
 # HP显示组件引用
 var hp_bar : ProgressBar
 var hp_label : Label
+# 动画精灵引用
+var animated_sprite : AnimatedSprite2D
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -18,6 +20,9 @@ func _ready() -> void:
 	# 获取HP显示组件
 	hp_bar = get_node("HPBar/ProgressBar") as ProgressBar
 	hp_label = get_node("HPBar/Label") as Label
+	
+	# 获取动画精灵组件
+	animated_sprite = get_node("AnimatedSprite2D") as AnimatedSprite2D
 	
 	# 初始化HP显示
 	update_hp_display()
@@ -35,6 +40,16 @@ func _physics_process(delta: float) -> void:
 	if player:
 		# 计算朝向玩家的方向
 		var direction = (player.global_position - global_position).normalized()
+		
+		# 根据移动方向翻转精灵图
+		if animated_sprite:
+			if direction.x < 0:
+				# 向左移动，翻转精灵图
+				animated_sprite.flip_h = true
+			else:
+				# 向右移动，保持原样
+				animated_sprite.flip_h = false
+		
 		# 向玩家方向移动
 		position += direction * anime_speed * delta
 	else:

@@ -25,6 +25,15 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_pressed("mouse1"):
 			spawn_bullet()
 		
+		# 根据鼠标位置翻转精灵图
+		var mouse_position = get_global_mouse_position()
+		if mouse_position.x > global_position.x:
+			# 鼠标在右边，翻转精灵图
+			animator.flip_h = true
+		else:
+			# 鼠标在左边，保持原样（不翻转）
+			animator.flip_h = false
+		
 		# 当玩家速度变为0时，开始播放动画
 		if velocity == Vector2.ZERO:
 			animator.play("idle")
