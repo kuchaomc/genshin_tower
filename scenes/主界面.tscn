@@ -9,44 +9,58 @@ script = ExtResource("1_ki7t4")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
-[node name="Label" type="Label" parent="CanvasLayer"]
-offset_left = 480.0
-offset_top = 99.0
-offset_right = 683.0
-offset_bottom = 168.0
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -151.5
+offset_top = -200.0
+offset_right = 151.5
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 50
 text = "test v1.2"
+horizontal_alignment = 1
 
-[node name="Button" type="Button" parent="CanvasLayer"]
-offset_left = 505.00006
-offset_top = 196.0
-offset_right = 577.00006
-offset_bottom = 227.0
+[node name="Button" type="Button" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 60)
 scale = Vector2(2.580492, 2.8543859)
 text = "开始游戏"
 
-[node name="Button2" type="Button" parent="CanvasLayer"]
-offset_left = 507.0
-offset_top = 302.00003
-offset_right = 579.0
-offset_bottom = 333.00003
+[node name="Button2" type="Button" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 60)
 scale = Vector2(2.5840127, 2.3165236)
 text = "游戏说明"
 
-[node name="Button3" type="Button" parent="CanvasLayer"]
-offset_left = 503.00003
-offset_top = 404.00003
-offset_right = 575.0
-offset_bottom = 435.00003
+[node name="Button3" type="Button" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 60)
 scale = Vector2(2.6329544, 2.203075)
 text = "退出游戏"
 
 [node name="Panel" type="Panel" parent="CanvasLayer"]
-offset_left = 391.0
-offset_top = 258.0
-offset_right = 391.0
-offset_bottom = 258.0
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -150.0
+offset_right = 200.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Label" type="Label" parent="CanvasLayer/Panel"]
 layout_mode = 1

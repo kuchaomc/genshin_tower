@@ -10,9 +10,9 @@ var game_scene = preload("res://scenes/游戏场景.tscn")
 # 当场景加载完成时调用
 func _ready() -> void:
 	# 连接按钮信号
-	var start_button = $CanvasLayer/Button
-	var help_button = $CanvasLayer/Button2
-	var quit_button = $CanvasLayer/Button3
+	var start_button = $CanvasLayer/VBoxContainer/Button
+	var help_button = $CanvasLayer/VBoxContainer/Button2
+	var quit_button = $CanvasLayer/VBoxContainer/Button3
 	
 	if start_button:
 		start_button.pressed.connect(_on_start_button_pressed)
