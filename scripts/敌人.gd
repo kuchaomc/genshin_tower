@@ -3,6 +3,8 @@ extends Area2D
 @export var anime_speed : float = 100
 # 敌人最大生命值（默认100点）
 @export var max_health : float = 100
+# 警告持续时间（秒）
+@export var warning_duration : float = 2.0
 # 敌人当前生命值
 var current_health : float = 100
 
@@ -11,6 +13,15 @@ var hp_bar : ProgressBar
 var hp_label : Label
 # 动画精灵引用
 var animated_sprite : AnimatedSprite2D
+# 警告图标引用
+var warning_sprite : Sprite2D
+# 碰撞形状引用
+var collision_shape : CollisionShape2D
+# HP条容器引用
+var hp_bar_container : Node2D
+
+# 是否已经出现（警告结束后）
+var is_spawned : bool = false
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -18,20 +29,72 @@ func _ready() -> void:
 	current_health = max_health
 	
 	# 获取HP显示组件
-	hp_bar = get_node("HPBar/ProgressBar") as ProgressBar
-	hp_label = get_node("HPBar/Label") as Label
+	hp_bar = get_node_or_null("HPBar/ProgressBar") as ProgressBar
+	hp_label = get_node_or_null("HPBar/Label") as Label
+	hp_bar_container = get_node_or_null("HPBar") as Node2D
 	
 	# 获取动画精灵组件
-	animated_sprite = get_node("AnimatedSprite2D") as AnimatedSprite2D
+	animated_sprite = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	
+	# 获取碰撞形状组件
+	collision_shape = get_node_or_null("CollisionShape2D") as CollisionShape2D
+	
+	# 创建警告图标
+	_create_warning_sprite()
+	
+	# 隐藏敌人本体，只显示警告
+	_set_enemy_visible(false)
+	
+	# 启动警告计时器
+	var timer = get_tree().create_timer(warning_duration)
+	timer.timeout.connect(_on_warning_finished)
+	
+	# 打印初始生命值信息（调试用）
+	print("敌人警告出现，", warning_duration, "秒后生成")
+
+# 创建警告图标
+func _create_warning_sprite() -> void:
+	warning_sprite = Sprite2D.new()
+	var warning_texture = load("res://textures/warning.png")
+	if warning_texture:
+		warning_sprite.texture = warning_texture
+		warning_sprite.z_index = 10  # 确保警告图标显示在最上层
+		add_child(warning_sprite)
+	else:
+		print("警告：无法加载warning.png")
+
+# 设置敌人本体可见性
+func _set_enemy_visible(visible: bool) -> void:
+	if animated_sprite:
+		animated_sprite.visible = visible
+	if hp_bar_container:
+		hp_bar_container.visible = visible
+	if collision_shape:
+		collision_shape.disabled = not visible
+
+# 警告结束回调
+func _on_warning_finished() -> void:
+	is_spawned = true
+	
+	# 移除警告图标
+	if warning_sprite:
+		warning_sprite.queue_free()
+		warning_sprite = null
+	
+	# 显示敌人本体
+	_set_enemy_visible(true)
 	
 	# 初始化HP显示
 	update_hp_display()
 	
-	# 打印初始生命值信息（调试用）
 	print("敌人生成，生命值: ", current_health, "/", max_health)
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta: float) -> void:
+	# 如果还在警告阶段，不进行移动
+	if not is_spawned:
+		return
+	
 	# 获取玩家节点（通过场景根节点或父节点查找）
 	var player = get_tree().current_scene.get_node_or_null("player") as CharacterBody2D
 	if not player:
@@ -66,6 +129,10 @@ func update_hp_display() -> void:
 
 # 受到伤害方法
 func take_damage(damage_amount: float) -> void:
+	# 如果还在警告阶段，不受伤害
+	if not is_spawned:
+		return
+	
 	# 减少生命值
 	current_health -= damage_amount
 	
@@ -101,6 +168,10 @@ func on_death() -> void:
 
 # 身体进入回调函数（检测与玩家的碰撞）
 func _on_body_entered(body: Node2D) -> void:
+	# 如果还在警告阶段，不触发碰撞
+	if not is_spawned:
+		return
+	
 	# 碰撞体积检测，触发游戏结束方法
 	if body is CharacterBody2D:
 		print("敌人撞到玩家")
