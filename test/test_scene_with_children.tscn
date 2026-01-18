@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://cygevq7nnu4ua"]
+
+[ext_resource type="Script" uid="uid://xpxpiitay7uk" path="res://test/test_child_script.gd" id="1_xfyc5"]
+
+[node name="Parent" type="Node2D"]
+
+[node name="Child" type="Sprite2D" parent="."]
+script = ExtResource("1_xfyc5")

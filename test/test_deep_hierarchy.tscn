@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://ck8646n2gegfl"]
+
+[ext_resource type="Script" uid="uid://hk0fyiwv15eb" path="res://test/test_deep_script.gd" id="1_nbt0k"]
+
+[node name="Grandparent" type="Node2D"]
+
+[node name="Parent" type="Node2D" parent="."]
+
+[node name="Child" type="Sprite2D" parent="Parent"]
+script = ExtResource("1_nbt0k")

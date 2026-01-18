@@ -381,17 +381,21 @@ func get_tools_list() -> Array[Dictionary]:
 			"type": "function",
 			"function": {
 				"name": "add_script_to_scene",
-				"description": "将一个脚本加载到节点上，如果需要为节点挂载脚本，应优先使用本工具",
+				"description": "将一个脚本加载到节点上，如果需要为节点挂载脚本，应优先使用本工具。可以将脚本挂载到场景中的任意节点上。",
 				"parameters": {
 					"type": "object",
 					"properties": {
 						"scene_path": {
 							"type": "string",
-							"description": "需要写入的文件目录，必须是以res://开头的绝对路径。",
+							"description": "场景文件路径，必须是以res://开头的绝对路径。",
 						},
 						"script_path": {
 							"type": "string",
-							"description": "需要写入的文件目录，必须是以res://开头的绝对路径。",
+							"description": "脚本文件路径，必须是以res://开头的绝对路径。",
+						},
+						"node_path": {
+							"type": "string",
+							"description": "要挂载脚本的节点在场景树中的路径。遵循Godot场景树路径规则：根节点用'.'表示，子节点直接用名称，嵌套子节点用'/'分隔。示例：'.'表示根节点，'Player'表示根节点的Player子节点，'Player/Body'表示Player节点的Body子节点。如果不提供此参数，则默认挂载到根节点。",
 						}
 					},
 					"required": ["scene_path","script_path"]
@@ -403,14 +407,18 @@ func get_tools_list() -> Array[Dictionary]:
 			"type": "function",
 			"function": {
 				"name": "sep_script_to_scene",
-				"description": "将一个节点上的脚本分离，如果需要为节点分离脚本，应优先使用本工具",
+				"description": "将一个节点上的脚本分离，如果需要为节点分离脚本，应优先使用本工具。可以从场景中的任意节点上分离脚本。",
 				"parameters": {
 					"type": "object",
 					"properties": {
 						"scene_path": {
 							"type": "string",
-							"description": "需要写入的文件目录，必须是以res://开头的绝对路径。",
+							"description": "场景文件路径，必须是以res://开头的绝对路径。",
 						},
+						"node_path": {
+							"type": "string",
+							"description": "要分离脚本的节点在场景树中的路径。遵循Godot场景树路径规则：根节点用'.'表示，子节点直接用名称，嵌套子节点用'/'分隔。示例：'.'表示根节点，'Player'表示根节点的Player子节点，'Player/Body'表示Player节点的Body子节点。如果不提供此参数，则默认从根节点分离脚本。",
+						}
 					},
 					"required": ["scene_path"]
 				}
@@ -856,67 +864,144 @@ func use_tool(tool_call: AgentModelUtils.ToolCallsInfo) -> String:
 			if not json == null and json.has("scene_path") and json.has("script_path"):
 				var scene_path = json.scene_path
 				var script_path = json.script_path
+				var node_path = json.get("node_path", ".")
 				var has_scene_file = FileAccess.file_exists(scene_path)
 				var has_script_file = FileAccess.file_exists(script_path)
 				if has_scene_file and has_script_file:
-					#var scene_file = FileAccess.open(scene_path, FileAccess.READ)
-					#var script_file = FileAccess.open(script_path, FileAccess.READ)
-					#var scene_node =
-					var scene_file = ResourceLoader.load(scene_path)
-					var root_node = scene_file.instantiate()
-					var has_script = root_node.get_script()
-					var script_file = ResourceLoader.load(script_path)
-					var script = script_file.new()
-					if has_script == null:
-						if root_node is PackedScene and script is GDScript:
-							scene_file.set_script(script_file)
-							var scene_class = scene_file.get_class()
-							var script_class = script_file.get_instance_base_type()
-							var is_same_class:bool = false
-							result = {
-								"scene_class":scene_class,
-								"script_class":script_class,
-							}
-							if scene_class == script_class:
-								is_same_class = true
-								result["success"] = "脚本加载成功"
-							else:
-								result["error"] = "场景节点类型与脚本继承类型不符"
-						else:
-							result["error"] = "文件非场景节点和脚本的关系"
-					else:
+					# 打开场景
+					EditorInterface.open_scene_from_path(scene_path)
+					await get_tree().process_frame
+					
+					# 获取场景根节点
+					var scene_root = EditorInterface.get_edited_scene_root()
+					if scene_root == null:
 						result = {
-							"error":"该场景节点已挂载脚本"
+							"error": "无法获取场景根节点"
 						}
+					else:
+						# 获取目标节点
+						var target_node: Node = null
+						if node_path == ".":
+							target_node = scene_root
+						else:
+							target_node = scene_root.get_node_or_null(node_path)
+						
+						if target_node == null:
+							result = {
+								"error": "无法找到路径为 '" + node_path + "' 的节点"
+							}
+						else:
+							# 检查节点是否已有脚本
+							var existing_script = target_node.get_script()
+							if existing_script != null:
+								result = {
+									"error": "节点 '" + node_path + "' 已挂载脚本: " + existing_script.resource_path
+								}
+							else:
+								# 加载脚本文件
+								var script_resource = load(script_path) as Script
+								if script_resource == null:
+									result = {
+										"error": "无法加载脚本文件: " + script_path
+									}
+								else:
+									# 验证脚本类型是否匹配节点类型
+									var script_base_type = script_resource.get_instance_base_type()
+									var node_class = target_node.get_class()
+									
+									# 检查脚本基类是否与节点类型匹配
+									if script_base_type != node_class:
+										result = {
+											"error": "脚本继承类型 '" + script_base_type + "' 与节点类型 '" + node_class + "' 不匹配",
+											"script_base_type": script_base_type,
+											"node_class": node_class
+										}
+									else:
+										# 设置脚本
+										target_node.set_script(script_resource)
+										
+										# 选中节点并刷新编辑器
+										EditorInterface.get_selection().clear()
+										EditorInterface.get_selection().add_node(target_node)
+										EditorInterface.edit_node(target_node)
+										
+										# 保存场景
+										EditorInterface.save_scene()
+										
+										result = {
+											"success": "脚本已成功挂载到节点 '" + node_path + "'",
+											"scene_path": scene_path,
+											"script_path": script_path,
+											"node_path": node_path
+										}
 				else:
 					if not has_scene_file:
 						result = {
-							"error":"场景文件不存在，询问是否需要新建该场景"
+							"error": "场景文件不存在: " + scene_path
 						}
 					if not has_script_file:
 						result = {
-							"error":"脚本文件不存在，询问是否需要新建该脚本"
+							"error": "脚本文件不存在: " + script_path
 						}
 				EditorInterface.get_resource_filesystem().scan()
 		"sep_script_to_scene":
 			var json = JSON.parse_string(tool_call.function.arguments)
 			if not json == null and json.has("scene_path"):
 				var scene_path = json.scene_path
+				var node_path = json.get("node_path", ".")
 				var has_scene_file = FileAccess.file_exists(scene_path)
 				if has_scene_file:
-					var scene_file = ResourceLoader.load(scene_path)
-					var root_node = scene_file.instantiate()
-					var has_script = root_node.get_script()
-					if has_script != null and root_node is PackedScene:
-						scene_file.set_script(null)
-					else:
+					# 打开场景
+					EditorInterface.open_scene_from_path(scene_path)
+					await get_tree().process_frame
+					
+					# 获取场景根节点
+					var scene_root = EditorInterface.get_edited_scene_root()
+					if scene_root == null:
 						result = {
-							"error":"场景文件并未挂在脚本"
+							"error": "无法获取场景根节点"
 						}
+					else:
+						# 获取目标节点
+						var target_node: Node = null
+						if node_path == ".":
+							target_node = scene_root
+						else:
+							target_node = scene_root.get_node_or_null(node_path)
+						
+						if target_node == null:
+							result = {
+								"error": "无法找到路径为 '" + node_path + "' 的节点"
+							}
+						else:
+							# 检查节点是否有脚本
+							var existing_script = target_node.get_script()
+							if existing_script == null:
+								result = {
+									"error": "节点 '" + node_path + "' 并未挂载脚本"
+								}
+							else:
+								# 分离脚本
+								target_node.set_script(null)
+								
+								# 选中节点并刷新编辑器
+								EditorInterface.get_selection().clear()
+								EditorInterface.get_selection().add_node(target_node)
+								EditorInterface.edit_node(target_node)
+								
+								# 保存场景
+								EditorInterface.save_scene()
+								
+								result = {
+									"success": "脚本已成功从节点 '" + node_path + "' 分离",
+									"scene_path": scene_path,
+									"node_path": node_path,
+									"removed_script_path": existing_script.resource_path
+								}
 				else:
 					if not has_scene_file:
 						result = {
-							"error":"场景文件不存在，询问是否需要新建该场景"
+							"error": "场景文件不存在: " + scene_path
 						}
 
 				EditorInterface.get_resource_filesystem().scan()
