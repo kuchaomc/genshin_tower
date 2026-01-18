@@ -20,6 +20,11 @@ var enemy_spawn_timer: Timer
 var game_over_timer: Timer
 # UI Label引用
 var score_label: Label
+# 玩家血量UI引用
+var player_hp_bar: ProgressBar
+var player_hp_label: Label
+# 玩家引用
+var player: CharacterBody2D
 
 # 当节点第一次进入场景树时调用
 func _ready() -> void:
@@ -30,6 +35,20 @@ func _ready() -> void:
 	score_label = get_node("CanvasLayer/Label")
 	if score_label:
 		update_score_display()
+	
+	# 获取玩家血量UI组件
+	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
+	player_hp_label = get_node_or_null("CanvasLayer/PlayerHPBar/Label") as Label
+	
+	# 获取玩家引用并连接血量变化信号
+	player = get_node_or_null("player") as CharacterBody2D
+	if player:
+		# 连接血量变化信号
+		if player.has_signal("health_changed"):
+			player.health_changed.connect(_on_player_health_changed)
+		# 初始化血量UI显示
+		if player.has_method("get_current_health") and player.has_method("get_max_health"):
+			_on_player_health_changed(player.get_current_health(), player.get_max_health())
 	
 	# 如果没有手动分配敌人场景，则预加载默认敌人场景
 	if enemy_scene == null:
@@ -130,3 +149,17 @@ func start_new_game() -> void:
 		enemy_spawn_timer.start()
 	
 	print("开始新游戏")
+
+# ========== 玩家血量UI相关 ==========
+
+# 玩家血量变化回调
+func _on_player_health_changed(current: float, maximum: float) -> void:
+	update_player_hp_display(current, maximum)
+
+# 更新玩家血量UI显示
+func update_player_hp_display(current: float, maximum: float) -> void:
+	if player_hp_bar:
+		player_hp_bar.max_value = maximum
+		player_hp_bar.value = current
+	if player_hp_label:
+		player_hp_label.text = "HP: " + str(int(current)) + "/" + str(int(maximum))

@@ -172,7 +172,9 @@ func _on_body_entered(body: Node2D) -> void:
 	if not is_spawned:
 		return
 	
-	# 碰撞体积检测，触发游戏结束方法
+	# 碰撞体积检测，对玩家造成伤害
 	if body is CharacterBody2D:
 		print("敌人撞到玩家")
-		body.game_over()
+		# 调用玩家的受伤方法，每次触碰扣除25点血量
+		if body.has_method("take_damage"):
+			body.take_damage(25.0)

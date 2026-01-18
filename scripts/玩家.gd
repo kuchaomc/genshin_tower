@@ -1,5 +1,20 @@
 extends CharacterBody2D
 
+# ========== 血量属性 ==========
+# 最大血量
+@export var max_health : float = 100.0
+# 当前血量
+var current_health : float = 100.0
+# 受伤无敌时间（秒）
+@export var invincibility_duration : float = 1.0
+# 是否处于无敌状态
+var is_invincible : bool = false
+
+# 血量变化信号（用于UI更新）
+signal health_changed(current: float, maximum: float)
+signal player_died
+
+# ========== 移动属性 ==========
 # 基础速度
 @export var move_speed : float = 100
 # 动画状态
@@ -31,6 +46,10 @@ var original_position : Vector2  # 原始位置（用于第二段）
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	# 初始化血量
+	current_health = max_health
+	emit_signal("health_changed", current_health, max_health)
+	
 	# 如果没有手动分配剑区域，则自动查找
 	if sword_area == null:
 		sword_area = get_node_or_null("SwordArea") as Area2D
@@ -309,7 +328,77 @@ func _on_sword_area_entered(area: Area2D) -> void:
 		if not already_hit and area.has_method("take_damage"):
 			area.take_damage(sword_damage)
 
-# 游戏结束方法
+# ========== 血量相关方法 ==========
+
+# 受到伤害方法
+func take_damage(damage_amount: float) -> void:
+	# 如果已经游戏结束或处于无敌状态，不受伤害
+	if is_game_over or is_invincible:
+		return
+	
+	# 减少血量
+	current_health -= damage_amount
+	current_health = max(0, current_health)  # 确保血量不为负数
+	
+	# 发送血量变化信号
+	emit_signal("health_changed", current_health, max_health)
+	
+	print("玩家受到伤害: ", damage_amount, "点，剩余血量: ", current_health, "/", max_health)
+	
+	# 检查是否死亡
+	if current_health <= 0:
+		on_death()
+	else:
+		# 进入无敌状态
+		start_invincibility()
+
+# 开始无敌状态
+func start_invincibility() -> void:
+	is_invincible = true
+	
+	# 闪烁效果：让玩家半透明
+	if animator:
+		animator.modulate.a = 0.5
+	
+	# 创建计时器结束无敌状态
+	var timer = get_tree().create_timer(invincibility_duration)
+	timer.timeout.connect(end_invincibility)
+
+# 结束无敌状态
+func end_invincibility() -> void:
+	is_invincible = false
+	
+	# 恢复正常透明度
+	if animator:
+		animator.modulate.a = 1.0
+
+# 回复血量方法
+func heal(heal_amount: float) -> void:
+	if is_game_over:
+		return
+	
+	current_health += heal_amount
+	current_health = min(current_health, max_health)  # 不超过最大血量
+	
+	# 发送血量变化信号
+	emit_signal("health_changed", current_health, max_health)
+	
+	print("玩家回复血量: ", heal_amount, "点，当前血量: ", current_health, "/", max_health)
+
+# 获取当前血量
+func get_current_health() -> float:
+	return current_health
+
+# 获取最大血量
+func get_max_health() -> float:
+	return max_health
+
+# 死亡处理
+func on_death() -> void:
+	print("玩家死亡")
+	emit_signal("player_died")
+	game_over()
+
 # 游戏结束方法
 func game_over():
 	is_game_over = true
