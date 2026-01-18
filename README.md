@@ -49,7 +49,7 @@
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/yourusername/genshin_game.git
+   git clone https://github.com/kuchaomc/genshin_tower.git
    cd genshin_game
    ```
 
@@ -61,7 +61,7 @@
 
 3. **运行游戏**
    - 在 Godot 编辑器中点击"运行项目"按钮（F5）
-   - 或直接运行 `release/` 目录下的可执行文件
+   - 或直接运行 `release/` 目录下的可执行文件（暂未发布）
 
 ## 🎯 游戏玩法
 
@@ -167,7 +167,7 @@ genshin_game/
 
 ## 👥 作者
 
-- **开发者** - [kuchao](https://github.com/yourusername)
+- **开发者** - [kuchao](https://github.com/kuchaomc)
 
 ## 🙏 致谢
 
@@ -177,8 +177,8 @@ genshin_game/
 
 ## 📞 联系方式
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/genshin_tower/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/genshin_tower/discussions)
+- **Issues**: [GitHub Issues](https://github.com/kuchaomc/genshin_tower/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/kuchaomc/genshin_tower/discussions)
 
 ---
 
