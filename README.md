@@ -167,7 +167,7 @@ genshin_game/
 
 ## 👥 作者
 
-- **开发者** - [Your Name](https://github.com/yourusername)
+- **开发者** - [kuchao](https://github.com/yourusername)
 
 ## 🙏 致谢
 
@@ -177,8 +177,8 @@ genshin_game/
 
 ## 📞 联系方式
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/genshin_game/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/genshin_game/discussions)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/genshin_tower/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/genshin_tower/discussions)
 
 ---
 
