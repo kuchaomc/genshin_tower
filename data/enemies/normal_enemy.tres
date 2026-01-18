@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/enemy_data.gd" id="1_enemy_data"]
+
+[resource]
+script = ExtResource("1_enemy_data")
+id = "normal_enemy"
+display_name = "普通敌人"
+description = "基础的敌人，会追逐玩家"
+max_health = 100.0
+damage = 25.0
+move_speed = 100.0
+warning_duration = 2.0
+behavior_type = "chase"
+drop_gold = 10
+drop_exp = 1
+scene_path = "res://scenes/敌人.tscn"
+enemy_type = "normal"

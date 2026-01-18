@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/enemy_data.gd" id="1_enemy_data"]
+
+[resource]
+script = ExtResource("1_enemy_data")
+id = "elite_enemy"
+display_name = "精英敌人"
+description = "更强的敌人，拥有更高的血量和伤害"
+max_health = 200.0
+damage = 40.0
+move_speed = 120.0
+warning_duration = 2.0
+behavior_type = "chase"
+drop_gold = 25
+drop_exp = 2
+scene_path = "res://scenes/敌人.tscn"
+enemy_type = "elite"

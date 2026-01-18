@@ -1,0 +1,29 @@
+{
+  "floors": 15,
+  "nodes_per_floor": [2, 4],
+  "node_types": {
+    "enemy": {
+      "weight": 50,
+      "description": "普通战斗"
+    },
+    "elite": {
+      "weight": 15,
+      "min_floor": 5,
+      "description": "精英战斗"
+    },
+    "shop": {
+      "weight": 10,
+      "description": "商店"
+    },
+    "rest": {
+      "weight": 10,
+      "description": "休息处"
+    },
+    "event": {
+      "weight": 15,
+      "description": "奇遇事件"
+    }
+  },
+  "boss_floor": 15,
+  "boss_description": "最终BOSS"
+}

@@ -32,8 +32,12 @@ func _ready() -> void:
 # 开始游戏按钮回调
 func _on_start_button_pressed() -> void:
 	print("开始游戏按钮被点击")
-	# 切换到游戏场景
-	get_tree().change_scene_to_packed(game_scene)
+	# 切换到角色选择界面
+	if GameManager:
+		GameManager.go_to_character_select()
+	else:
+		# 如果没有GameManager，直接进入游戏场景（向后兼容）
+		get_tree().change_scene_to_packed(game_scene)
 
 # 游戏说明按钮回调
 func _on_help_button_pressed() -> void:

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/characters/character_data.gd" id="1_char_data"]
+
+[resource]
+script = ExtResource("1_char_data")
+id = "sword_character"
+display_name = "剑士"
+description = "使用剑进行近战攻击的角色，拥有两段攻击：位移挥剑和原地剑花"
+max_health = 100.0
+move_speed = 100.0
+base_damage = 25.0
+attack_speed = 1.0
+scene_path = "res://scenes/玩家.tscn"
+abilities = []

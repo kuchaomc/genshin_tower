@@ -1,6 +1,6 @@
 [gd_scene load_steps=12 format=3 uid="uid://bb2kswvspaq4f"]
 
-[ext_resource type="Script" uid="uid://bi6jf47wunu7i" path="res://scripts/玩家.gd" id="1_g2els"]
+[ext_resource type="Script" path="res://scripts/characters/sword_character.gd" id="1_sword_char"]
 [ext_resource type="Texture2D" uid="uid://p5yv5ngfrcoo" path="res://textures/神里idel.png" id="2_sd6lh"]
 [ext_resource type="Texture2D" uid="uid://bc3cgn2g32xk5" path="res://textures/神里move.png" id="3_sd6lh"]
 [ext_resource type="Texture2D" uid="uid://dx8q3hoy4l72j" path="res://textures/无锋剑.png" id="4_sword"]
@@ -52,9 +52,10 @@ radius = 2.9027624
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_sword"]
 size = Vector2(6.5, 117.75)
 
-[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("animator")]
-script = ExtResource("1_g2els")
+[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("animator", "sword_area")]
+script = ExtResource("1_sword_char")
 animator = NodePath("AnimatedSprite2D")
+sword_area = NodePath("SwordArea")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_fjrip")

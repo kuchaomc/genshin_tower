@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://c5vy4j04yih54"]
 
 [ext_resource type="Texture2D" uid="uid://qfej3gbql253" path="res://textures/游戏背景.png" id="1_0d42y"]
-[ext_resource type="Script" uid="uid://ct7eofqpxpx0q" path="res://scripts/游戏管理器.gd" id="1_3ma01"]
+[ext_resource type="Script" path="res://scripts/battle_manager.gd" id="1_battle"]
 [ext_resource type="Script" uid="uid://tuf8sc1sf5gd" path="res://scripts/camera_follower.gd" id="3_0d42y"]
 [ext_resource type="PackedScene" uid="uid://bb2kswvspaq4f" path="res://scenes/玩家.tscn" id="3_3epie"]
 
@@ -11,7 +11,7 @@ distance = 1.1792747e-07
 
 [node name="Node2D" type="Node2D"]
 y_sort_enabled = true
-script = ExtResource("1_3ma01")
+script = ExtResource("1_battle")
 
 [node name="background" type="Sprite2D" parent="."]
 z_index = -1
