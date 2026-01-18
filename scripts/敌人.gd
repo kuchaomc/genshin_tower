@@ -6,10 +6,21 @@ extends Area2D
 # 敌人当前生命值
 var current_health : float = 100
 
+# HP显示组件引用
+var hp_bar : ProgressBar
+var hp_label : Label
+
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	# 初始化当前生命值为最大生命值
 	current_health = max_health
+	
+	# 获取HP显示组件
+	hp_bar = get_node("HPBar/ProgressBar") as ProgressBar
+	hp_label = get_node("HPBar/Label") as Label
+	
+	# 初始化HP显示
+	update_hp_display()
 	
 	# 打印初始生命值信息（调试用）
 	print("敌人生成，生命值: ", current_health, "/", max_health)
@@ -30,10 +41,21 @@ func _physics_process(delta: float) -> void:
 		# 如果找不到玩家，保持原有移动逻辑（向后兼容）
 		print("警告：未找到玩家节点")
 
+# 更新HP显示
+func update_hp_display() -> void:
+	if hp_bar:
+		hp_bar.max_value = max_health
+		hp_bar.value = current_health
+	if hp_label:
+		hp_label.text = str(int(current_health)) + "/" + str(int(max_health))
+
 # 受到伤害方法
 func take_damage(damage_amount: float) -> void:
 	# 减少生命值
 	current_health -= damage_amount
+	
+	# 更新HP显示
+	update_hp_display()
 	
 	# 打印伤害信息（调试用）
 	print("敌人受到伤害: ", damage_amount, "点，剩余生命值: ", current_health, "/", max_health)

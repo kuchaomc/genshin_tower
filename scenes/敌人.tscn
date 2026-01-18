@@ -79,4 +79,31 @@ sprite_frames = SubResource("SpriteFrames_qxw6m")
 position = Vector2(0, 7)
 shape = SubResource("CircleShape2D_hi84n")
 
+[node name="HPBar" type="Control" parent="."]
+offset_left = -32.0
+offset_top = -28.0
+offset_right = 32.0
+offset_bottom = -12.0
+mouse_filter = 2
+
+[node name="ProgressBar" type="ProgressBar" parent="HPBar"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 64.0
+offset_bottom = 16.0
+max_value = 100.0
+value = 100.0
+show_percentage = false
+fill_mode = 1
+
+[node name="Label" type="Label" parent="HPBar"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 64.0
+offset_bottom = 16.0
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "100/100"
+
 [connection signal="body_entered" from="." to="." method="_on_body_entered"]
