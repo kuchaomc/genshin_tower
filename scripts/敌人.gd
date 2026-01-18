@@ -1,12 +1,10 @@
 extends Area2D
 
-@export var anime_speed : float = -100
+@export var anime_speed : float = 100
 # 敌人最大生命值（默认100点）
 @export var max_health : float = 100
 # 敌人当前生命值
 var current_health : float = 100
-# 超出屏幕销毁的阈值（屏幕左侧外200像素）
-var destroy_threshold : float = -200
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -18,13 +16,19 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta: float) -> void:
-	# 向左移动敌人
-	position += Vector2(anime_speed, 0) * delta
+	# 获取玩家节点（通过场景根节点或父节点查找）
+	var player = get_tree().current_scene.get_node_or_null("player") as CharacterBody2D
+	if not player:
+		player = get_node_or_null("../player") as CharacterBody2D
 	
-	# 检查是否超出屏幕左侧（超出视野）
-	if position.x < destroy_threshold:
-		print("敌人超出视野，自动销毁")
-		queue_free()
+	if player:
+		# 计算朝向玩家的方向
+		var direction = (player.global_position - global_position).normalized()
+		# 向玩家方向移动
+		position += direction * anime_speed * delta
+	else:
+		# 如果找不到玩家，保持原有移动逻辑（向后兼容）
+		print("警告：未找到玩家节点")
 
 # 受到伤害方法
 func take_damage(damage_amount: float) -> void:

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b4ffwh3c6h7dl"
-path="res://.godot/imported/玩家动画.png-2ed90033ac2951e5012e2fa4993ef662.ctex"
+uid="uid://dr2udg0io0jid"
+path="res://.godot/imported/通用占位符精灵表.png-942fd643a60d809ee83ed1c4f0769ab7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/玩家动画.png"
-dest_files=["res://.godot/imported/玩家动画.png-2ed90033ac2951e5012e2fa4993ef662.ctex"]
+source_file="res://textures/通用占位符精灵表.png"
+dest_files=["res://.godot/imported/通用占位符精灵表.png-942fd643a60d809ee83ed1c4f0769ab7.ctex"]
 
 [params]
 

@@ -64,10 +64,10 @@ func spawn_enemy() -> void:
 	# 实例化敌人场景
 	var enemy_instance = enemy_scene.instantiate()
 	
-	# 随机生成位置（右侧屏幕外）
+	# 随机生成位置（屏幕范围内的随机位置）
 	var screen_size = get_viewport().get_visible_rect().size
-	var spawn_x = screen_size.x + 100  # 右侧屏幕外
-	var spawn_y = randf_range(100, screen_size.y - 100)
+	var spawn_x = randf_range(0, screen_size.x)
+	var spawn_y = randf_range(0, screen_size.y)
 	
 	# 设置敌人位置
 	enemy_instance.position = Vector2(spawn_x, spawn_y)
