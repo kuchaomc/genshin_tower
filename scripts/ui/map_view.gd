@@ -378,16 +378,22 @@ func _on_node_selected(node: MapNode) -> void:
 	match node.node_type:
 		MapNode.NodeType.ENEMY:
 			start_battle(node)
+		# TODO: 以下节点类型为占位符，暂时不跳转场景，允许直接选择下一节点
+		# 后期需要实现这些场景时，取消注释对应的函数调用即可
 		MapNode.NodeType.TREASURE:
-			open_treasure()
+			# open_treasure()  # 占位符：宝箱场景，暂不跳转
+			pass
 		MapNode.NodeType.SHOP:
-			enter_shop()
+			# enter_shop()  # 占位符：商店场景，暂不跳转
+			pass
 		MapNode.NodeType.REST:
-			enter_rest()
+			# enter_rest()  # 占位符：休息处场景，暂不跳转
+			pass
 		MapNode.NodeType.EVENT:
 			enter_event()
 		MapNode.NodeType.BOSS:
-			start_boss_battle()
+			# start_boss_battle()  # 占位符：BOSS战场景，暂不跳转
+			pass
 
 ## 滚动到指定楼层
 func _scroll_to_floor(floor_num: int) -> void:

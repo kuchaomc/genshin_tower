@@ -75,37 +75,59 @@ func create_default_character() -> void:
 ## 创建角色按钮
 func create_character_button(character: CharacterData) -> void:
 	var button = Button.new()
-	button.custom_minimum_size = Vector2(150, 200)
-	button.text = character.display_name
+	button.custom_minimum_size = Vector2(200, 400)
+	button.text = ""  # 移除按钮文本，因为我们在内部显示
 	button.pressed.connect(_on_character_selected.bind(character))
 	
 	# 创建垂直布局
 	var vbox = VBoxContainer.new()
 	button.add_child(vbox)
 	
-	# 添加图标（如果有）
-	if character.icon:
-		var icon_rect = TextureRect.new()
-		icon_rect.texture = character.icon
-		icon_rect.custom_minimum_size = Vector2(100, 100)
-		icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-		vbox.add_child(icon_rect)
+	# 优先使用角色立绘，如果没有则使用图标
+	var portrait_texture: Texture2D = null
+	var portrait_path = _get_character_portrait_path(character.id)
+	if portrait_path:
+		portrait_texture = load(portrait_path)
+	
+	# 如果立绘加载失败，尝试使用图标
+	if not portrait_texture and character.icon:
+		portrait_texture = character.icon
+	
+	# 添加立绘/图标
+	if portrait_texture:
+		var portrait_rect = TextureRect.new()
+		portrait_rect.texture = portrait_texture
+		portrait_rect.custom_minimum_size = Vector2(180, 250)
+		portrait_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		vbox.add_child(portrait_rect)
 	
 	# 添加名称标签
 	var name_label = Label.new()
 	name_label.text = character.display_name
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 20)
 	vbox.add_child(name_label)
 	
-	# 添加属性标签
+	# 添加属性标签（显示在立绘下方）
 	var stats_label = Label.new()
 	var char_stats = character.get_stats()
 	stats_label.text = "HP: %d\n速度: %d\n伤害: %d" % [char_stats.max_health, char_stats.move_speed, char_stats.attack]
 	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stats_label.add_theme_font_size_override("font_size", 16)
 	vbox.add_child(stats_label)
 	
 	character_container.add_child(button)
 	character_buttons.append(button)
+
+## 获取角色立绘路径
+func _get_character_portrait_path(character_id: String) -> String:
+	# 根据角色ID构建立绘路径
+	match character_id:
+		"kamisato_ayaka":
+			return "res://textures/characters/ayaka角色立绘.png"
+		_:
+			return ""
 
 ## 角色被选中
 func _on_character_selected(character: CharacterData) -> void:
