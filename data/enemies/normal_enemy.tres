@@ -1,15 +1,14 @@
-[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/enemies/enemy_data.gd" id="1_enemy_data"]
+[ext_resource type="Resource" path="res://data/enemies/normal_enemy_stats.tres" id="2_stats"]
 
 [resource]
 script = ExtResource("1_enemy_data")
 id = "normal_enemy"
 display_name = "普通敌人"
 description = "基础的敌人，会追逐玩家"
-max_health = 100.0
-damage = 25.0
-move_speed = 100.0
+stats = ExtResource("2_stats")
 warning_duration = 2.0
 behavior_type = "chase"
 drop_gold = 10

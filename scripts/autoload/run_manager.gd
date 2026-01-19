@@ -36,8 +36,12 @@ func start_new_run(character: CharacterData) -> void:
 	current_floor = 0
 	current_node_id = ""
 	gold = 0
-	max_health = character.max_health
+	
+	# 从角色属性获取最大生命值
+	var char_stats = character.get_stats()
+	max_health = char_stats.max_health
 	health = max_health
+	
 	upgrades.clear()
 	visited_nodes.clear()
 	enemies_killed = 0

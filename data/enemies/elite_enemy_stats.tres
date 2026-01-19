@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EnemyStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/enemy_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+max_health = 200.0
+defense_percent = 0.0
+attack = 40.0
+move_speed = 120.0

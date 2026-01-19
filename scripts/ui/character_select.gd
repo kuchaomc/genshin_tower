@@ -59,9 +59,14 @@ func create_default_character() -> void:
 	default_char.id = "kamisato_ayaka"
 	default_char.display_name = "神里绫华"
 	default_char.description = "使用剑进行近战攻击的角色（Kamisato Ayaka）"
-	default_char.max_health = 100.0
-	default_char.move_speed = 100.0
-	default_char.base_damage = 25.0
+	
+	# 创建默认属性
+	var default_stats = CharacterStats.new()
+	default_stats.max_health = 100.0
+	default_stats.move_speed = 100.0
+	default_stats.attack = 25.0
+	default_char.stats = default_stats
+	
 	default_char.scene_path = "res://scenes/characters/kamisato_ayaka.tscn"
 	
 	# 保存到DataManager（临时）
@@ -94,7 +99,8 @@ func create_character_button(character: CharacterData) -> void:
 	
 	# 添加属性标签
 	var stats_label = Label.new()
-	stats_label.text = "HP: %d\n速度: %d\n伤害: %d" % [character.max_health, character.move_speed, character.base_damage]
+	var char_stats = character.get_stats()
+	stats_label.text = "HP: %d\n速度: %d\n伤害: %d" % [char_stats.max_health, char_stats.move_speed, char_stats.attack]
 	stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(stats_label)
 	

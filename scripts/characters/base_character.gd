@@ -76,18 +76,8 @@ func initialize(data: CharacterData) -> void:
 	character_data = data
 	
 	# 初始化属性系统
-	if data.stats:
-		base_stats = data.stats
-		current_stats = data.stats.duplicate_stats()
-	else:
-		# 兼容旧版数据：从旧字段创建属性
-		base_stats = CharacterStats.new()
-		base_stats.max_health = data.max_health
-		base_stats.move_speed = data.move_speed
-		base_stats.attack = data.base_damage
-		base_stats.attack_speed = data.attack_speed
-		base_stats.knockback_force = data.knockback_force
-		current_stats = base_stats.duplicate_stats()
+	base_stats = data.get_stats()
+	current_stats = base_stats.duplicate_stats()
 	
 	# 应用属性到角色
 	_apply_stats_to_character()

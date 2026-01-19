@@ -43,16 +43,8 @@ func initialize(data: EnemyData) -> void:
 	enemy_data = data
 	
 	# 初始化属性系统
-	if data.stats:
-		base_stats = data.stats
-		current_stats = data.stats.duplicate_stats()
-	else:
-		# 兼容旧版数据：从旧字段创建属性
-		base_stats = EnemyStats.new()
-		base_stats.max_health = data.max_health
-		base_stats.move_speed = data.move_speed
-		base_stats.attack = data.damage
-		current_stats = base_stats.duplicate_stats()
+	base_stats = data.get_stats()
+	current_stats = base_stats.duplicate_stats()
 	
 	# 应用属性到敌人
 	_apply_stats_to_enemy()
@@ -254,8 +246,8 @@ func _can_call_with_params(obj: Object, method_name: String, param_count: int) -
 
 ## 获取移动速度（子类可重写）
 func get_move_speed() -> float:
-	if enemy_data:
-		return enemy_data.move_speed
+	if current_stats:
+		return current_stats.move_speed
 	return 100.0
 
 ## 更新HP显示
@@ -354,6 +346,6 @@ func _on_body_entered(body: Node2D) -> void:
 
 ## 获取伤害值（子类可重写）
 func get_damage() -> float:
-	if enemy_data:
-		return enemy_data.damage
+	if current_stats:
+		return current_stats.attack
 	return 25.0
