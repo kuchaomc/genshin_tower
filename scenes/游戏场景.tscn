@@ -1,14 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://c5vy4j04yih54"]
+[gd_scene load_steps=6 format=3 uid="uid://c5vy4j04yih54"]
 
-[ext_resource type="Texture2D" uid="uid://qfej3gbql253" path="res://textures/游戏背景.png" id="1_0d42y"]
-[ext_resource type="Script" path="res://scripts/battle_manager.gd" id="1_battle"]
+[ext_resource type="Script" uid="uid://bwlkkwfk4bcuy" path="res://scripts/battle_manager.gd" id="1_battle"]
+[ext_resource type="Texture2D" uid="uid://bnoahwud6qeff" path="res://textures/战斗场景.png" id="2_3ma01"]
 [ext_resource type="Script" uid="uid://tuf8sc1sf5gd" path="res://scripts/camera_follower.gd" id="3_0d42y"]
 [ext_resource type="PackedScene" uid="uid://bb2kswvspaq4f" path="res://scenes/玩家.tscn" id="3_3epie"]
-[ext_resource type="PackedScene" uid="uid://b8k5x3m2n4p9q" path="res://scenes/ui/skill_ui.tscn" id="4_skill_ui"]
-
-[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_yqjtg"]
-normal = Vector2(-4.101825e-08, -1)
-distance = 1.1792747e-07
+[ext_resource type="PackedScene" path="res://scenes/ui/skill_ui.tscn" id="4_skill_ui"]
 
 [node name="Node2D" type="Node2D"]
 y_sort_enabled = true
@@ -18,7 +14,7 @@ script = ExtResource("1_battle")
 z_index = -1
 position = Vector2(592, 329.00006)
 scale = Vector2(1.2890625, 1.2617188)
-texture = ExtResource("1_0d42y")
+texture = ExtResource("2_3ma01")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(578, 322)
@@ -27,40 +23,6 @@ script = ExtResource("3_0d42y")
 
 [node name="player" parent="." instance=ExtResource("3_3epie")]
 position = Vector2(161, 377)
-
-[node name="空气墙" type="Node2D" parent="."]
-position = Vector2(649, 387)
-
-[node name="StaticBody2D" type="StaticBody2D" parent="空气墙"]
-position = Vector2(-34, 460)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="空气墙/StaticBody2D"]
-position = Vector2(0, 300)
-shape = SubResource("WorldBoundaryShape2D_yqjtg")
-
-[node name="StaticBody2D2" type="StaticBody2D" parent="空气墙"]
-position = Vector2(-1241, 0)
-rotation = 1.5707964
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="空气墙/StaticBody2D2"]
-position = Vector2(0, 300)
-shape = SubResource("WorldBoundaryShape2D_yqjtg")
-
-[node name="StaticBody2D3" type="StaticBody2D" parent="空气墙"]
-position = Vector2(-124, -576)
-rotation = -3.1415925
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="空气墙/StaticBody2D3"]
-position = Vector2(0, 300)
-shape = SubResource("WorldBoundaryShape2D_yqjtg")
-
-[node name="StaticBody2D4" type="StaticBody2D" parent="空气墙"]
-position = Vector2(920, -36)
-rotation = -1.5707964
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="空气墙/StaticBody2D4"]
-position = Vector2(26.99999, 509)
-shape = SubResource("WorldBoundaryShape2D_yqjtg")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -72,6 +34,7 @@ theme_override_font_sizes/font_size = 96
 text = "score:"
 
 [node name="PlayerHPBar" type="Control" parent="CanvasLayer"]
+layout_mode = 3
 anchors_preset = 0
 offset_left = 20.0
 offset_top = 130.0
@@ -83,7 +46,6 @@ mouse_filter = 2
 layout_mode = 0
 offset_right = 300.0
 offset_bottom = 30.0
-theme_override_styles/fill = null
 value = 100.0
 show_percentage = false
 
@@ -101,7 +63,6 @@ vertical_alignment = 1
 layout_mode = 0
 offset_top = -25.0
 offset_right = 100.0
-offset_bottom = 0.0
 theme_override_colors/font_color = Color(0.8, 0.1, 0.1, 1)
 theme_override_font_sizes/font_size = 20
 text = "玩家血量"
@@ -112,9 +73,9 @@ offset_top = 20.0
 offset_right = 140.0
 offset_bottom = 60.0
 text = "显示判定"
-button_pressed = false
 
 [node name="SkillUIContainer" type="Control" parent="CanvasLayer"]
+layout_mode = 3
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
@@ -139,6 +100,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="BurstUIContainer" type="Control" parent="CanvasLayer"]
+layout_mode = 3
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0

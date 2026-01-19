@@ -4,6 +4,17 @@ class_name KamisatoAyakaCharacter
 ## 神里绫华角色（Kamisato Ayaka）
 ## 实现两段攻击：第一段位移挥剑，第二段原地剑花
 
+# ========== 普攻特效（第一段刀光） ==========
+@export var sword_tip: Node2D
+@export var phase1_trail_enabled: bool = true
+@export var phase1_trail_width: float = 16.0
+@export var phase1_trail_max_points: int = 12
+@export var phase1_trail_min_distance: float = 6.0
+@export var phase1_trail_fade_time: float = 0.12
+@export var phase1_trail_start_color: Color = Color(0.75, 0.92, 1.0, 0.9)
+@export var phase1_trail_end_color: Color = Color(0.75, 0.92, 1.0, 0.0)
+var _phase1_trail: SwordTrail
+
 # ========== 攻击属性 ==========
 @export var sword_area: Area2D
 @export var sword_damage: float = 25.0
@@ -56,6 +67,10 @@ func _ready() -> void:
 	if sword_area:
 		sword_area.area_entered.connect(_on_sword_area_entered)
 		sword_area.monitoring = false
+
+	# 剑尖采样点（用于刀光轨迹）
+	if sword_tip == null:
+		sword_tip = get_node_or_null("SwordArea/SwordTip") as Node2D
 	
 	# 初始化技能区域和特效
 	if skill_area == null:
@@ -150,6 +165,7 @@ func perform_attack() -> void:
 func start_phase1_attack(mouse_target: Vector2) -> void:
 	sword_area.monitoring = true
 	sword_area.monitorable = true
+	_start_phase1_trail()
 	
 	var direction = (mouse_target - global_position).normalized()
 	var base_angle = direction.angle() + PI / 2
@@ -170,6 +186,7 @@ func start_phase1_attack(mouse_target: Vector2) -> void:
 
 ## 完成第一段攻击
 func finish_phase1() -> void:
+	_stop_phase1_trail()
 	if sword_area:
 		sword_area.monitoring = false
 	
@@ -181,6 +198,7 @@ func finish_phase1() -> void:
 
 ## 结束攻击
 func finish_attack() -> void:
+	_stop_phase1_trail()
 	if sword_area:
 		sword_area.monitoring = false
 	attack_state = 0
@@ -285,6 +303,34 @@ func finish_phase2() -> void:
 	
 	hit_enemies_phase1.clear()
 	hit_enemies_phase2.clear()
+
+func _start_phase1_trail() -> void:
+	if not phase1_trail_enabled:
+		return
+	if not is_instance_valid(sword_tip):
+		return
+	# 如果上一条还没销毁，先清理
+	_stop_phase1_trail(true)
+	_phase1_trail = SwordTrail.new()
+	_phase1_trail.width = phase1_trail_width
+	_phase1_trail.max_points = phase1_trail_max_points
+	_phase1_trail.min_distance = phase1_trail_min_distance
+	_phase1_trail.fade_time = phase1_trail_fade_time
+	_phase1_trail.start_color = phase1_trail_start_color
+	_phase1_trail.end_color = phase1_trail_end_color
+	_phase1_trail.z = 60
+	get_parent().add_child(_phase1_trail)
+	_phase1_trail.setup(sword_tip)
+
+func _stop_phase1_trail(immediate: bool = false) -> void:
+	if not is_instance_valid(_phase1_trail):
+		_phase1_trail = null
+		return
+	if immediate:
+		_phase1_trail.queue_free()
+	else:
+		_phase1_trail.stop()
+	_phase1_trail = null
 
 ## 剑碰撞到敌人时的回调
 func _on_sword_area_entered(area: Area2D) -> void:

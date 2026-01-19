@@ -113,11 +113,12 @@ animations = [{
 "speed": 8.0
 }]
 
-[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("sword_area", "skill_area", "skill_effect", "animator")]
+[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("sword_area", "skill_area", "skill_effect", "animator", "sword_tip")]
 script = ExtResource("1_sword_char")
 sword_area = NodePath("SwordArea")
 skill_area = NodePath("SkillArea")
 skill_effect = NodePath("SkillEffect")
+sword_tip = NodePath("SwordArea/SwordTip")
 skill_damage = 75.0
 hurt_speed_boost_multiplier = 1.5
 animator = NodePath("AnimatedSprite2D")
@@ -146,6 +147,9 @@ offset = Vector2(20, 0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SwordArea"]
 position = Vector2(1, -38)
 shape = SubResource("RectangleShape2D_sword")
+
+[node name="SwordTip" type="Marker2D" parent="SwordArea"]
+position = Vector2(1, -86)
 
 [node name="SkillArea" type="Area2D" parent="."]
 monitoring = false
