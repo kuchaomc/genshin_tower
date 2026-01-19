@@ -7,7 +7,7 @@ extends Control
 @onready var continue_button: Button = $MainContainer/LeftPanel/ContinueButton
 @onready var settings_button: Button = $MainContainer/LeftPanel/SettingsButton
 @onready var main_menu_button: Button = $MainContainer/LeftPanel/MainMenuButton
-@onready var character_portrait: TextureRect = $MainContainer/RightPanel/CharacterPortrait
+@onready var character_portrait: TextureRect = $MainContainer/RightPanel/PortraitContainer/CharacterPortrait
 @onready var character_name_label: Label = $MainContainer/RightPanel/CharacterName
 @onready var stats_container: VBoxContainer = $MainContainer/RightPanel/StatsContainer
 
@@ -95,12 +95,22 @@ func update_character_info() -> void:
 			var portrait_texture = load(portrait_path)
 			if portrait_texture:
 				character_portrait.texture = portrait_texture
+				character_portrait.visible = true
+				print("已加载角色立绘: ", portrait_path)
 			else:
+				print("警告：无法加载立绘文件: ", portrait_path)
 				# 如果没有立绘，尝试使用icon
 				if character_data.icon:
 					character_portrait.texture = character_data.icon
+					character_portrait.visible = true
+				else:
+					character_portrait.visible = false
 		elif character_data.icon:
 			character_portrait.texture = character_data.icon
+			character_portrait.visible = true
+		else:
+			character_portrait.visible = false
+			print("警告：角色没有立绘或图标")
 	
 	# 更新角色属性
 	_update_stats_display()
