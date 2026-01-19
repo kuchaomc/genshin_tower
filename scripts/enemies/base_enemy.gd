@@ -7,6 +7,12 @@ class_name BaseEnemy
 # ========== 敌人数据 ==========
 var enemy_data: EnemyData = null
 
+# ========== 属性系统 ==========
+## 基础属性（来自 EnemyData，不可修改）
+var base_stats: EnemyStats = null
+## 当前属性（运行时可被 buff/debuff 修改）
+var current_stats: EnemyStats = null
+
 # ========== 血量属性 ==========
 var current_health: float = 100.0
 var max_health: float = 100.0
@@ -31,13 +37,39 @@ var is_dead: bool = false
 ## 初始化敌人
 func initialize(data: EnemyData) -> void:
 	enemy_data = data
-	max_health = data.max_health
-	current_health = max_health
+	
+	# 初始化属性系统
+	if data.stats:
+		base_stats = data.stats
+		current_stats = data.stats.duplicate_stats()
+	else:
+		# 兼容旧版数据：从旧字段创建属性
+		base_stats = EnemyStats.new()
+		base_stats.max_health = data.max_health
+		base_stats.move_speed = data.move_speed
+		base_stats.attack = data.damage
+		current_stats = base_stats.duplicate_stats()
+	
+	# 应用属性到敌人
+	_apply_stats_to_enemy()
 	warning_duration = data.warning_duration
 	
-	print("敌人初始化：", data.display_name)
+	print("敌人初始化：", data.display_name, " | ", current_stats.get_summary())
+
+## 从当前属性应用到敌人实际数值
+func _apply_stats_to_enemy() -> void:
+	if not current_stats:
+		return
+	max_health = current_stats.max_health
+	current_health = max_health
 
 func _ready() -> void:
+	# 如果没有通过 initialize 初始化，创建默认属性
+	if current_stats == null:
+		current_stats = EnemyStats.new()
+		current_stats.max_health = max_health
+		base_stats = current_stats.duplicate_stats()
+	
 	current_health = max_health
 	
 	# 获取组件引用
@@ -138,23 +170,34 @@ func update_hp_display() -> void:
 	if hp_label:
 		hp_label.text = str(int(current_health)) + "/" + str(int(max_health))
 
-## 受到伤害
+## 受到伤害（应用自身减伤）
 func take_damage(damage_amount: float, knockback: Vector2 = Vector2.ZERO) -> void:
 	if not is_spawned or is_dead:
 		return
 	
-	current_health -= damage_amount
+	# 应用减伤计算
+	var actual_damage = damage_amount
+	if current_stats:
+		actual_damage = current_stats.calculate_damage_taken(damage_amount)
+	
+	current_health -= actual_damage
 	current_health = max(0, current_health)
 	
 	update_hp_display()
 	
-	print("敌人受到伤害: ", damage_amount, "点，剩余生命值: ", current_health, "/", max_health)
+	print("敌人受到伤害: ", actual_damage, "点（原始: ", damage_amount, "），剩余生命值: ", current_health, "/", max_health)
 	
 	if knockback != Vector2.ZERO:
 		apply_knockback(knockback)
 	
 	if current_health <= 0:
 		on_death()
+
+## 获取减伤比例（供攻击者调用）
+func get_defense_percent() -> float:
+	if current_stats:
+		return current_stats.defense_percent
+	return 0.0
 
 ## 施加击退效果
 func apply_knockback(knockback_offset: Vector2, duration: float = 0.12) -> void:

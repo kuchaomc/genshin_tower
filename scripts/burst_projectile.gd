@@ -7,6 +7,8 @@ class_name BurstProjectile
 @export var speed: float = 300.0
 @export var damage: float = 100.0
 var direction: Vector2 = Vector2.RIGHT
+## 是否暴击（用于显示暴击伤害效果）
+var is_crit: bool = false
 
 # 已命中的敌人列表（避免重复伤害）
 var hit_enemies: Array[Area2D] = []
@@ -63,7 +65,10 @@ func _handle_enemy_collision(enemy: Area2D) -> void:
 		if RunManager:
 			RunManager.record_damage_dealt(damage)
 		
-		print("大招命中敌人，造成伤害: ", damage)
+		if is_crit:
+			print("大招 暴击！命中敌人，造成伤害: ", damage)
+		else:
+			print("大招命中敌人，造成伤害: ", damage)
 	
 	# 命中敌人后不删除投射物，继续前进（可以穿透多个敌人）
 

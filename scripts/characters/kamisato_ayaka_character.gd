@@ -17,12 +17,17 @@ var _phase1_trail: SwordTrail
 
 # ========== 攻击属性 ==========
 @export var sword_area: Area2D
-@export var sword_damage: float = 25.0
+## 普攻伤害倍率（基于攻击力计算）
+@export var normal_attack_multiplier: float = 1.0
+## 第二段攻击伤害倍率
+@export var phase2_attack_multiplier: float = 0.8
 @export var swing_duration: float = 0.3
 @export var flower_attack_duration: float = 0.4
 @export var dash_distance: float = 40.0
 @export var swing_angle: float = PI * 1.2  # 约216度
 @export var phase2_hit_count: int = 3
+## 兼容旧版：固定伤害值（当属性系统不可用时使用）
+@export var sword_damage: float = 25.0
 
 # ========== 攻击状态 ==========
 var attack_state: int = 0  # 0=无攻击, 1=第一段, 2=第二段
@@ -37,22 +42,28 @@ var original_position: Vector2
 # ========== E技能属性 ==========
 @export var skill_area: Area2D  # 技能范围伤害区域
 @export var skill_effect: AnimatedSprite2D  # 技能特效动画
-@export var skill_damage: float = 50.0  # 技能伤害
+## E技能伤害倍率（基于攻击力计算）
+@export var skill_damage_multiplier: float = 2.0
 @export var skill_radius: float = 150.0  # 技能范围半径
 @export var skill_cooldown: float = 10.0  # 技能冷却时间（秒）
 var skill_next_ready_ms: int = 0  # 技能下次可用时间（毫秒）
 var skill_hit_enemies: Array[Area2D] = []  # 本次技能已命中的敌人
+## 兼容旧版：固定伤害值
+@export var skill_damage: float = 50.0
 
 # 技能冷却时间变化信号（用于UI更新）
 signal skill_cooldown_changed(remaining_time: float, cooldown_time: float)
 
 # ========== 大招（Q技能）属性 ==========
 @export var burst_scene: PackedScene  # 大招特效投射物场景
-@export var burst_damage: float = 100.0  # 大招伤害
+## 大招伤害倍率（基于攻击力计算）
+@export var burst_damage_multiplier: float = 4.0
 @export var burst_speed: float = 300.0  # 大招投射物速度
 @export var burst_max_energy: float = 100.0  # 大招最大充能值
 var burst_current_energy: float = 0.0  # 当前充能值
 @export var energy_per_hit: float = 10.0  # 每次命中敌人获得的充能值
+## 兼容旧版：固定伤害值
+@export var burst_damage: float = 100.0
 
 # 大招充能进度变化信号（用于UI更新）
 signal burst_energy_changed(current_energy: float, max_energy: float)
@@ -282,15 +293,13 @@ func perform_raycast_attack(attack_target: Vector2) -> void:
 			if not result or result.get("collider") == enemy_area:
 				hit_enemies_phase2.append(enemy_area)
 				if enemy_area.has_method("take_damage"):
-					var damage = sword_damage
-					# 应用升级加成
-					if RunManager:
-						var damage_upgrade = RunManager.get_upgrade_level("damage")
-						damage *= (1.0 + damage_upgrade * 0.1)  # 每级+10%伤害
-					var knockback_dir = (enemy_pos - global_position).normalized()
-					enemy_area.take_damage(damage, knockback_dir * knockback_force)
-					if RunManager:
-						RunManager.record_damage_dealt(damage)
+					# 使用统一伤害计算系统
+					var damage_result = deal_damage_to(enemy_area, phase2_attack_multiplier)
+					var damage = damage_result[0]
+					var is_crit = damage_result[1]
+					
+					if is_crit:
+						print("第二段攻击 暴击！伤害: ", damage)
 					
 					# 第二段攻击命中敌人时充能大招
 					_add_burst_energy(energy_per_hit)
@@ -348,15 +357,13 @@ func _on_sword_area_entered(area: Area2D) -> void:
 				hit_enemies_phase2.append(area)
 		
 		if not already_hit and area.has_method("take_damage"):
-			var damage = sword_damage
-			# 应用升级加成
-			if RunManager:
-				var damage_upgrade = RunManager.get_upgrade_level("damage")
-				damage *= (1.0 + damage_upgrade * 0.1)
-			var knockback_dir = (area.global_position - global_position).normalized()
-			area.take_damage(damage, knockback_dir * knockback_force)
-			if RunManager:
-				RunManager.record_damage_dealt(damage)
+			# 使用统一伤害计算系统
+			var damage_result = deal_damage_to(area, normal_attack_multiplier)
+			var damage = damage_result[0]
+			var is_crit = damage_result[1]
+			
+			if is_crit:
+				print("普攻 暴击！伤害: ", damage)
 			
 			# 普攻命中敌人时充能大招
 			_add_burst_energy(energy_per_hit)
@@ -447,16 +454,15 @@ func _on_skill_area_entered(area: Area2D) -> void:
 		
 		# 造成伤害
 		if area.has_method("take_damage"):
-			var damage = skill_damage
-			# 应用升级加成
-			if RunManager:
-				var damage_upgrade = RunManager.get_upgrade_level("damage")
-				damage *= (1.0 + damage_upgrade * 0.1)
-			var knockback_dir = (area.global_position - global_position).normalized()
-			area.take_damage(damage, knockback_dir * knockback_force)
-			if RunManager:
-				RunManager.record_damage_dealt(damage)
-			print("E技能命中敌人，造成伤害: ", damage)
+			# 使用统一伤害计算系统
+			var damage_result = deal_damage_to(area, skill_damage_multiplier)
+			var damage = damage_result[0]
+			var is_crit = damage_result[1]
+			
+			if is_crit:
+				print("E技能 暴击！伤害: ", damage)
+			else:
+				print("E技能命中敌人，造成伤害: ", damage)
 			
 			# E技能命中敌人时充能大招
 			_add_burst_energy(energy_per_hit)
@@ -536,13 +542,20 @@ func use_burst() -> void:
 	
 	burst_instance.global_position = global_position
 	burst_instance.direction = direction
-	burst_instance.damage = burst_damage
 	burst_instance.speed = burst_speed
 	
-	# 应用升级加成
-	if RunManager:
-		var damage_upgrade = RunManager.get_upgrade_level("damage")
-		burst_instance.damage *= (1.0 + damage_upgrade * 0.1)
+	# 使用统一伤害计算系统计算大招伤害
+	if current_stats:
+		var damage_result = current_stats.calculate_damage(burst_damage_multiplier, 0.0, false, false)
+		burst_instance.damage = damage_result[0]
+		burst_instance.is_crit = damage_result[1]
+		# 应用升级加成
+		if RunManager:
+			var damage_upgrade = RunManager.get_upgrade_level("damage")
+			burst_instance.damage *= (1.0 + damage_upgrade * 0.1)
+	else:
+		burst_instance.damage = burst_damage
+		burst_instance.is_crit = false
 	
 	# 添加到场景树（添加到当前节点的父节点或根节点）
 	var parent = get_parent()

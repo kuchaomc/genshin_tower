@@ -1,5 +1,8 @@
 extends CharacterBody2D
 
+## @deprecated 此脚本已废弃，请使用 BaseCharacter 及其子类（如 KamisatoAyakaCharacter）
+## 保留此文件仅用于向后兼容，新角色请继承 BaseCharacter
+
 # ========== 血量属性 ==========
 # 最大血量
 @export var max_health : float = 100.0

@@ -3,9 +3,16 @@ class_name BaseCharacter
 
 ## 角色基类
 ## 包含所有角色的通用逻辑（移动、血量、基础攻击等）
+## 统一伤害计算公式：最终伤害 = 攻击力 × 攻击倍率 × 暴击倍率 × (1 - 目标减伤比例)
 
 # ========== 角色数据 ==========
 var character_data: CharacterData = null
+
+# ========== 属性系统 ==========
+## 基础属性（来自 CharacterData，不可修改）
+var base_stats: CharacterStats = null
+## 当前属性（运行时可被 buff/debuff 修改）
+var current_stats: CharacterStats = null
 
 # ========== 血量属性 ==========
 var current_health: float = 100.0
@@ -36,6 +43,8 @@ var _dodge_invincible: bool = false
 # 血量变化信号
 signal health_changed(current: float, maximum: float)
 signal character_died
+# 伤害事件信号（用于伤害数字显示等）
+signal damage_dealt(damage: float, is_crit: bool, target: Node)
 
 # ========== 移动属性 ==========
 @export var move_speed: float = 100.0
@@ -48,21 +57,50 @@ var is_game_over: bool = false
 ## 初始化角色
 func initialize(data: CharacterData) -> void:
 	character_data = data
-	max_health = data.max_health
-	current_health = max_health
-	base_move_speed = data.move_speed
-	move_speed = base_move_speed
-	knockback_force = data.knockback_force
+	
+	# 初始化属性系统
+	if data.stats:
+		base_stats = data.stats
+		current_stats = data.stats.duplicate_stats()
+	else:
+		# 兼容旧版数据：从旧字段创建属性
+		base_stats = CharacterStats.new()
+		base_stats.max_health = data.max_health
+		base_stats.move_speed = data.move_speed
+		base_stats.attack = data.base_damage
+		base_stats.attack_speed = data.attack_speed
+		base_stats.knockback_force = data.knockback_force
+		current_stats = base_stats.duplicate_stats()
+	
+	# 应用属性到角色
+	_apply_stats_to_character()
 	
 	emit_signal("health_changed", current_health, max_health)
-	print("角色初始化：", data.display_name)
+	print("角色初始化：", data.display_name, " | ", current_stats.get_summary())
+
+## 从当前属性应用到角色实际数值
+func _apply_stats_to_character() -> void:
+	if not current_stats:
+		return
+	max_health = current_stats.max_health
+	current_health = max_health
+	base_move_speed = current_stats.move_speed
+	move_speed = base_move_speed
+	knockback_force = current_stats.knockback_force
 
 func _ready() -> void:
 	# 如果没有手动分配动画器，则自动查找
 	if animator == null:
 		animator = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
 	
-	# 没有通过initialize赋值时，使用当前速度作为基准
+	# 没有通过initialize赋值时，创建默认属性并使用当前速度作为基准
+	if current_stats == null:
+		current_stats = CharacterStats.new()
+		current_stats.max_health = max_health
+		current_stats.move_speed = move_speed
+		current_stats.knockback_force = knockback_force
+		base_stats = current_stats.duplicate_stats()
+	
 	if base_move_speed == 0:
 		base_move_speed = move_speed
 	
@@ -130,22 +168,121 @@ func handle_attack_input() -> void:
 func perform_attack() -> void:
 	pass
 
+# ========== 统一伤害计算系统 ==========
+
+## 计算并造成伤害（核心方法）
+## target: 目标节点（必须有 take_damage 方法和可选的 get_defense_percent 方法）
+## damage_multiplier: 伤害倍率（普攻 1.0，技能可能 1.5、2.0 等）
+## force_crit: 强制暴击
+## force_no_crit: 强制不暴击
+## 返回值: [实际造成的伤害, 是否暴击]
+func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bool = false, force_no_crit: bool = false) -> Array:
+	if not current_stats:
+		return [0.0, false]
+	
+	# 获取目标的减伤比例
+	var target_defense: float = 0.0
+	if target.has_method("get_defense_percent"):
+		target_defense = target.get_defense_percent()
+	
+	# 使用统一的伤害计算公式
+	var result = current_stats.calculate_damage(damage_multiplier, target_defense, force_crit, force_no_crit)
+	var final_damage: float = result[0]
+	var is_crit: bool = result[1]
+	
+	# 应用升级加成（如果有 RunManager）
+	if RunManager:
+		var damage_upgrade = RunManager.get_upgrade_level("damage")
+		final_damage *= (1.0 + damage_upgrade * 0.1)  # 每级 +10% 伤害
+	
+	# 对目标造成伤害
+	if target.has_method("take_damage"):
+		var knockback_dir = Vector2.ZERO
+		if target is Node2D:
+			knockback_dir = (target.global_position - global_position).normalized()
+		
+		# 检查目标的 take_damage 方法签名
+		if target.has_method("take_damage"):
+			# 尝试带击退调用
+			var params = [final_damage, knockback_dir * current_stats.knockback_force]
+			if _can_call_with_params(target, "take_damage", 2):
+				target.take_damage(final_damage, knockback_dir * current_stats.knockback_force)
+			else:
+				target.take_damage(final_damage)
+	
+	# 记录伤害统计
+	if RunManager:
+		RunManager.record_damage_dealt(final_damage)
+	
+	# 发射伤害事件信号
+	emit_signal("damage_dealt", final_damage, is_crit, target)
+	
+	return [final_damage, is_crit]
+
+## 检查方法是否支持指定数量的参数
+func _can_call_with_params(obj: Object, method_name: String, param_count: int) -> bool:
+	for method in obj.get_method_list():
+		if method["name"] == method_name:
+			return method["args"].size() >= param_count
+	return false
+
+## 获取当前攻击力
+func get_attack() -> float:
+	if current_stats:
+		return current_stats.attack
+	return 25.0
+
+## 获取当前暴击率
+func get_crit_rate() -> float:
+	if current_stats:
+		return current_stats.crit_rate
+	return 0.05
+
+## 获取当前暴击伤害
+func get_crit_damage() -> float:
+	if current_stats:
+		return current_stats.crit_damage
+	return 0.5
+
+## 获取当前减伤比例
+func get_defense_percent() -> float:
+	if current_stats:
+		return current_stats.defense_percent
+	return 0.0
+
+## 获取当前攻击速度
+func get_attack_speed() -> float:
+	if current_stats:
+		return current_stats.attack_speed
+	return 1.0
+
+## 获取当前击退力度
+func get_knockback_force() -> float:
+	if current_stats:
+		return current_stats.knockback_force
+	return knockback_force
+
 # ========== 血量相关方法 ==========
 
-## 受到伤害
+## 受到伤害（应用自身减伤）
 func take_damage(damage_amount: float) -> void:
 	if is_game_over or _is_currently_invincible():
 		return
 	
-	current_health -= damage_amount
+	# 应用减伤计算
+	var actual_damage = damage_amount
+	if current_stats:
+		actual_damage = current_stats.calculate_damage_taken(damage_amount)
+	
+	current_health -= actual_damage
 	current_health = max(0, current_health)
 	
 	# 更新RunManager
 	if RunManager:
-		RunManager.take_damage(damage_amount)
+		RunManager.take_damage(actual_damage)
 	
 	emit_signal("health_changed", current_health, max_health)
-	print("角色受到伤害: ", damage_amount, "点，剩余血量: ", current_health, "/", max_health)
+	print("角色受到伤害: ", actual_damage, "点（原始: ", damage_amount, "），剩余血量: ", current_health, "/", max_health)
 	
 	if current_health <= 0:
 		on_death()
@@ -302,3 +439,43 @@ func apply_hurt_speed_boost() -> void:
 ## 恢复受伤前的基础速度
 func _reset_hurt_speed_boost() -> void:
 	move_speed = base_move_speed
+
+# ========== 属性修改方法（用于 buff/debuff） ==========
+
+## 增加攻击力
+func add_attack(amount: float) -> void:
+	if current_stats:
+		current_stats.attack += amount
+
+## 增加暴击率
+func add_crit_rate(amount: float) -> void:
+	if current_stats:
+		current_stats.crit_rate = clamp(current_stats.crit_rate + amount, 0.0, 1.0)
+
+## 增加暴击伤害
+func add_crit_damage(amount: float) -> void:
+	if current_stats:
+		current_stats.crit_damage += amount
+
+## 增加减伤比例
+func add_defense_percent(amount: float) -> void:
+	if current_stats:
+		current_stats.defense_percent = clamp(current_stats.defense_percent + amount, 0.0, 1.0)
+
+## 增加移动速度
+func add_move_speed(amount: float) -> void:
+	if current_stats:
+		current_stats.move_speed += amount
+		base_move_speed = current_stats.move_speed
+		move_speed = base_move_speed
+
+## 增加攻击速度
+func add_attack_speed(amount: float) -> void:
+	if current_stats:
+		current_stats.attack_speed += amount
+
+## 重置属性到基础值
+func reset_stats_to_base() -> void:
+	if base_stats:
+		current_stats = base_stats.duplicate_stats()
+		_apply_stats_to_character()
