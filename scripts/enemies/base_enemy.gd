@@ -319,6 +319,13 @@ func on_death() -> void:
 	if RunManager:
 		RunManager.record_enemy_kill()
 	
+	# 通知战斗管理器敌人被击杀
+	var battle_managers = get_tree().get_nodes_in_group("battle_manager")
+	if not battle_managers.is_empty():
+		var battle_manager = battle_managers[0] as BattleManager
+		if battle_manager and battle_manager.has_method("on_enemy_killed"):
+			battle_manager.on_enemy_killed()
+	
 	# 掉落金币
 	if enemy_data:
 		var gold = enemy_data.drop_gold

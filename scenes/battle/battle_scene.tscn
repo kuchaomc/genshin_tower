@@ -31,12 +31,39 @@ boundary_segments = 128
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
-[node name="Label" type="Label" parent="CanvasLayer"]
-offset_right = 276.0
-offset_bottom = 132.0
-theme_override_colors/font_color = Color(0, 0, 0, 1)
-theme_override_font_sizes/font_size = 96
-text = "score:"
+[node name="EnemyKillCounter" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
+offset_top = -80.0
+offset_right = 150.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Title" type="Label" parent="CanvasLayer/EnemyKillCounter"]
+layout_mode = 0
+offset_top = -25.0
+offset_right = 300.0
+offset_bottom = 0.0
+theme_override_colors/font_color = Color(0.2, 0.8, 0.2, 1)
+theme_override_font_sizes/font_size = 20
+text = "还需击杀"
+horizontal_alignment = 1
+
+[node name="Label" type="Label" parent="CanvasLayer/EnemyKillCounter"]
+layout_mode = 0
+offset_right = 300.0
+offset_bottom = 60.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 48
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="PlayerHPBar" type="Control" parent="CanvasLayer"]
 layout_mode = 3

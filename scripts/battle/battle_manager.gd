@@ -23,11 +23,15 @@ var enemy_spawn_timer: Timer
 # 游戏结束计时器
 var game_over_timer: Timer
 
-# UI Label引用
-var score_label: Label
+# 战斗胜利条件
+var enemies_required_to_kill: int = 1  # 需要击杀的敌人数量（初始n=1）
+var enemies_killed_in_battle: int = 0  # 当前战斗中已击杀的敌人数量
+
 # 玩家血量UI引用
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
+# 敌人击杀计数器UI引用
+var enemy_kill_counter_label: Label
 # 技能UI引用
 var skill_ui: SkillUI
 # 大招UI引用
@@ -42,9 +46,9 @@ var pause_menu: Control
 
 func _ready() -> void:
 	# 获取UI组件
-	score_label = get_node_or_null("CanvasLayer/Label") as Label
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
 	player_hp_label = get_node_or_null("CanvasLayer/PlayerHPBar/Label") as Label
+	enemy_kill_counter_label = get_node_or_null("CanvasLayer/EnemyKillCounter/Label") as Label
 	skill_ui = get_node_or_null("CanvasLayer/SkillUIContainer/SkillUI") as SkillUI
 	burst_ui = get_node_or_null("CanvasLayer/BurstUIContainer/BurstUI") as SkillUI
 	debug_toggle_button = get_node_or_null("CanvasLayer/DebugToggle") as Button
@@ -54,6 +58,13 @@ func _ready() -> void:
 	# 初始化玩家
 	initialize_player()
 	_update_all_hitbox_visibility()
+	
+	# 初始化战斗胜利条件
+	enemies_killed_in_battle = 0
+	enemies_required_to_kill = 1  # 初始需要击杀1个敌人
+	
+	# 更新击杀计数器显示
+	update_enemy_kill_counter_display()
 	
 	# 如果没有手动分配敌人场景，则预加载默认敌人场景
 	if enemy_scene == null:
@@ -259,7 +270,56 @@ func spawn_enemy() -> void:
 	
 	print("生成新敌人，位置：", enemy_instance.position)
 
-## 游戏结束方法
+## 更新敌人击杀计数器显示
+func update_enemy_kill_counter_display() -> void:
+	if enemy_kill_counter_label:
+		var remaining = max(0, enemies_required_to_kill - enemies_killed_in_battle)
+		enemy_kill_counter_label.text = str(remaining)
+
+## 敌人被击杀回调（由敌人死亡时调用）
+func on_enemy_killed() -> void:
+	if current_state != GameState.PLAYING:
+		return
+	
+	enemies_killed_in_battle += 1
+	print("敌人被击杀！当前击杀数：", enemies_killed_in_battle, "/", enemies_required_to_kill)
+	
+	# 更新击杀计数器显示
+	update_enemy_kill_counter_display()
+	
+	# 检查是否达到胜利条件
+	if enemies_killed_in_battle >= enemies_required_to_kill:
+		battle_victory()
+
+## 战斗胜利方法
+func battle_victory() -> void:
+	if current_state == GameState.GAME_OVER:
+		return
+	
+	current_state = GameState.GAME_OVER
+	
+	# 停止敌人生成计时器
+	if enemy_spawn_timer:
+		enemy_spawn_timer.stop()
+	
+	# 立刻清除场上所有敌人
+	clear_all_enemies()
+	
+	print("战斗胜利！已击杀 ", enemies_killed_in_battle, " 个敌人。3秒后返回地图...")
+	
+	# 设置3秒后返回地图
+	game_over_timer.wait_time = 3.0
+	game_over_timer.start()
+
+## 清除场上所有敌人
+func clear_all_enemies() -> void:
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		if is_instance_valid(enemy):
+			enemy.queue_free()
+	print("已清除场上所有敌人，共 ", enemies.size(), " 个")
+
+## 游戏结束方法（玩家死亡）
 func game_over() -> void:
 	if current_state == GameState.GAME_OVER:
 		return
@@ -279,9 +339,12 @@ func game_over() -> void:
 ## 游戏结束计时器回调
 func _on_game_over_timer_timeout() -> void:
 	print("返回地图...")
-	# 结束当前局
+	# 判断是胜利还是失败
+	var is_victory = enemies_killed_in_battle >= enemies_required_to_kill
+	
+	# 结束当前局（如果是胜利，传递true；如果是失败，传递false）
 	if RunManager:
-		RunManager.end_run(false)
+		RunManager.end_run(is_victory)
 	
 	# 返回地图界面
 	if GameManager:
