@@ -28,6 +28,12 @@ var _dodge_dir: Vector2 = Vector2.ZERO
 var _dodge_next_ready_ms: int = 0
 var _last_nonzero_move_dir: Vector2 = Vector2.RIGHT
 
+# ========== 碰撞箱和击退效果 ==========
+var collision_shape: CollisionShape2D
+@export var knockback_resistance: float = 0.5  # 击退抗性（0-1）
+var knockback_velocity: Vector2 = Vector2.ZERO
+var is_knockback_active: bool = false
+
 # 血量变化信号（用于UI更新）
 signal health_changed(current: float, maximum: float)
 signal player_died
@@ -61,8 +67,8 @@ var attack_state : int = 0  # 0=无攻击, 1=第一段, 2=第二段
 var swing_tween : Tween
 var position_tween : Tween
 var target_position : Vector2  # 第一段的目标位置
-var hit_enemies_phase1 : Array[Area2D] = []  # 第一段已受伤的敌人
-var hit_enemies_phase2 : Array[Area2D] = []  # 第二段已受伤的敌人
+var hit_enemies_phase1 : Array[Node2D] = []  # 第一段已受伤的敌人
+var hit_enemies_phase2 : Array[Node2D] = []  # 第二段已受伤的敌人
 var original_position : Vector2  # 原始位置（用于第二段）
 var phase1_press_timestamp_ms : int = 0  # 记录第一段开始时的按下时间
 var phase1_had_release : bool = false  # 第一段过程中是否松开过鼠标
@@ -73,6 +79,9 @@ func _ready() -> void:
 	current_health = max_health
 	emit_signal("health_changed", current_health, max_health)
 	
+	# 获取碰撞箱引用
+	collision_shape = get_node_or_null("CollisionShape2D") as CollisionShape2D
+	
 	# 如果没有手动分配剑区域，则自动查找
 	if sword_area == null:
 		sword_area = get_node_or_null("SwordArea") as Area2D
@@ -80,6 +89,7 @@ func _ready() -> void:
 	if sword_area:
 		# 连接碰撞信号
 		sword_area.area_entered.connect(_on_sword_area_entered)
+		sword_area.body_entered.connect(_on_sword_body_entered)
 		# 初始时隐藏剑的碰撞区域
 		sword_area.monitoring = false
 
@@ -90,15 +100,21 @@ func _physics_process(delta: float) -> void:
 		_handle_dodge_input()
 		_update_dodge(delta)
 		
+		# 处理击退效果
+		_update_knockback(delta)
+		
 		# 攻击状态下阻止移动
-		if attack_state == 0 and not _is_dodging:
+		if attack_state == 0 and not _is_dodging and not is_knockback_active:
 			# 监听键盘并乘以移动速度，赋予玩家速度
 			velocity = Input.get_vector("left", "right", "up", "down") * move_speed
 			if velocity != Vector2.ZERO:
 				_last_nonzero_move_dir = velocity.normalized()
 		else:
+			# 击退时优先应用击退速度
+			if is_knockback_active:
+				velocity = knockback_velocity
 			# 闪避时速度由闪避逻辑控制；攻击时速度为0
-			if attack_state != 0:
+			elif attack_state != 0:
 				velocity = Vector2.ZERO
 		
 		# 记录第一段攻击中是否出现过松开事件，避免连点触发重击
@@ -155,6 +171,8 @@ func _start_dodge() -> void:
 	_dodge_dir = dir.normalized()
 	
 	_set_dodge_invincible(true)
+	# 闪避时关闭碰撞箱以实现无敌
+	_set_collision_enabled(false)
 
 func _update_dodge(delta: float) -> void:
 	if not _is_dodging:
@@ -180,6 +198,8 @@ func _update_dodge(delta: float) -> void:
 	if t >= 1.0:
 		_is_dodging = false
 		_set_dodge_invincible(false)
+		# 闪避结束后恢复碰撞箱
+		_set_collision_enabled(true)
 
 # 更新剑的朝向（朝向鼠标）
 func update_sword_direction() -> void:
@@ -347,16 +367,16 @@ func perform_raycast_attack(target_position: Vector2) -> void:
 	
 	# 对每个敌人进行检查
 	for enemy in enemies:
-		var enemy_area = enemy as Area2D
-		if not enemy_area:
+		var enemy_body = enemy as Node2D
+		if not enemy_body:
 			continue
 		
 		# 检查敌人是否已在此次攻击中受伤
-		if enemy_area in hit_enemies_phase2:
+		if enemy_body in hit_enemies_phase2:
 			continue
 		
 		# 计算敌人位置
-		var enemy_pos = enemy_area.global_position
+		var enemy_pos = enemy_body.global_position
 		
 		# 计算点到直线的距离（敌人到射线的距离）
 		var to_enemy = enemy_pos - ray_start
@@ -384,10 +404,10 @@ func perform_raycast_attack(target_position: Vector2) -> void:
 			var result = space_state.intersect_ray(query)
 			
 			# 如果没有碰撞，或者碰撞的就是这个敌人，造成伤害
-			if not result or result.get("collider") == enemy_area:
-				hit_enemies_phase2.append(enemy_area)
-				if enemy_area.has_method("take_damage"):
-					enemy_area.take_damage(sword_damage)
+			if not result or result.get("collider") == enemy_body:
+				hit_enemies_phase2.append(enemy_body)
+				if enemy_body.has_method("take_damage"):
+					enemy_body.take_damage(sword_damage)
 
 # 完成第二段攻击
 func finish_phase2() -> void:
@@ -403,29 +423,36 @@ func finish_phase2() -> void:
 
 # 剑碰撞到敌人时的回调
 func _on_sword_area_entered(area: Area2D) -> void:
-	# 检查碰撞的对象是否为敌人（通过组名判断）
-	if area.is_in_group("enemies"):
-		# 根据攻击阶段判断是否已经造成过伤害
-		var already_hit = false
-		if attack_state == 1:
-			if area in hit_enemies_phase1:
-				already_hit = true
-			else:
-				hit_enemies_phase1.append(area)
-		elif attack_state == 2:
-			if area in hit_enemies_phase2:
-				already_hit = true
-			else:
-				hit_enemies_phase2.append(area)
-		
-		# 如果还没有造成过伤害，则造成伤害
-		if not already_hit and area.has_method("take_damage"):
-			area.take_damage(sword_damage)
+	_handle_sword_hit(area)
+
+func _on_sword_body_entered(body: Node2D) -> void:
+	_handle_sword_hit(body)
+
+func _handle_sword_hit(target: Node2D) -> void:
+	if not target or not target.is_in_group("enemies"):
+		return
+	
+	var already_hit = false
+	if attack_state == 1:
+		if target in hit_enemies_phase1:
+			already_hit = true
+		else:
+			hit_enemies_phase1.append(target)
+	elif attack_state == 2:
+		if target in hit_enemies_phase2:
+			already_hit = true
+		else:
+			hit_enemies_phase2.append(target)
+	
+	if not already_hit and target.has_method("take_damage"):
+		target.take_damage(sword_damage)
 
 # ========== 血量相关方法 ==========
 
 # 受到伤害方法
-func take_damage(damage_amount: float) -> void:
+## knockback_direction: 击退方向（可选）
+## knockback_force_value: 击退力度（可选）
+func take_damage(damage_amount: float, knockback_direction: Vector2 = Vector2.ZERO, knockback_force_value: float = 100.0) -> void:
 	# 如果已经游戏结束或处于无敌状态，不受伤害
 	if is_game_over or _is_currently_invincible():
 		return
@@ -439,12 +466,51 @@ func take_damage(damage_amount: float) -> void:
 	
 	print("玩家受到伤害: ", damage_amount, "点，剩余血量: ", current_health, "/", max_health)
 	
+	# 应用击退效果（如果提供了击退方向）
+	if knockback_direction != Vector2.ZERO:
+		apply_knockback(knockback_direction, knockback_force_value)
+	
 	# 检查是否死亡
 	if current_health <= 0:
 		on_death()
 	else:
 		# 进入无敌状态
 		start_invincibility()
+
+@export var knockback_duration: float = 0.12
+var _knockback_end_ms: int = 0
+
+## 应用击退效果（按“击退距离”计算）
+func apply_knockback(direction: Vector2, distance: float) -> void:
+	if direction == Vector2.ZERO or distance <= 0.0:
+		return
+	
+	# 应用击退抗性
+	var effective_distance = distance * (1.0 - knockback_resistance)
+	var knockback_dir = direction.normalized()
+	
+	# 设置击退速度：在 knockback_duration 内推开指定距离
+	var dur: float = max(0.01, knockback_duration)
+	knockback_velocity = knockback_dir * (effective_distance / dur)
+	is_knockback_active = true
+	_knockback_end_ms = Time.get_ticks_msec() + int(dur * 1000.0)
+
+## 更新击退效果
+func _update_knockback(delta: float) -> void:
+	if not is_knockback_active:
+		return
+	if Time.get_ticks_msec() >= _knockback_end_ms:
+		_end_knockback()
+
+## 结束击退效果
+func _end_knockback() -> void:
+	is_knockback_active = false
+	knockback_velocity = Vector2.ZERO
+
+## 设置碰撞箱启用/禁用
+func _set_collision_enabled(enabled: bool) -> void:
+	if collision_shape:
+		collision_shape.disabled = not enabled
 
 # 开始无敌状态
 func start_invincibility() -> void:

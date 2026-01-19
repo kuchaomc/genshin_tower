@@ -11,7 +11,7 @@ var direction: Vector2 = Vector2.RIGHT
 var is_crit: bool = false
 
 # 已命中的敌人列表（避免重复伤害）
-var hit_enemies: Array[Area2D] = []
+var hit_enemies: Array[Node2D] = []
 
 func _ready() -> void:
 	# 连接碰撞信号
@@ -41,11 +41,10 @@ func _on_area_entered(area: Area2D) -> void:
 
 ## 物体进入回调函数（检测与敌人的碰撞）
 func _on_body_entered(body: Node2D) -> void:
-	if body is Area2D:
-		_handle_enemy_collision(body)
+	_handle_enemy_collision(body)
 
 ## 处理敌人碰撞
-func _handle_enemy_collision(enemy: Area2D) -> void:
+func _handle_enemy_collision(enemy: Node2D) -> void:
 	# 检查碰撞的对象是否为敌人
 	if not enemy.is_in_group("enemies"):
 		return

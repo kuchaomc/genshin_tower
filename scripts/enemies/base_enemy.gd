@@ -1,4 +1,4 @@
-extends Area2D
+extends CharacterBody2D
 class_name BaseEnemy
 
 ## 敌人基类
@@ -29,6 +29,10 @@ var warning_sprite: Sprite2D
 var collision_shape: CollisionShape2D
 var knockback_tween: Tween
 var is_knockback_active: bool = false
+
+# 碰撞/接触伤害节流，避免连续帧内多次结算
+@export var contact_damage_cooldown: float = 0.6
+var _recently_damaged_bodies: Dictionary = {}
 
 # ========== 状态 ==========
 var is_spawned: bool = false
@@ -124,10 +128,48 @@ func _on_warning_finished() -> void:
 
 func _physics_process(delta: float) -> void:
 	if not is_spawned or is_dead:
+		velocity = Vector2.ZERO
 		return
 	
 	# 执行AI行为（子类可重写）
 	perform_ai_behavior(delta)
+	
+	if is_knockback_active:
+		velocity = Vector2.ZERO
+	else:
+		move_and_slide()
+	_process_collisions(delta)
+
+## 处理移动后的碰撞结果（用于对玩家造成碰撞伤害）
+func _process_collisions(delta: float) -> void:
+	# 更新伤害冷却计时
+	var expired: Array = []
+	for body in _recently_damaged_bodies.keys():
+		if not is_instance_valid(body):
+			expired.append(body)
+			continue
+		_recently_damaged_bodies[body] -= delta
+		if _recently_damaged_bodies[body] <= 0.0:
+			expired.append(body)
+	for key in expired:
+		_recently_damaged_bodies.erase(key)
+	
+	# 处理本帧碰撞
+	for i in range(get_slide_collision_count()):
+		var collision = get_slide_collision(i)
+		if not collision:
+			continue
+		var collider = collision.get_collider()
+		
+		# 如果撞到空气墙/静态障碍，滑动并轻推离开，避免卡住
+		if collider is StaticBody2D:
+			var n: Vector2 = collision.get_normal()
+			if n != Vector2.ZERO:
+				velocity = velocity.slide(n)
+				global_position += n * 2.0
+			continue
+		
+		_handle_body_collision(collider)
 
 ## 执行AI行为（子类实现）
 func perform_ai_behavior(delta: float) -> void:
@@ -137,6 +179,7 @@ func perform_ai_behavior(delta: float) -> void:
 ## 追逐玩家（默认行为）
 func chase_player(delta: float) -> void:
 	if is_knockback_active:
+		velocity = Vector2.ZERO
 		return
 	
 	var player = get_tree().current_scene.get_node_or_null("player") as CharacterBody2D
@@ -154,7 +197,45 @@ func chase_player(delta: float) -> void:
 			else:
 				animated_sprite.flip_h = false
 		
-		position += direction * speed * delta
+		velocity = direction * speed
+	else:
+		velocity = Vector2.ZERO
+
+## 碰撞到玩家时造成伤害（带冷却，避免每帧重复结算）
+func _handle_body_collision(body: Node) -> void:
+	if not is_instance_valid(body):
+		return
+	if not (body is CharacterBody2D):
+		return
+	# 只对玩家造成接触伤害，避免敌人之间互相碰撞掉血
+	if (body as Node).name != "player":
+		return
+	if not body.has_method("take_damage"):
+		return
+	
+	if _recently_damaged_bodies.has(body):
+		return
+	
+	var damage = get_damage()
+	# 计算击退方向（从敌人指向玩家）
+	var knockback_direction = (body.global_position - global_position).normalized()
+	# 击退距离（像素，可按需调大/调小）
+	var knockback_force_value = 50.0
+	
+	# 检查take_damage方法是否支持击退参数
+	if _can_call_with_params(body, "take_damage", 3):
+		body.take_damage(damage, knockback_direction, knockback_force_value)
+	else:
+		body.take_damage(damage)
+	
+	_recently_damaged_bodies[body] = contact_damage_cooldown
+
+## 检查方法是否支持指定数量的参数
+func _can_call_with_params(obj: Object, method_name: String, param_count: int) -> bool:
+	for method in obj.get_method_list():
+		if method["name"] == method_name:
+			return method["args"].size() >= param_count
+	return false
 
 ## 获取移动速度（子类可重写）
 func get_move_speed() -> float:

@@ -35,8 +35,8 @@ var phase2_current_hit: int = 0
 var swing_tween: Tween
 var position_tween: Tween
 var target_position: Vector2
-var hit_enemies_phase1: Array[Area2D] = []
-var hit_enemies_phase2: Array[Area2D] = []
+var hit_enemies_phase1: Array[Node2D] = []
+var hit_enemies_phase2: Array[Node2D] = []
 var original_position: Vector2
 
 # ========== E技能属性 ==========
@@ -47,7 +47,7 @@ var original_position: Vector2
 @export var skill_radius: float = 150.0  # 技能范围半径
 @export var skill_cooldown: float = 10.0  # 技能冷却时间（秒）
 var skill_next_ready_ms: int = 0  # 技能下次可用时间（毫秒）
-var skill_hit_enemies: Array[Area2D] = []  # 本次技能已命中的敌人
+var skill_hit_enemies: Array[Node2D] = []  # 本次技能已命中的敌人
 ## 兼容旧版：固定伤害值
 @export var skill_damage: float = 50.0
 
@@ -77,6 +77,7 @@ func _ready() -> void:
 	
 	if sword_area:
 		sword_area.area_entered.connect(_on_sword_area_entered)
+		sword_area.body_entered.connect(_on_sword_body_entered)
 		sword_area.monitoring = false
 
 	# 剑尖采样点（用于刀光轨迹）
@@ -89,6 +90,7 @@ func _ready() -> void:
 	
 	if skill_area:
 		skill_area.area_entered.connect(_on_skill_area_entered)
+		skill_area.body_entered.connect(_on_skill_body_entered)
 		skill_area.monitoring = false
 		# 设置技能范围
 		var collision_shape = skill_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
@@ -265,14 +267,14 @@ func perform_raycast_attack(attack_target: Vector2) -> void:
 	var direction = (attack_target - global_position).normalized()
 	
 	for enemy in enemies:
-		var enemy_area = enemy as Area2D
-		if not enemy_area:
+		var enemy_body = enemy as Node2D
+		if not enemy_body:
 			continue
 		
-		if enemy_area in hit_enemies_phase2:
+		if enemy_body in hit_enemies_phase2:
 			continue
 		
-		var enemy_pos = enemy_area.global_position
+		var enemy_pos = enemy_body.global_position
 		var to_enemy = enemy_pos - ray_start
 		var projection_length = to_enemy.dot(direction)
 		
@@ -290,11 +292,11 @@ func perform_raycast_attack(attack_target: Vector2) -> void:
 			
 			var result = space_state.intersect_ray(query)
 			
-			if not result or result.get("collider") == enemy_area:
-				hit_enemies_phase2.append(enemy_area)
-				if enemy_area.has_method("take_damage"):
+			if not result or result.get("collider") == enemy_body:
+				hit_enemies_phase2.append(enemy_body)
+				if enemy_body.has_method("take_damage"):
 					# 使用统一伤害计算系统
-					var damage_result = deal_damage_to(enemy_area, phase2_attack_multiplier)
+					var damage_result = deal_damage_to(enemy_body, phase2_attack_multiplier)
 					var damage = damage_result[0]
 					var is_crit = damage_result[1]
 					
@@ -343,30 +345,37 @@ func _stop_phase1_trail(immediate: bool = false) -> void:
 
 ## 剑碰撞到敌人时的回调
 func _on_sword_area_entered(area: Area2D) -> void:
-	if area.is_in_group("enemies"):
-		var already_hit = false
-		if attack_state == 1:
-			if area in hit_enemies_phase1:
-				already_hit = true
-			else:
-				hit_enemies_phase1.append(area)
-		elif attack_state == 2:
-			if area in hit_enemies_phase2:
-				already_hit = true
-			else:
-				hit_enemies_phase2.append(area)
+	_handle_sword_hit(area)
+
+func _on_sword_body_entered(body: Node2D) -> void:
+	_handle_sword_hit(body)
+
+func _handle_sword_hit(target: Node2D) -> void:
+	if not target or not target.is_in_group("enemies"):
+		return
+	var already_hit = false
+	if attack_state == 1:
+		if target in hit_enemies_phase1:
+			already_hit = true
+		else:
+			hit_enemies_phase1.append(target)
+	elif attack_state == 2:
+		if target in hit_enemies_phase2:
+			already_hit = true
+		else:
+			hit_enemies_phase2.append(target)
+	
+	if not already_hit and target.has_method("take_damage"):
+		# 使用统一伤害计算系统
+		var damage_result = deal_damage_to(target, normal_attack_multiplier)
+		var damage = damage_result[0]
+		var is_crit = damage_result[1]
 		
-		if not already_hit and area.has_method("take_damage"):
-			# 使用统一伤害计算系统
-			var damage_result = deal_damage_to(area, normal_attack_multiplier)
-			var damage = damage_result[0]
-			var is_crit = damage_result[1]
-			
-			if is_crit:
-				print("普攻 暴击！伤害: ", damage)
-			
-			# 普攻命中敌人时充能大招
-			_add_burst_energy(energy_per_hit)
+		if is_crit:
+			print("普攻 暴击！伤害: ", damage)
+		
+		# 普攻命中敌人时充能大招
+		_add_burst_energy(energy_per_hit)
 
 ## 主动检查覆盖，避免物理帧遗漏
 func _force_check_sword_overlaps() -> void:
@@ -374,6 +383,8 @@ func _force_check_sword_overlaps() -> void:
 		return
 	for area in sword_area.get_overlapping_areas():
 		_on_sword_area_entered(area)
+	for body in sword_area.get_overlapping_bodies():
+		_on_sword_body_entered(body)
 
 # ========== E技能相关方法 ==========
 
@@ -445,27 +456,35 @@ func _on_skill_effect_finished() -> void:
 
 ## 技能区域碰撞回调
 func _on_skill_area_entered(area: Area2D) -> void:
-	if area.is_in_group("enemies"):
-		# 检查是否已经命中过
-		if area in skill_hit_enemies:
-			return
+	_handle_skill_hit(area)
+
+func _on_skill_body_entered(body: Node2D) -> void:
+	_handle_skill_hit(body)
+
+func _handle_skill_hit(target: Node2D) -> void:
+	if not target or not target.is_in_group("enemies"):
+		return
+	
+	# 检查是否已经命中过
+	if target in skill_hit_enemies:
+		return
+	
+	skill_hit_enemies.append(target)
+	
+	# 造成伤害
+	if target.has_method("take_damage"):
+		# 使用统一伤害计算系统
+		var damage_result = deal_damage_to(target, skill_damage_multiplier)
+		var damage = damage_result[0]
+		var is_crit = damage_result[1]
 		
-		skill_hit_enemies.append(area)
+		if is_crit:
+			print("E技能 暴击！伤害: ", damage)
+		else:
+			print("E技能命中敌人，造成伤害: ", damage)
 		
-		# 造成伤害
-		if area.has_method("take_damage"):
-			# 使用统一伤害计算系统
-			var damage_result = deal_damage_to(area, skill_damage_multiplier)
-			var damage = damage_result[0]
-			var is_crit = damage_result[1]
-			
-			if is_crit:
-				print("E技能 暴击！伤害: ", damage)
-			else:
-				print("E技能命中敌人，造成伤害: ", damage)
-			
-			# E技能命中敌人时充能大招
-			_add_burst_energy(energy_per_hit)
+		# E技能命中敌人时充能大招
+		_add_burst_energy(energy_per_hit)
 
 ## 强制检查技能范围内的敌人
 func _force_check_skill_overlaps() -> void:
@@ -475,15 +494,15 @@ func _force_check_skill_overlaps() -> void:
 	# 获取范围内的所有敌人
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:
-		var enemy_area = enemy as Area2D
-		if not enemy_area:
+		var enemy_body = enemy as Node2D
+		if not enemy_body:
 			continue
 		
 		# 计算距离
-		var distance = (enemy_area.global_position - global_position).length()
+		var distance = (enemy_body.global_position - global_position).length()
 		if distance <= skill_radius:
 			# 在范围内，触发碰撞
-			_on_skill_area_entered(enemy_area)
+			_on_skill_body_entered(enemy_body)
 
 ## 更新技能冷却时间显示
 func _update_skill_cooldown_display() -> void:

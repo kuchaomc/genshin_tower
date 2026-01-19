@@ -47,8 +47,9 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_g2els"]
-radius = 2.9027624
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_qt451"]
+radius = 1.5046294
+height = 6.249999
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_sword"]
 size = Vector2(36, 98)
@@ -132,9 +133,9 @@ animation = &"idle"
 autoplay = "idle"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(9.536743e-07, 4)
+position = Vector2(0, 4.0000005)
 scale = Vector2(8.640002, 8.640002)
-shape = SubResource("CircleShape2D_g2els")
+shape = SubResource("CapsuleShape2D_qt451")
 
 [node name="SwordArea" type="Area2D" parent="."]
 position = Vector2(7, 12)

@@ -51,6 +51,14 @@ signal damage_dealt(damage: float, is_crit: bool, target: Node)
 @export var animator: AnimatedSprite2D
 @export var knockback_force: float = 150.0  # 对敌人造成击退的力度，可在角色数据中配置
 
+# ========== 碰撞箱引用 ==========
+var collision_shape: CollisionShape2D
+
+# ========== 击退效果 ==========
+@export var knockback_resistance: float = 0.5  # 击退抗性（0-1，1表示完全抵抗）
+var knockback_velocity: Vector2 = Vector2.ZERO
+var is_knockback_active: bool = false
+
 # ========== 状态 ==========
 var is_game_over: bool = false
 
@@ -93,6 +101,9 @@ func _ready() -> void:
 	if animator == null:
 		animator = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
 	
+	# 获取碰撞箱引用
+	collision_shape = get_node_or_null("CollisionShape2D") as CollisionShape2D
+	
 	# 没有通过initialize赋值时，创建默认属性并使用当前速度作为基准
 	if current_stats == null:
 		current_stats = CharacterStats.new()
@@ -116,6 +127,9 @@ func _physics_process(delta: float) -> void:
 	handle_dodge_input()
 	_update_dodge(delta)
 	
+	# 处理击退效果
+	_update_knockback(delta)
+	
 	# 处理移动
 	handle_movement()
 	
@@ -130,6 +144,12 @@ func handle_movement() -> void:
 	# 闪避时由闪避逻辑直接控制速度
 	if _is_dodging:
 		return
+	
+	# 击退时优先应用击退速度
+	if is_knockback_active:
+		velocity = knockback_velocity
+		return
+	
 	if can_move():
 		velocity = Input.get_vector("left", "right", "up", "down") * move_speed
 		if velocity != Vector2.ZERO:
@@ -265,7 +285,9 @@ func get_knockback_force() -> float:
 # ========== 血量相关方法 ==========
 
 ## 受到伤害（应用自身减伤）
-func take_damage(damage_amount: float) -> void:
+## knockback_direction: 击退方向（可选，如果提供则应用击退效果）
+## knockback_force: 击退力度（可选，默认值）
+func take_damage(damage_amount: float, knockback_direction: Vector2 = Vector2.ZERO, knockback_force_value: float = 100.0) -> void:
 	if is_game_over or _is_currently_invincible():
 		return
 	
@@ -283,6 +305,10 @@ func take_damage(damage_amount: float) -> void:
 	
 	emit_signal("health_changed", current_health, max_health)
 	print("角色受到伤害: ", actual_damage, "点（原始: ", damage_amount, "），剩余血量: ", current_health, "/", max_health)
+	
+	# 应用击退效果
+	if knockback_direction != Vector2.ZERO:
+		apply_knockback(knockback_direction, knockback_force_value)
 	
 	if current_health <= 0:
 		on_death()
@@ -334,6 +360,8 @@ func start_dodge() -> void:
 	_dodge_dir = dir.normalized()
 	
 	_set_dodge_invincible(true)
+	# 闪避时关闭碰撞箱以实现无敌
+	_set_collision_enabled(false)
 
 func _update_dodge(delta: float) -> void:
 	if not _is_dodging:
@@ -360,6 +388,8 @@ func _update_dodge(delta: float) -> void:
 	if t >= 1.0:
 		_is_dodging = false
 		_set_dodge_invincible(false)
+		# 闪避结束后恢复碰撞箱
+		_set_collision_enabled(true)
 
 func _is_currently_invincible() -> bool:
 	return _hurt_invincible or _dodge_invincible
@@ -439,6 +469,42 @@ func apply_hurt_speed_boost() -> void:
 ## 恢复受伤前的基础速度
 func _reset_hurt_speed_boost() -> void:
 	move_speed = base_move_speed
+
+@export var knockback_duration: float = 0.12  # 击退持续时间（秒）
+var _knockback_end_ms: int = 0
+
+## 应用击退效果（按“击退距离”计算）
+## distance: 本次希望推开的距离（像素）
+func apply_knockback(direction: Vector2, distance: float) -> void:
+	if direction == Vector2.ZERO or distance <= 0.0:
+		return
+	
+	# 应用击退抗性
+	var effective_distance = distance * (1.0 - knockback_resistance)
+	var knockback_dir = direction.normalized()
+	
+	# 设置击退速度：在 knockback_duration 内推开指定距离
+	var dur: float = max(0.01, knockback_duration)
+	knockback_velocity = knockback_dir * (effective_distance / dur)
+	is_knockback_active = true
+	_knockback_end_ms = Time.get_ticks_msec() + int(dur * 1000.0)
+
+## 更新击退效果
+func _update_knockback(delta: float) -> void:
+	if not is_knockback_active:
+		return
+	if Time.get_ticks_msec() >= _knockback_end_ms:
+		_end_knockback()
+
+## 结束击退效果
+func _end_knockback() -> void:
+	is_knockback_active = false
+	knockback_velocity = Vector2.ZERO
+
+## 设置碰撞箱启用/禁用
+func _set_collision_enabled(enabled: bool) -> void:
+	if collision_shape:
+		collision_shape.disabled = not enabled
 
 # ========== 属性修改方法（用于 buff/debuff） ==========
 

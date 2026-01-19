@@ -180,6 +180,10 @@ func spawn_enemy() -> void:
 		var center: Vector2 = boundary.global_position
 		var a: float = boundary.ellipse_radius_x
 		var b: float = boundary.ellipse_radius_y
+		# 留出边界厚度与安全距离，避免生成贴边卡墙
+		var margin: float = max(20.0, boundary.boundary_thickness)
+		a = max(0.0, a - margin)
+		b = max(0.0, b - margin)
 		
 		# 采样均匀分布在椭圆内部的随机点
 		var angle: float = randf() * TAU

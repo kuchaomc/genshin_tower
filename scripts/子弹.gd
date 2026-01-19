@@ -13,6 +13,7 @@ func _ready() -> void:
 	
 	# 连接碰撞信号
 	area_entered.connect(_on_area_entered)
+	body_entered.connect(_on_body_entered)
 	
 	# 设置20秒后自动删除子弹以优化性能
 	var timer = get_tree().create_timer(20.0)
@@ -25,13 +26,19 @@ func _process(delta: float) -> void:
 
 # 区域进入回调函数（检测与敌人的碰撞）
 func _on_area_entered(area: Area2D) -> void:
-	# 检查碰撞的对象是否为敌人（通过组名判断）
-	if area.is_in_group("enemies"):
-		# 对敌人造成伤害
-		if area.has_method("take_damage"):
-			area.take_damage(damage)
-		
-		# 删除子弹自身（击中敌人后子弹消失）
+	_handle_enemy_hit(area)
+
+## 物体进入（用于检测敌人PhysicsBody）
+func _on_body_entered(body: Node2D) -> void:
+	_handle_enemy_hit(body)
+
+## 统一处理命中敌人逻辑
+func _handle_enemy_hit(target: Node) -> void:
+	if target == null:
+		return
+	
+	if target.is_in_group("enemies") and target.has_method("take_damage"):
+		target.take_damage(damage)
 		queue_free()
 
 # 生命周期结束回调函数
