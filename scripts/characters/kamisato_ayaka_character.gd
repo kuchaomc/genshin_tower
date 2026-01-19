@@ -35,6 +35,17 @@ var skill_hit_enemies: Array[Area2D] = []  # 本次技能已命中的敌人
 # 技能冷却时间变化信号（用于UI更新）
 signal skill_cooldown_changed(remaining_time: float, cooldown_time: float)
 
+# ========== 大招（Q技能）属性 ==========
+@export var burst_scene: PackedScene  # 大招特效投射物场景
+@export var burst_damage: float = 100.0  # 大招伤害
+@export var burst_speed: float = 300.0  # 大招投射物速度
+@export var burst_max_energy: float = 100.0  # 大招最大充能值
+var burst_current_energy: float = 0.0  # 当前充能值
+@export var energy_per_hit: float = 10.0  # 每次命中敌人获得的充能值
+
+# 大招充能进度变化信号（用于UI更新）
+signal burst_energy_changed(current_energy: float, max_energy: float)
+
 func _ready() -> void:
 	super._ready()
 	
@@ -72,8 +83,14 @@ func _physics_process(delta: float) -> void:
 		# 处理E键技能输入
 		handle_skill_input()
 		
+		# 处理Q键大招输入
+		handle_burst_input()
+		
 		# 更新技能冷却时间显示
 		_update_skill_cooldown_display()
+		
+		# 更新大招充能显示
+		_update_burst_energy_display()
 		
 		# 攻击时强制检查覆盖，减少漏判
 		if attack_state == 1 and sword_area and sword_area.monitoring:
@@ -256,6 +273,9 @@ func perform_raycast_attack(attack_target: Vector2) -> void:
 					enemy_area.take_damage(damage, knockback_dir * knockback_force)
 					if RunManager:
 						RunManager.record_damage_dealt(damage)
+					
+					# 第二段攻击命中敌人时充能大招
+					_add_burst_energy(energy_per_hit)
 
 ## 完成第二段攻击
 func finish_phase2() -> void:
@@ -291,6 +311,9 @@ func _on_sword_area_entered(area: Area2D) -> void:
 			area.take_damage(damage, knockback_dir * knockback_force)
 			if RunManager:
 				RunManager.record_damage_dealt(damage)
+			
+			# 普攻命中敌人时充能大招
+			_add_burst_energy(energy_per_hit)
 
 ## 主动检查覆盖，避免物理帧遗漏
 func _force_check_sword_overlaps() -> void:
@@ -388,6 +411,9 @@ func _on_skill_area_entered(area: Area2D) -> void:
 			if RunManager:
 				RunManager.record_damage_dealt(damage)
 			print("E技能命中敌人，造成伤害: ", damage)
+			
+			# E技能命中敌人时充能大招
+			_add_burst_energy(energy_per_hit)
 
 ## 强制检查技能范围内的敌人
 func _force_check_skill_overlaps() -> void:
@@ -415,3 +441,78 @@ func _update_skill_cooldown_display() -> void:
 		emit_signal("skill_cooldown_changed", remaining_time, skill_cooldown)
 	else:
 		emit_signal("skill_cooldown_changed", 0.0, skill_cooldown)
+
+# ========== 大招（Q技能）相关方法 ==========
+
+## 处理Q键大招输入
+var _last_q_pressed: bool = false
+
+func handle_burst_input() -> void:
+	# 检测Q键按下
+	var q_pressed = Input.is_physical_key_pressed(KEY_Q)
+	if q_pressed and not _last_q_pressed:
+		if _is_burst_ready():
+			use_burst()
+	_last_q_pressed = q_pressed
+
+## 检查大招是否可用
+func _is_burst_ready() -> bool:
+	return burst_current_energy >= burst_max_energy
+
+## 使用大招：向鼠标方向发射特效
+func use_burst() -> void:
+	if not _is_burst_ready():
+		return
+	
+	# 消耗所有充能
+	burst_current_energy = 0.0
+	_update_burst_energy_display()
+	
+	# 如果没有加载场景，尝试加载
+	if burst_scene == null:
+		burst_scene = load("res://scenes/burst_projectile.tscn") as PackedScene
+	
+	if not burst_scene:
+		print("错误：大招投射物场景未加载")
+		return
+	
+	# 创建大招投射物实例
+	var burst_instance = burst_scene.instantiate()
+	if not burst_instance:
+		print("错误：无法实例化大招投射物")
+		return
+	
+	# 设置投射物位置和方向
+	var mouse_position = get_global_mouse_position()
+	var direction = (mouse_position - global_position).normalized()
+	if direction == Vector2.ZERO:
+		direction = Vector2.RIGHT  # 默认向右
+	
+	burst_instance.global_position = global_position
+	burst_instance.direction = direction
+	burst_instance.damage = burst_damage
+	burst_instance.speed = burst_speed
+	
+	# 应用升级加成
+	if RunManager:
+		var damage_upgrade = RunManager.get_upgrade_level("damage")
+		burst_instance.damage *= (1.0 + damage_upgrade * 0.1)
+	
+	# 添加到场景树（添加到当前节点的父节点或根节点）
+	var parent = get_parent()
+	if parent:
+		parent.add_child(burst_instance)
+	else:
+		get_tree().root.add_child(burst_instance)
+	
+	print("使用大招：向鼠标方向发射")
+
+## 增加大招充能
+func _add_burst_energy(amount: float) -> void:
+	if burst_current_energy < burst_max_energy:
+		burst_current_energy = min(burst_current_energy + amount, burst_max_energy)
+		_update_burst_energy_display()
+
+## 更新大招充能显示
+func _update_burst_energy_display() -> void:
+	emit_signal("burst_energy_changed", burst_current_energy, burst_max_energy)

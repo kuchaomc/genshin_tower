@@ -36,31 +36,46 @@ func update_cooldown(remaining_time: float, cooldown_time: float) -> void:
 	max_cooldown = cooldown_time
 	_update_display()
 
+## 更新充能进度（用于大招）
+func update_energy(current_energy: float, max_energy: float) -> void:
+	current_cooldown = max_energy - current_energy  # 反转：充能值越高，遮罩越小
+	max_cooldown = max_energy
+	_update_display()
+
 ## 更新显示
 func _update_display() -> void:
 	if not cooldown_overlay or not cooldown_label:
 		return
 	
 	if current_cooldown > 0.0 and max_cooldown > 0.0:
-		# 显示冷却遮罩
+		# 显示冷却遮罩或充能遮罩
 		var progress = current_cooldown / max_cooldown
 		cooldown_overlay.visible = true
 		cooldown_overlay.color.a = 0.6  # 半透明遮罩
 		
-		# 更新冷却时间文本
+		# 更新冷却时间文本（如果是充能，显示充能百分比）
 		cooldown_label.visible = true
-		cooldown_label.text = "%.1f" % current_cooldown
+		if max_cooldown >= 100.0:  # 充能系统（最大值通常是100）
+			var energy = max_cooldown - current_cooldown
+			var energy_percent = int((energy / max_cooldown) * 100)
+			cooldown_label.text = str(energy_percent) + "%"
+		else:
+			cooldown_label.text = "%.1f" % current_cooldown
 		
 		# 更新遮罩位置（从下往上覆盖）
 		var parent_size = cooldown_overlay.get_parent().size
 		cooldown_overlay.size = Vector2(parent_size.x, parent_size.y * progress)
 		cooldown_overlay.position = Vector2(0, parent_size.y * (1.0 - progress))
 		
-		# 降低图标透明度
+		# 降低图标透明度（如果未充能完成）
 		if icon_texture:
-			icon_texture.modulate.a = 0.5
+			if max_cooldown >= 100.0 and current_cooldown <= 0.0:
+				# 充能完成，图标高亮
+				icon_texture.modulate.a = 1.0
+			else:
+				icon_texture.modulate.a = 0.5
 	else:
-		# 技能可用
+		# 技能可用或充能完成
 		cooldown_overlay.visible = false
 		cooldown_label.visible = false
 		if icon_texture:

@@ -10,7 +10,6 @@ script = ExtResource("1_ki7t4")
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
-layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -27,29 +26,25 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 50
-text = "test v1.2"
+text = "test v1.4"
 horizontal_alignment = 1
 
 [node name="Button" type="Button" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(150, 60)
-scale = Vector2(2.580492, 2.8543859)
+layout_mode = 2
 text = "开始游戏"
 
 [node name="Button2" type="Button" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(150, 60)
-scale = Vector2(2.5840127, 2.3165236)
+layout_mode = 2
 text = "游戏说明"
 
 [node name="Button3" type="Button" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
 custom_minimum_size = Vector2(150, 60)
-scale = Vector2(2.6329544, 2.203075)
+layout_mode = 2
 text = "退出游戏"
 
 [node name="Panel" type="Panel" parent="CanvasLayer"]
-layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -73,7 +68,9 @@ text = "游戏说明：
 操作方式：
 WASD键 - 控制角色移动
 鼠标左键 - 攻击（长按可触发重击）
-鼠标右键 - 闪避（向鼠标方向，闪避期间无敌）"
+鼠标右键 - 闪避（向鼠标方向，闪避期间无敌）
+e - 技能
+q - 大招"
 
 [node name="CloseButton" type="Button" parent="CanvasLayer/Panel"]
 layout_mode = 1

@@ -30,6 +30,8 @@ var player_hp_bar: ProgressBar
 var player_hp_label: Label
 # 技能UI引用
 var skill_ui: SkillUI
+# 大招UI引用
+var burst_ui: SkillUI
 # 调试：显示判定/碰撞箱开关
 var debug_toggle_button: Button
 var debug_show_hitboxes: bool = false
@@ -42,6 +44,7 @@ func _ready() -> void:
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
 	player_hp_label = get_node_or_null("CanvasLayer/PlayerHPBar/Label") as Label
 	skill_ui = get_node_or_null("CanvasLayer/SkillUIContainer/SkillUI") as SkillUI
+	burst_ui = get_node_or_null("CanvasLayer/BurstUIContainer/BurstUI") as SkillUI
 	debug_toggle_button = get_node_or_null("CanvasLayer/DebugToggle") as Button
 	if debug_toggle_button:
 		debug_toggle_button.pressed.connect(_on_debug_toggle_pressed)
@@ -125,6 +128,10 @@ func connect_player_signals() -> void:
 		if player.has_signal("skill_cooldown_changed"):
 			player.skill_cooldown_changed.connect(_on_skill_cooldown_changed)
 		
+		# 连接大招充能信号
+		if player.has_signal("burst_energy_changed"):
+			player.burst_energy_changed.connect(_on_burst_energy_changed)
+		
 		# 初始化血量UI显示
 		if player.has_method("get_current_health") and player.has_method("get_max_health"):
 			_on_player_health_changed(player.get_current_health(), player.get_max_health())
@@ -134,6 +141,12 @@ func connect_player_signals() -> void:
 			var skill_icon = load("res://textures/神里技能图标.png")
 			if skill_icon:
 				skill_ui.set_skill_icon(skill_icon)
+		
+		# 初始化大招UI
+		if burst_ui and player is KamisatoAyakaCharacter:
+			var burst_icon = load("res://textures/ayaka大招图标.png")
+			if burst_icon:
+				burst_ui.set_skill_icon(burst_icon)
 
 ## 敌人生成计时器回调
 func _on_enemy_spawn_timer_timeout() -> void:
@@ -252,6 +265,11 @@ func _apply_hitbox_visibility_to_enemy(enemy_node: Node) -> void:
 func _on_skill_cooldown_changed(remaining_time: float, cooldown_time: float) -> void:
 	if skill_ui:
 		skill_ui.update_cooldown(remaining_time, cooldown_time)
+
+## 大招充能进度变化回调
+func _on_burst_energy_changed(current_energy: float, max_energy: float) -> void:
+	if burst_ui:
+		burst_ui.update_energy(current_energy, max_energy)
 
 ## 统一设置碰撞形状的可见性与颜色（Godot 4可直接显示CollisionShape2D）
 func _set_shape_visible(shape: CollisionShape2D, visible_state: bool, debug_color: Color) -> void:
