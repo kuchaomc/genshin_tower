@@ -185,9 +185,10 @@ func initialize_player() -> void:
 	player.initialize(character_data)
 	connect_player_signals()
 	
-	# 同步血量到RunManager
+	# 同步血量到RunManager，并注册角色节点以应用升级
 	if RunManager:
 		RunManager.set_health(player.current_health, player.max_health)
+		RunManager.set_character_node(player)
 	
 	# 通知相机更新目标（如果相机存在）
 	_update_camera_target()

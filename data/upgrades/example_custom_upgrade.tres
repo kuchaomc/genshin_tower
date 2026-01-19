@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="UpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/upgrades/upgrade_data.gd" id="1_upgrade"]
+
+[resource]
+script = ExtResource("1_upgrade")
+id = "example_custom"
+display_name = "自定义升级示例"
+description = "这是一个自定义升级的示例，增加 {value} 点攻击力"
+upgrade_type = 0
+rarity = 2
+target_stat = 1
+max_level = 3
+value_per_level = 10.0
+base_weight = 50.0
+required_character_ids = []
+required_upgrade_ids = []
+exclusive_upgrade_ids = []
+min_floor = 0
+tags = ["custom", "offensive"]

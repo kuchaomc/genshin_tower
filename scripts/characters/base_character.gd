@@ -564,3 +564,145 @@ func reset_stats_to_base() -> void:
 	if base_stats:
 		current_stats = base_stats.duplicate_stats()
 		_apply_stats_to_character()
+
+# ========== 升级系统 ==========
+
+## 获取基础属性（供 RunManager 使用）
+func get_base_stats() -> CharacterStats:
+	return base_stats
+
+## 获取当前属性（供 RunManager 使用）
+func get_current_stats() -> CharacterStats:
+	return current_stats
+
+## 应用升级（由 RunManager 调用）
+func apply_upgrades(run_manager: Node) -> void:
+	if not base_stats or not current_stats:
+		return
+	
+	# 先重置到基础值
+	current_stats = base_stats.duplicate_stats()
+	
+	# 应用基础属性升级
+	_apply_stat_upgrade(run_manager, "max_health", UpgradeData.TargetStat.MAX_HEALTH)
+	_apply_stat_upgrade(run_manager, "attack", UpgradeData.TargetStat.ATTACK)
+	_apply_stat_upgrade(run_manager, "defense_percent", UpgradeData.TargetStat.DEFENSE_PERCENT)
+	_apply_stat_upgrade(run_manager, "move_speed", UpgradeData.TargetStat.MOVE_SPEED)
+	_apply_stat_upgrade(run_manager, "attack_speed", UpgradeData.TargetStat.ATTACK_SPEED)
+	_apply_stat_upgrade(run_manager, "crit_rate", UpgradeData.TargetStat.CRIT_RATE)
+	_apply_stat_upgrade(run_manager, "crit_damage", UpgradeData.TargetStat.CRIT_DAMAGE)
+	_apply_stat_upgrade(run_manager, "knockback_force", UpgradeData.TargetStat.KNOCKBACK_FORCE)
+	
+	# 应用闪避属性升级
+	_apply_dodge_upgrades(run_manager)
+	
+	# 应用特殊属性升级
+	_apply_special_upgrades(run_manager)
+	
+	# 同步属性到角色
+	_sync_stats_to_character()
+	
+	print("角色升级已应用：", current_stats.get_summary())
+
+## 应用单个属性升级
+func _apply_stat_upgrade(run_manager: Node, property_name: String, target_stat: int) -> void:
+	if not property_name in base_stats:
+		return
+	
+	var base_value = base_stats.get(property_name)
+	var final_value = run_manager.calculate_final_stat(base_value, target_stat)
+	
+	# 特殊处理：防御和暴击率需要限制范围
+	if property_name == "defense_percent" or property_name == "crit_rate":
+		final_value = clamp(final_value, 0.0, 1.0)
+	
+	current_stats.set(property_name, final_value)
+
+## 应用闪避属性升级
+func _apply_dodge_upgrades(run_manager: Node) -> void:
+	# 闪避距离
+	var dodge_dist_flat = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.DODGE_DISTANCE)
+	var dodge_dist_percent = run_manager.get_stat_percent_bonus(UpgradeData.TargetStat.DODGE_DISTANCE)
+	var base_dodge_distance = 120.0  # 默认闪避距离
+	if character_data and "dodge_distance" in character_data:
+		base_dodge_distance = character_data.dodge_distance
+	dodge_distance = (base_dodge_distance + dodge_dist_flat) * (1.0 + dodge_dist_percent)
+	
+	# 闪避冷却
+	var dodge_cd_flat = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.DODGE_COOLDOWN)
+	var dodge_cd_percent = run_manager.get_stat_percent_bonus(UpgradeData.TargetStat.DODGE_COOLDOWN)
+	var base_dodge_cooldown = 0.6  # 默认闪避冷却
+	dodge_cooldown = max(0.1, (base_dodge_cooldown + dodge_cd_flat) * (1.0 + dodge_cd_percent))
+	
+	# 无敌时间
+	var invincibility_flat = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.INVINCIBILITY_DURATION)
+	var base_invincibility = 1.0  # 默认无敌时间
+	invincibility_duration = base_invincibility + invincibility_flat
+
+## 应用特殊属性升级
+func _apply_special_upgrades(run_manager: Node) -> void:
+	# 击退抗性
+	var knockback_resist_bonus = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.KNOCKBACK_RESISTANCE)
+	knockback_resistance = clamp(knockback_resistance + knockback_resist_bonus, 0.0, 1.0)
+
+## 同步属性到角色实际数值
+func _sync_stats_to_character() -> void:
+	if not current_stats:
+		return
+	
+	# 计算生命值变化比例
+	var old_max_health = max_health
+	var health_ratio = 1.0
+	if old_max_health > 0:
+		health_ratio = current_health / old_max_health
+	
+	# 更新最大生命值
+	max_health = current_stats.max_health
+	
+	# 按比例调整当前血量
+	current_health = max_health * health_ratio
+	
+	# 更新移动速度
+	base_move_speed = current_stats.move_speed
+	move_speed = base_move_speed
+	
+	# 更新击退力度
+	knockback_force = current_stats.knockback_force
+	
+	# 发出血量变化信号
+	emit_signal("health_changed", current_health, max_health)
+
+## 获取技能伤害倍率加成
+func get_skill_damage_multiplier() -> float:
+	if RunManager:
+		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.SKILL_DAMAGE)
+		return 1.0 + bonus
+	return 1.0
+
+## 获取技能冷却倍率（1.0 - 减少比例）
+func get_skill_cooldown_multiplier() -> float:
+	if RunManager:
+		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.SKILL_COOLDOWN)
+		return max(0.1, 1.0 + bonus)  # bonus 是负数
+	return 1.0
+
+## 获取技能范围倍率
+func get_skill_radius_multiplier() -> float:
+	if RunManager:
+		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.SKILL_RADIUS)
+		return 1.0 + bonus
+	return 1.0
+
+## 获取大招伤害倍率加成
+func get_burst_damage_multiplier() -> float:
+	if RunManager:
+		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.BURST_DAMAGE)
+		return 1.0 + bonus
+	return 1.0
+
+## 获取充能效率倍率
+func get_energy_gain_multiplier() -> float:
+	if RunManager:
+		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.ENERGY_GAIN)
+		return 1.0 + bonus
+	return 1.0

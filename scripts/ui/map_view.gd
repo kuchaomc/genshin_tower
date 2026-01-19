@@ -224,12 +224,12 @@ func _update_selectable_nodes() -> void:
 	
 	var current_floor = RunManager.current_floor if RunManager else 1
 	
-	# 如果是第一层，所有第一层节点都可选
-	if current_floor == 1:
-		var first_floor = current_map.get("floors", [[]])[0]
-		for node_data in first_floor:
-			if node_data and not node_data.is_visited:
-				selectable_nodes.append(node_data.node_id)
+	# 如果当前楼层 <= 1，所有第一层节点都可选
+	if current_floor <= 1:
+		for node_id in node_instances:
+			var node_instance = node_instances[node_id]
+			if node_instance and node_instance.floor_number == 1 and not node_instance.is_visited:
+				selectable_nodes.append(node_id)
 	else:
 		# 找到当前层已访问的节点，其连接的节点可选
 		var floors = current_map.get("floors", [])
@@ -247,16 +247,26 @@ func _update_selectable_nodes() -> void:
 	for node_id in node_instances:
 		var node_instance = node_instances[node_id]
 		if node_instance and node_instance.node_button:
-			var is_selectable = node_id in selectable_nodes
-			node_instance.node_button.disabled = not is_selectable and not node_instance.is_visited
+			var is_selectable = false
+			if current_floor <= 1 and node_instance.floor_number == 1:
+				is_selectable = not node_instance.is_visited
+			else:
+				is_selectable = node_id in selectable_nodes
+			
+			node_instance.node_button.disabled = not is_selectable or node_instance.is_visited
 
 ## 节点被选中
 func _on_node_selected(node: MapNode) -> void:
-	print("选择节点：", node.node_id, " 类型：", node.get_type_name())
-	
 	# 检查节点是否可选
-	if node.node_id not in selectable_nodes and RunManager.current_floor > 1:
-		print("该节点不可选择")
+	var current_floor = RunManager.current_floor if RunManager else 1
+	var is_selectable = false
+	
+	if current_floor <= 1 and node.floor_number == 1:
+		is_selectable = not node.is_visited
+	elif node.node_id in selectable_nodes:
+		is_selectable = true
+	
+	if not is_selectable:
 		return
 	
 	# 访问节点
@@ -310,6 +320,10 @@ func open_treasure() -> void:
 func start_battle(node: MapNode) -> void:
 	if GameManager:
 		GameManager.start_battle()
+	else:
+		var battle_scene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+		if battle_scene:
+			get_tree().change_scene_to_packed(battle_scene)
 
 ## 进入商店
 func enter_shop() -> void:

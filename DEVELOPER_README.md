@@ -98,8 +98,12 @@ genshin_game/
 │   ├── camera/                # 相机系统
 │   │   └── camera_controller.gd
 │   │
-│   └── vfx/                   # 视觉特效
-│       └── sword_trail.gd
+│   ├── vfx/                   # 视觉特效
+│   │   └── sword_trail.gd
+│   │
+│   └── upgrades/              # 升级系统（NEW）
+│       ├── upgrade_data.gd        # 升级数据 Resource 类
+│       └── upgrade_registry.gd    # 升级注册表（自动加载）
 │
 ├── data/                      # 游戏数据（Resource 文件）
 │   ├── characters/            # 角色配置
@@ -109,6 +113,9 @@ genshin_game/
 │   ├── enemies/               # 敌人配置
 │   │   ├── normal_enemy.tres      # 普通敌人数据
 │   │   ├── normal_enemy_stats.tres # 普通敌人属性（NEW）
+│   │
+│   ├── upgrades/              # 自定义升级配置（NEW）
+│   │   └── example_custom_upgrade.tres  # 示例自定义升级
 │   │
 │   └── config/                # JSON 配置文件
 │       └── map_config.json    # 地图生成配置
@@ -558,6 +565,129 @@ func _on_player_died() -> void:
 
 ---
 
+## 升级系统（NEW）
+
+### 系统架构
+
+```
+UpgradeData (Resource)           # 升级数据定义
+    ↓ 被注册到
+UpgradeRegistry (Autoload)       # 升级注册表（管理所有升级）
+    ↓ 提供升级给
+upgrade_selection.gd             # 升级选择界面
+    ↓ 选择后通知
+RunManager (Autoload)            # 记录已获得的升级
+    ↓ 应用升级到
+BaseCharacter / 子类             # 角色属性实际生效
+```
+
+### UpgradeData - 升级数据 Resource
+
+**核心字段**：
+```gdscript
+# 基础信息
+@export var id: String                    # 升级唯一标识符
+@export var display_name: String          # 显示名称
+@export var description: String           # 描述（支持 {value} 占位符）
+
+# 升级配置
+@export var upgrade_type: UpgradeType     # 类型（固定值/百分比/技能/特殊）
+@export var rarity: Rarity                # 稀有度（影响出现概率）
+@export var target_stat: TargetStat       # 目标属性
+@export var max_level: int                # 最大等级
+@export var value_per_level: float        # 每级数值
+
+# 条件限制
+@export var required_character_ids: Array[String]  # 限定角色
+@export var required_upgrade_ids: Array[String]    # 前置升级
+@export var exclusive_upgrade_ids: Array[String]   # 互斥升级
+@export var min_floor: int                         # 最低楼层要求
+
+# 分类标签
+@export var tags: Array[String]           # 用于筛选和分类
+```
+
+### UpgradeRegistry - 升级注册表
+
+**作为自动加载单例使用**。
+
+**核心方法**：
+```gdscript
+# 注册升级
+func register_upgrade(upgrade: UpgradeData) -> void
+
+# 查询升级
+func get_upgrade(id: String) -> UpgradeData
+func get_all_upgrades() -> Array[UpgradeData]
+func get_upgrades_by_tag(tag: String) -> Array[UpgradeData]
+
+# 随机选取升级（带权重和条件过滤）
+func pick_random_upgrades(
+    character_id: String,
+    current_upgrades: Dictionary,
+    current_floor: int,
+    count: int = 3
+) -> Array[UpgradeData]
+```
+
+### 内置升级列表
+
+| 分类 | 升级ID | 名称 | 效果 | 稀有度 |
+|------|--------|------|------|--------|
+| 基础 | health_flat | 生命强化 | +20 最大生命 | 普通 |
+| 基础 | health_percent | 生命提升 | +10% 最大生命 | 稀有 |
+| 基础 | attack_flat | 攻击强化 | +5 攻击力 | 普通 |
+| 基础 | attack_percent | 攻击提升 | +10% 攻击力 | 稀有 |
+| 基础 | defense | 防御提升 | +5% 减伤 | 稀有 |
+| 移动 | move_speed_flat | 迅捷 | +15 移动速度 | 普通 |
+| 移动 | move_speed_percent | 疾风 | +10% 移动速度 | 精良 |
+| 攻速 | attack_speed | 攻速提升 | +10% 攻击速度 | 稀有 |
+| 暴击 | crit_rate | 暴击率提升 | +5% 暴击率 | 稀有 |
+| 暴击 | crit_damage | 暴击伤害提升 | +15% 暴击伤害 | 稀有 |
+| 闪避 | dodge_distance | 闪避距离 | +20 闪避距离 | 稀有 |
+| 闪避 | dodge_cooldown | 闪避冷却 | -0.1秒 冷却 | 精良 |
+| 技能 | skill_damage | 技能伤害 | +15% 技能伤害 | 精良 |
+| 技能 | skill_cooldown | 技能冷却 | -10% 冷却 | 精良 |
+| 技能 | skill_radius | 技能范围 | +15% 技能范围 | 精良 |
+| 大招 | burst_damage | 大招伤害 | +20% 大招伤害 | 史诗 |
+| 大招 | energy_gain | 充能效率 | +20% 充能 | 精良 |
+
+### 升级应用流程
+
+```
+1. 玩家在升级选择界面选择升级
+2. upgrade_selection.gd 调用 RunManager.add_upgrade(id, 1)
+3. RunManager._recalculate_stat_bonuses() 重新计算所有加成
+4. RunManager.apply_upgrades_to_character(character) 应用到角色
+5. BaseCharacter.apply_upgrades(run_manager) 更新角色属性
+6. 角色的 current_stats 被更新，技能倍率生效
+```
+
+### 扩展升级系统
+
+#### 添加自定义效果升级
+
+如果需要实现无法通过属性加成表达的效果（如"击杀敌人回复生命"），可以：
+
+1. 创建升级时设置 `upgrade_type = UpgradeType.CUSTOM`
+2. 在角色或系统代码中检查升级等级并实现效果：
+
+```gdscript
+# 在 BaseEnemy.die() 中
+func die() -> void:
+    # ... 原有代码 ...
+    
+    # 检查自定义升级
+    if RunManager:
+        var lifesteal_level = RunManager.get_upgrade_level("lifesteal_on_kill")
+        if lifesteal_level > 0:
+            var player = get_tree().get_first_node_in_group("player")
+            if player and player.has_method("heal"):
+                player.heal(5.0 * lifesteal_level)
+```
+
+---
+
 ## 属性系统
 
 ### 为什么需要统一属性系统？
@@ -725,27 +855,98 @@ func _update_ai(delta: float) -> void:
 
 ### 添加新升级选项
 
-在 `scripts/ui/upgrade_selection.gd` 中：
+升级系统使用 `UpgradeData` 资源类和 `UpgradeRegistry` 注册表管理。
+
+#### 方法 1：在代码中注册（推荐用于通用升级）
+
+在 `scripts/upgrades/upgrade_registry.gd` 的 `_register_builtin_upgrades()` 方法中添加：
 
 ```gdscript
-const UPGRADES = {
-    "new_upgrade": {
-        "name": "新升级",
-        "description": "升级效果描述",
-        "max_level": 5,
-        "icon": null
-    }
-}
+_register_upgrade(_create_stat_upgrade(
+    "new_upgrade_id",           # 升级唯一ID
+    "新升级名称",                # 显示名称
+    "增加 {value} 某属性",       # 描述（支持占位符）
+    UpgradeData.TargetStat.ATTACK,  # 目标属性
+    UpgradeData.UpgradeType.STAT_FLAT,  # 升级类型
+    10.0,                        # 每级数值
+    5,                           # 最大等级
+    UpgradeData.Rarity.RARE,     # 稀有度
+    ["offensive", "custom"]      # 标签
+))
+```
 
-func apply_upgrade(upgrade_id: String) -> void:
-    var player = get_tree().get_first_node_in_group("player") as BaseCharacter
-    
-    match upgrade_id:
-        "new_upgrade":
-            # 实现升级效果
-            player.add_crit_damage(0.2)  # 增加 20% 暴击伤害
-    
-    RunManager.add_upgrade(upgrade_id)
+#### 方法 2：通过资源文件添加（推荐用于自定义/角色专属升级）
+
+1. 在 `data/upgrades/` 目录下创建 `.tres` 文件
+2. 设置脚本为 `UpgradeData`
+3. 配置升级属性
+
+示例：`data/upgrades/custom_upgrade.tres`
+```
+[gd_resource type="Resource" script_class="UpgradeData"]
+
+[ext_resource type="Script" path="res://scripts/upgrades/upgrade_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "custom_upgrade"
+display_name = "自定义升级"
+description = "增加 {value} 攻击力"
+upgrade_type = 0  # STAT_FLAT
+rarity = 2        # RARE
+target_stat = 1   # ATTACK
+max_level = 3
+value_per_level = 15.0
+required_character_ids = []  # 空数组 = 所有角色可用
+tags = ["custom", "offensive"]
+```
+
+#### 升级类型说明
+
+| 类型 | 枚举值 | 说明 |
+|------|--------|------|
+| STAT_FLAT | 0 | 固定值加成（如 +20 生命） |
+| STAT_PERCENT | 1 | 百分比加成（如 +10% 攻击） |
+| ABILITY | 2 | 技能相关（技能范围、冷却等） |
+| SPECIAL | 3 | 特殊效果（闪避距离等） |
+| CUSTOM | 4 | 自定义效果（需要代码实现） |
+
+#### 目标属性说明
+
+| 属性 | 枚举值 | 说明 |
+|------|--------|------|
+| MAX_HEALTH | 0 | 最大生命值 |
+| ATTACK | 1 | 攻击力 |
+| DEFENSE_PERCENT | 2 | 减伤比例 |
+| MOVE_SPEED | 3 | 移动速度 |
+| ATTACK_SPEED | 4 | 攻击速度 |
+| CRIT_RATE | 5 | 暴击率 |
+| CRIT_DAMAGE | 6 | 暴击伤害 |
+| DODGE_DISTANCE | 8 | 闪避距离 |
+| SKILL_DAMAGE | 11 | 技能伤害倍率 |
+| SKILL_COOLDOWN | 12 | 技能冷却时间 |
+| SKILL_RADIUS | 13 | 技能范围 |
+| BURST_DAMAGE | 14 | 大招伤害倍率 |
+| ENERGY_GAIN | 16 | 充能效率 |
+
+#### 稀有度说明
+
+| 稀有度 | 枚举值 | 颜色 | 权重倍率 |
+|--------|--------|------|----------|
+| COMMON | 0 | 白色 | 1.0 |
+| UNCOMMON | 1 | 绿色 | 0.7 |
+| RARE | 2 | 蓝色 | 0.4 |
+| EPIC | 3 | 紫色 | 0.15 |
+| LEGENDARY | 4 | 橙色 | 0.05 |
+
+#### 角色专属升级
+
+在升级数据中设置 `required_character_ids` 可以限制升级只对特定角色可用：
+
+```gdscript
+var ayaka_upgrade = _create_stat_upgrade(...)
+ayaka_upgrade.required_character_ids = ["kamisato_ayaka"]  # 只对神里绫华可用
+_register_upgrade(ayaka_upgrade)
 ```
 
 ---

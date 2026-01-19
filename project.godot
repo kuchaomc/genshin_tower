@@ -24,6 +24,7 @@ config/icon="res://icon.svg"
 GameManager="*res://scripts/autoload/game_manager.gd"
 DataManager="*res://scripts/autoload/data_manager.gd"
 RunManager="*res://scripts/autoload/run_manager.gd"
+UpgradeRegistry="*res://scripts/upgrades/upgrade_registry.gd"
 
 [display]
 

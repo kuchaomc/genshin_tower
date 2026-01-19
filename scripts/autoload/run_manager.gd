@@ -7,9 +7,11 @@ signal floor_changed(floor: int)
 signal gold_changed(gold: int)
 signal health_changed(current: float, maximum: float)
 signal upgrade_added(upgrade_id: String)
+signal upgrades_applied  # 升级应用完成信号
 
 # 当前角色
 var current_character: CharacterData = null
+var current_character_node: Node = null  # 当前角色的场景节点引用
 
 # 游戏进度
 var current_floor: int = 0
@@ -23,6 +25,10 @@ var max_health: float = 100.0
 # 升级和状态
 var upgrades: Dictionary = {}  # upgrade_id -> level
 var visited_nodes: Array[String] = []  # 已访问的地图节点ID
+
+# ========== 升级加成缓存 ==========
+## 存储各属性的总加成值（每次升级后重新计算）
+var _stat_bonuses: Dictionary = {}
 
 # 统计数据
 var enemies_killed: int = 0
@@ -118,11 +124,190 @@ func add_upgrade(upgrade_id: String, level: int = 1) -> void:
 		upgrades[upgrade_id] += level
 	else:
 		upgrades[upgrade_id] = level
+	
+	# 重新计算升级加成
+	_recalculate_stat_bonuses()
+	
+	# 应用升级到当前角色
+	if current_character_node:
+		apply_upgrades_to_character(current_character_node)
+	
 	emit_signal("upgrade_added", upgrade_id)
 
 ## 获取升级等级
 func get_upgrade_level(upgrade_id: String) -> int:
 	return upgrades.get(upgrade_id, 0)
+
+## 设置当前角色节点引用
+func set_character_node(character: Node) -> void:
+	current_character_node = character
+	# 应用已有升级
+	if current_character_node and upgrades.size() > 0:
+		apply_upgrades_to_character(current_character_node)
+
+# ========== 升级计算系统 ==========
+
+## 重新计算所有升级加成
+func _recalculate_stat_bonuses() -> void:
+	_stat_bonuses.clear()
+	
+	# 如果没有 UpgradeRegistry，使用旧系统
+	if not _has_upgrade_registry():
+		return
+	
+	var registry = _get_upgrade_registry()
+	
+	for upgrade_id in upgrades:
+		var level = upgrades[upgrade_id]
+		var upgrade_data = registry.get_upgrade(upgrade_id)
+		
+		if upgrade_data == null:
+			continue
+		
+		var target_stat = upgrade_data.target_stat
+		var value = upgrade_data.get_value_at_level(level)
+		var upgrade_type = upgrade_data.upgrade_type
+		
+		# 区分固定值和百分比加成
+		var stat_key = str(target_stat)
+		var flat_key = stat_key + "_flat"
+		var percent_key = stat_key + "_percent"
+		
+		if upgrade_type == UpgradeData.UpgradeType.STAT_FLAT or upgrade_type == UpgradeData.UpgradeType.SPECIAL:
+			if not _stat_bonuses.has(flat_key):
+				_stat_bonuses[flat_key] = 0.0
+			_stat_bonuses[flat_key] += value
+		elif upgrade_type == UpgradeData.UpgradeType.STAT_PERCENT:
+			if not _stat_bonuses.has(percent_key):
+				_stat_bonuses[percent_key] = 0.0
+			_stat_bonuses[percent_key] += value
+
+## 获取指定属性的固定值加成
+func get_stat_flat_bonus(target_stat: int) -> float:
+	var key = str(target_stat) + "_flat"
+	return _stat_bonuses.get(key, 0.0)
+
+## 获取指定属性的百分比加成
+func get_stat_percent_bonus(target_stat: int) -> float:
+	var key = str(target_stat) + "_percent"
+	return _stat_bonuses.get(key, 0.0)
+
+## 计算最终属性值 = (基础值 + 固定加成) * (1 + 百分比加成)
+func calculate_final_stat(base_value: float, target_stat: int) -> float:
+	var flat_bonus = get_stat_flat_bonus(target_stat)
+	var percent_bonus = get_stat_percent_bonus(target_stat)
+	return (base_value + flat_bonus) * (1.0 + percent_bonus)
+
+## 应用升级到角色
+func apply_upgrades_to_character(character: Node) -> void:
+	if character == null:
+		return
+	
+	# 检查角色是否有应用升级的方法
+	if character.has_method("apply_upgrades"):
+		character.apply_upgrades(self)
+		emit_signal("upgrades_applied")
+		return
+	
+	# 如果角色没有专用方法，尝试直接应用到 current_stats
+	if not character.has_method("get_base_stats") or not character.has_method("get_current_stats"):
+		return
+	
+	var base_stats = character.get_base_stats()
+	var current_stats = character.get_current_stats()
+	
+	if base_stats == null or current_stats == null:
+		return
+	
+	# 应用各属性升级
+	_apply_stat_to_character(character, current_stats, base_stats, "max_health", UpgradeData.TargetStat.MAX_HEALTH)
+	_apply_stat_to_character(character, current_stats, base_stats, "attack", UpgradeData.TargetStat.ATTACK)
+	_apply_stat_to_character(character, current_stats, base_stats, "defense_percent", UpgradeData.TargetStat.DEFENSE_PERCENT)
+	_apply_stat_to_character(character, current_stats, base_stats, "move_speed", UpgradeData.TargetStat.MOVE_SPEED)
+	_apply_stat_to_character(character, current_stats, base_stats, "attack_speed", UpgradeData.TargetStat.ATTACK_SPEED)
+	_apply_stat_to_character(character, current_stats, base_stats, "crit_rate", UpgradeData.TargetStat.CRIT_RATE)
+	_apply_stat_to_character(character, current_stats, base_stats, "crit_damage", UpgradeData.TargetStat.CRIT_DAMAGE)
+	_apply_stat_to_character(character, current_stats, base_stats, "knockback_force", UpgradeData.TargetStat.KNOCKBACK_FORCE)
+	
+	emit_signal("upgrades_applied")
+
+## 应用单个属性升级
+func _apply_stat_to_character(character: Node, current_stats: Resource, base_stats: Resource, property_name: String, target_stat: int) -> void:
+	if not property_name in base_stats:
+		return
+	
+	var base_value = base_stats.get(property_name)
+	var final_value = calculate_final_stat(base_value, target_stat)
+	current_stats.set(property_name, final_value)
+	
+	# 特殊处理：同步到角色节点
+	if property_name == "max_health" and "max_health" in character:
+		var old_max = character.max_health
+		character.max_health = final_value
+		# 按比例调整当前血量
+		if old_max > 0 and character.has_method("get_current_health"):
+			var health_ratio = character.get_current_health() / old_max
+			character.current_health = final_value * health_ratio
+	
+	if property_name == "move_speed" and "base_move_speed" in character:
+		character.base_move_speed = final_value
+		character.move_speed = final_value
+
+## 检查是否有 UpgradeRegistry
+func _has_upgrade_registry() -> bool:
+	return Engine.has_singleton("UpgradeRegistry") or has_node("/root/UpgradeRegistry")
+
+## 获取 UpgradeRegistry
+func _get_upgrade_registry() -> Node:
+	if has_node("/root/UpgradeRegistry"):
+		return get_node("/root/UpgradeRegistry")
+	return null
+
+# ========== 升级兼容层（支持旧版升级ID） ==========
+
+## 获取伤害加成倍率（兼容旧版 "damage" 升级）
+func get_damage_multiplier() -> float:
+	# 新系统
+	var attack_percent = get_stat_percent_bonus(UpgradeData.TargetStat.ATTACK)
+	if attack_percent != 0.0:
+		return 1.0 + attack_percent
+	
+	# 旧系统兼容
+	var damage_level = get_upgrade_level("damage")
+	return 1.0 + damage_level * 0.1
+
+## 获取生命加成值（兼容旧版 "health" 升级）
+func get_health_bonus() -> float:
+	# 新系统
+	var health_flat = get_stat_flat_bonus(UpgradeData.TargetStat.MAX_HEALTH)
+	if health_flat != 0.0:
+		return health_flat
+	
+	# 旧系统兼容
+	var health_level = get_upgrade_level("health")
+	return health_level * 20.0
+
+## 获取速度加成倍率（兼容旧版 "speed" 升级）
+func get_speed_multiplier() -> float:
+	# 新系统
+	var speed_percent = get_stat_percent_bonus(UpgradeData.TargetStat.MOVE_SPEED)
+	if speed_percent != 0.0:
+		return 1.0 + speed_percent
+	
+	# 旧系统兼容
+	var speed_level = get_upgrade_level("speed")
+	return 1.0 + speed_level * 0.1
+
+## 获取攻击速度加成倍率（兼容旧版 "attack_speed" 升级）
+func get_attack_speed_multiplier() -> float:
+	# 新系统
+	var as_percent = get_stat_percent_bonus(UpgradeData.TargetStat.ATTACK_SPEED)
+	if as_percent != 0.0:
+		return 1.0 + as_percent
+	
+	# 旧系统兼容
+	var as_level = get_upgrade_level("attack_speed")
+	return 1.0 + as_level * 0.1
 
 ## 记录击杀敌人
 func record_enemy_kill() -> void:

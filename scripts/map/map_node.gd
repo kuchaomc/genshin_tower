@@ -52,6 +52,7 @@ func create_node_ui() -> void:
 	# 创建按钮
 	node_button = Button.new()
 	node_button.custom_minimum_size = Vector2(100, 100)
+	node_button.disabled = false  # 确保按钮默认启用
 	node_button.pressed.connect(_on_node_pressed)
 	container.add_child(node_button)
 	

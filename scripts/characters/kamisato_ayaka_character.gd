@@ -446,8 +446,9 @@ func _handle_charged_hit(target: Node2D) -> void:
 		else:
 			print("重击命中敌人，造成伤害: ", damage)
 		
-		# 重击命中敌人时充能大招
-		_add_burst_energy(energy_per_hit)
+		# 重击命中敌人时充能大招（应用充能效率加成）
+		var actual_energy = energy_per_hit * get_energy_gain_multiplier()
+		_add_burst_energy(actual_energy)
 
 ## 强制检查重击范围内的敌人
 func _force_check_charged_overlaps() -> void:
@@ -548,8 +549,9 @@ func _handle_sword_hit(target: Node2D) -> void:
 		if is_crit:
 			print("普攻 暴击！伤害: ", damage)
 		
-		# 普攻命中敌人时充能大招
-		_add_burst_energy(energy_per_hit)
+		# 普攻命中敌人时充能大招（应用充能效率加成）
+		var actual_energy = energy_per_hit * get_energy_gain_multiplier()
+		_add_burst_energy(actual_energy)
 
 ## 主动检查覆盖，避免物理帧遗漏
 func _force_check_sword_overlaps() -> void:
@@ -582,8 +584,11 @@ func use_skill() -> void:
 	if not _is_skill_ready():
 		return
 	
+	# 计算实际冷却时间（应用升级加成）
+	var actual_cooldown = skill_cooldown * get_skill_cooldown_multiplier()
+	
 	# 设置冷却时间
-	skill_next_ready_ms = Time.get_ticks_msec() + int(skill_cooldown * 1000.0)
+	skill_next_ready_ms = Time.get_ticks_msec() + int(actual_cooldown * 1000.0)
 	
 	# 清空已命中敌人列表
 	skill_hit_enemies.clear()
@@ -592,6 +597,13 @@ func use_skill() -> void:
 	if skill_area:
 		skill_area.monitoring = true
 		skill_area.global_position = global_position
+		
+		# 更新技能范围（应用升级加成）
+		var actual_radius = skill_radius * get_skill_radius_multiplier()
+		var collision_shape = skill_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		if collision_shape and collision_shape.shape is CircleShape2D:
+			(collision_shape.shape as CircleShape2D).radius = actual_radius
+		
 		# 强制检查范围内的敌人
 		_force_check_skill_overlaps()
 		# 短暂启用后关闭（单段伤害）
@@ -647,8 +659,11 @@ func _handle_skill_hit(target: Node2D) -> void:
 	
 	# 造成伤害
 	if target.has_method("take_damage"):
+		# 计算实际技能伤害倍率（应用升级加成）
+		var actual_skill_multiplier = skill_damage_multiplier * get_skill_damage_multiplier()
+		
 		# 使用统一伤害计算系统
-		var damage_result = deal_damage_to(target, skill_damage_multiplier)
+		var damage_result = deal_damage_to(target, actual_skill_multiplier)
 		var damage = damage_result[0]
 		var is_crit = damage_result[1]
 		
@@ -657,13 +672,17 @@ func _handle_skill_hit(target: Node2D) -> void:
 		else:
 			print("E技能命中敌人，造成伤害: ", damage)
 		
-		# E技能命中敌人时充能大招
-		_add_burst_energy(energy_per_hit)
+		# E技能命中敌人时充能大招（应用充能效率加成）
+		var actual_energy = energy_per_hit * get_energy_gain_multiplier()
+		_add_burst_energy(actual_energy)
 
 ## 强制检查技能范围内的敌人
 func _force_check_skill_overlaps() -> void:
 	if not skill_area:
 		return
+	
+	# 计算实际技能范围（应用升级加成）
+	var actual_radius = skill_radius * get_skill_radius_multiplier()
 	
 	# 获取范围内的所有敌人
 	var enemies = get_tree().get_nodes_in_group("enemies")
@@ -674,7 +693,7 @@ func _force_check_skill_overlaps() -> void:
 		
 		# 计算距离
 		var distance = (enemy_body.global_position - global_position).length()
-		if distance <= skill_radius:
+		if distance <= actual_radius:
 			# 在范围内，触发碰撞
 			_on_skill_body_entered(enemy_body)
 
@@ -737,17 +756,16 @@ func use_burst() -> void:
 	burst_instance.direction = direction
 	burst_instance.speed = burst_speed
 	
+	# 计算实际大招伤害倍率（应用升级加成）
+	var actual_burst_multiplier = burst_damage_multiplier * get_burst_damage_multiplier()
+	
 	# 使用统一伤害计算系统计算大招伤害
 	if current_stats:
-		var damage_result = current_stats.calculate_damage(burst_damage_multiplier, 0.0, false, false)
+		var damage_result = current_stats.calculate_damage(actual_burst_multiplier, 0.0, false, false)
 		burst_instance.damage = damage_result[0]
 		burst_instance.is_crit = damage_result[1]
-		# 应用升级加成
-		if RunManager:
-			var damage_upgrade = RunManager.get_upgrade_level("damage")
-			burst_instance.damage *= (1.0 + damage_upgrade * 0.1)
 	else:
-		burst_instance.damage = burst_damage
+		burst_instance.damage = burst_damage * get_burst_damage_multiplier()
 		burst_instance.is_crit = false
 	
 	# 添加到场景树（添加到当前节点的父节点或根节点）
