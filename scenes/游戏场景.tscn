@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://c5vy4j04yih54"]
+[gd_scene load_steps=7 format=3 uid="uid://c5vy4j04yih54"]
 
 [ext_resource type="Script" uid="uid://bwlkkwfk4bcuy" path="res://scripts/battle_manager.gd" id="1_battle"]
 [ext_resource type="Texture2D" uid="uid://bnoahwud6qeff" path="res://textures/战斗场景.png" id="2_3ma01"]
 [ext_resource type="Script" uid="uid://tuf8sc1sf5gd" path="res://scripts/camera_follower.gd" id="3_0d42y"]
 [ext_resource type="PackedScene" uid="uid://bb2kswvspaq4f" path="res://scenes/玩家.tscn" id="3_3epie"]
 [ext_resource type="PackedScene" path="res://scenes/ui/skill_ui.tscn" id="4_skill_ui"]
+[ext_resource type="PackedScene" path="res://scenes/ellipse_boundary.tscn" id="5_boundary"]
 
 [node name="Node2D" type="Node2D"]
 y_sort_enabled = true
@@ -12,17 +13,20 @@ script = ExtResource("1_battle")
 
 [node name="background" type="Sprite2D" parent="."]
 z_index = -1
-position = Vector2(592, 329.00006)
-scale = Vector2(1.2890625, 1.2617188)
 texture = ExtResource("2_3ma01")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(578, 322)
-scale = Vector2(1.2890625, 1.2617188)
+scale = Vector2(1e-05, 1e-05)
 script = ExtResource("3_0d42y")
 
 [node name="player" parent="." instance=ExtResource("3_3epie")]
-position = Vector2(161, 377)
+position = Vector2(-653, -22)
+
+[node name="EllipseBoundary" parent="." instance=ExtResource("5_boundary")]
+ellipse_center = Vector2(0, 0)
+ellipse_radius_x = 1200.0
+ellipse_radius_y = 860.0
+boundary_segments = 128
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
