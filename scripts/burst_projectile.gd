@@ -18,6 +18,9 @@ func _ready() -> void:
 	area_entered.connect(_on_area_entered)
 	body_entered.connect(_on_body_entered)
 	
+	# 约定：第2层=敌人(Enemies)。投射物只需要检测敌人层即可。
+	collision_mask = 2
+	
 	# 设置旋转以面向移动方向（注意：Godot的rotation是弧度，angle()返回的也是弧度）
 	if direction != Vector2.ZERO:
 		rotation = direction.angle()

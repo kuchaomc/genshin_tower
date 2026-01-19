@@ -39,6 +39,13 @@ var hit_enemies_phase1: Array[Node2D] = []
 var hit_enemies_phase2: Array[Node2D] = []
 var original_position: Vector2
 
+# ========== 重击属性 ==========
+@export var charged_effect: AnimatedSprite2D  # 重击特效动画
+@export var charged_area: Area2D  # 重击范围伤害区域
+@export var charged_radius: float = 100.0  # 重击范围半径
+@export var charged_hit_count: int = 3  # 重击伤害次数
+@export var charged_hit_interval: float = 0.15  # 每次伤害的间隔（秒）
+
 # ========== E技能属性 ==========
 @export var skill_area: Area2D  # 技能范围伤害区域
 @export var skill_effect: AnimatedSprite2D  # 技能特效动画
@@ -76,6 +83,8 @@ func _ready() -> void:
 		sword_area = get_node_or_null("SwordArea") as Area2D
 	
 	if sword_area:
+		# 约定：第2层=敌人(Enemies)。剑的 Area2D 只需要检测敌人层即可。
+		sword_area.collision_mask = 2
 		sword_area.area_entered.connect(_on_sword_area_entered)
 		sword_area.body_entered.connect(_on_sword_body_entered)
 		sword_area.monitoring = false
@@ -89,6 +98,8 @@ func _ready() -> void:
 		skill_area = get_node_or_null("SkillArea") as Area2D
 	
 	if skill_area:
+		# 约定：第2层=敌人(Enemies)。技能范围 Area2D 只需要检测敌人层即可。
+		skill_area.collision_mask = 2
 		skill_area.area_entered.connect(_on_skill_area_entered)
 		skill_area.body_entered.connect(_on_skill_body_entered)
 		skill_area.monitoring = false
@@ -102,6 +113,27 @@ func _ready() -> void:
 	
 	if skill_effect:
 		skill_effect.visible = false
+	
+	# 初始化重击区域和特效
+	if charged_area == null:
+		charged_area = get_node_or_null("ChargedArea") as Area2D
+	
+	if charged_area:
+		# 约定：第2层=敌人(Enemies)。重击范围 Area2D 只需要检测敌人层即可。
+		charged_area.collision_mask = 2
+		charged_area.area_entered.connect(_on_charged_area_entered)
+		charged_area.body_entered.connect(_on_charged_body_entered)
+		charged_area.monitoring = false
+		# 设置重击范围
+		var collision_shape = charged_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		if collision_shape and collision_shape.shape is CircleShape2D:
+			(collision_shape.shape as CircleShape2D).radius = charged_radius
+	
+	if charged_effect == null:
+		charged_effect = get_node_or_null("ChargedEffect") as AnimatedSprite2D
+	
+	if charged_effect:
+		charged_effect.visible = false
 
 func _physics_process(delta: float) -> void:
 	if not is_game_over:
@@ -219,97 +251,140 @@ func finish_attack() -> void:
 	hit_enemies_phase1.clear()
 	hit_enemies_phase2.clear()
 
-## 第二段攻击：原地剑花攻击
+## 第二段攻击：向准星位置生成剑花
 func start_phase2_attack() -> void:
 	if attack_state != 2:
 		return
 	
 	phase2_current_hit = 0
 	
+	# 获取准星位置（鼠标位置）
 	var mouse_position = get_global_mouse_position()
-	var direction = (mouse_position - global_position).normalized()
-	var target_angle = direction.angle() + PI / 2
 	
-	if swing_tween:
-		swing_tween.kill()
+	# 在准星位置生成重击特效
+	if charged_effect:
+		charged_effect.visible = true
+		charged_effect.global_position = mouse_position
+		if charged_effect.sprite_frames:
+			charged_effect.play("default")
+			# 监听动画完成信号
+			if not charged_effect.animation_finished.is_connected(_on_charged_effect_finished):
+				charged_effect.animation_finished.connect(_on_charged_effect_finished)
+		else:
+			# 如果没有sprite_frames，使用简单的定时器
+			var hide_timer = get_tree().create_timer(0.7)
+			hide_timer.timeout.connect(_on_charged_effect_finished)
 	
-	sword_area.rotation = target_angle
+	# 设置重击伤害区域位置
+	if charged_area:
+		charged_area.global_position = mouse_position
 	
-	swing_tween = create_tween()
-	swing_tween.set_ease(Tween.EASE_IN_OUT)
-	swing_tween.set_trans(Tween.TRANS_SINE)
-	swing_tween.tween_property(sword_area, "rotation", target_angle + PI * 4, flower_attack_duration)
-	swing_tween.tween_callback(finish_phase2)
-	
+	# 开始伤害序列
 	trigger_phase2_damage_sequence()
 
 ## 触发第二段多次伤害序列
 func trigger_phase2_damage_sequence() -> void:
-	if attack_state != 2 or phase2_current_hit >= phase2_hit_count:
+	if attack_state != 2 or phase2_current_hit >= charged_hit_count:
 		return
 	
+	# 清空本次伤害的已命中敌人列表
 	hit_enemies_phase2.clear()
 	
+	# 获取准星位置
 	var mouse_position = get_global_mouse_position()
-	perform_raycast_attack(mouse_position)
+	
+	# 启用伤害区域检测
+	if charged_area:
+		charged_area.monitoring = true
+		charged_area.global_position = mouse_position
+		# 强制检查范围内的敌人
+		_force_check_charged_overlaps()
+		# 短暂启用后关闭（单次伤害检测）
+		var timer = get_tree().create_timer(0.1)
+		timer.timeout.connect(_on_charged_damage_finished)
 	
 	phase2_current_hit += 1
 	
-	if phase2_current_hit < phase2_hit_count and attack_state == 2:
-		var delay = flower_attack_duration / phase2_hit_count
-		var timer = get_tree().create_timer(delay)
+	# 如果还有剩余伤害次数，继续触发
+	if phase2_current_hit < charged_hit_count and attack_state == 2:
+		var timer = get_tree().create_timer(charged_hit_interval)
 		timer.timeout.connect(trigger_phase2_damage_sequence)
+	else:
+		# 所有伤害完成，等待特效播放完成后结束
+		var finish_timer = get_tree().create_timer(0.5)
+		finish_timer.timeout.connect(finish_phase2)
 
-## 执行射线攻击
-func perform_raycast_attack(attack_target: Vector2) -> void:
-	var enemies = get_tree().get_nodes_in_group("enemies")
-	var ray_start = global_position
-	var direction = (attack_target - global_position).normalized()
+## 重击伤害检测完成
+func _on_charged_damage_finished() -> void:
+	if charged_area:
+		charged_area.monitoring = false
+
+## 重击特效播放完成
+func _on_charged_effect_finished() -> void:
+	if charged_effect:
+		charged_effect.visible = false
+		charged_effect.stop()
+		# 断开信号连接（避免重复连接）
+		if charged_effect.animation_finished.is_connected(_on_charged_effect_finished):
+			charged_effect.animation_finished.disconnect(_on_charged_effect_finished)
+
+## 重击区域碰撞回调
+func _on_charged_area_entered(area: Area2D) -> void:
+	_handle_charged_hit(area)
+
+func _on_charged_body_entered(body: Node2D) -> void:
+	_handle_charged_hit(body)
+
+func _handle_charged_hit(target: Node2D) -> void:
+	if not target or not target.is_in_group("enemies"):
+		return
 	
+	# 检查是否已经命中过（本次伤害序列中）
+	if target in hit_enemies_phase2:
+		return
+	
+	hit_enemies_phase2.append(target)
+	
+	# 造成伤害
+	if target.has_method("take_damage"):
+		# 使用统一伤害计算系统
+		var damage_result = deal_damage_to(target, phase2_attack_multiplier)
+		var damage = damage_result[0]
+		var is_crit = damage_result[1]
+		
+		if is_crit:
+			print("重击 暴击！伤害: ", damage)
+		else:
+			print("重击命中敌人，造成伤害: ", damage)
+		
+		# 重击命中敌人时充能大招
+		_add_burst_energy(energy_per_hit)
+
+## 强制检查重击范围内的敌人
+func _force_check_charged_overlaps() -> void:
+	if not charged_area:
+		return
+	
+	# 获取范围内的所有敌人
+	var enemies = get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:
 		var enemy_body = enemy as Node2D
 		if not enemy_body:
 			continue
 		
-		if enemy_body in hit_enemies_phase2:
-			continue
-		
-		var enemy_pos = enemy_body.global_position
-		var to_enemy = enemy_pos - ray_start
-		var projection_length = to_enemy.dot(direction)
-		
-		if projection_length < 0:
-			continue
-		
-		var projection_point = ray_start + direction * projection_length
-		var distance_to_ray = (enemy_pos - projection_point).length()
-		
-		var hit_tolerance = 50.0
-		if distance_to_ray <= hit_tolerance:
-			var space_state = get_world_2d().direct_space_state
-			var query = PhysicsRayQueryParameters2D.create(ray_start, enemy_pos)
-			query.exclude = [self]
-			
-			var result = space_state.intersect_ray(query)
-			
-			if not result or result.get("collider") == enemy_body:
-				hit_enemies_phase2.append(enemy_body)
-				if enemy_body.has_method("take_damage"):
-					# 使用统一伤害计算系统
-					var damage_result = deal_damage_to(enemy_body, phase2_attack_multiplier)
-					var damage = damage_result[0]
-					var is_crit = damage_result[1]
-					
-					if is_crit:
-						print("第二段攻击 暴击！伤害: ", damage)
-					
-					# 第二段攻击命中敌人时充能大招
-					_add_burst_energy(energy_per_hit)
+		# 计算距离
+		var distance = (enemy_body.global_position - charged_area.global_position).length()
+		if distance <= charged_radius:
+			# 在范围内，触发碰撞
+			_on_charged_body_entered(enemy_body)
 
 ## 完成第二段攻击
 func finish_phase2() -> void:
-	if sword_area:
-		sword_area.monitoring = false
+	if charged_area:
+		charged_area.monitoring = false
+	if charged_effect:
+		charged_effect.visible = false
+		charged_effect.stop()
 	attack_state = 0
 	
 	hit_enemies_phase1.clear()

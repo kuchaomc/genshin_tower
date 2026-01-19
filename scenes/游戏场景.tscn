@@ -17,6 +17,7 @@ texture = ExtResource("2_3ma01")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 scale = Vector2(1e-05, 1e-05)
+zoom = Vector2(2, 2)
 script = ExtResource("3_0d42y")
 
 [node name="player" parent="." instance=ExtResource("3_3epie")]

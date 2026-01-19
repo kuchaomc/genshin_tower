@@ -40,6 +40,15 @@ var _last_nonzero_move_dir: Vector2 = Vector2.RIGHT
 var _hurt_invincible: bool = false
 var _dodge_invincible: bool = false
 
+# ========== 碰撞掩码（数字版，便于读） ==========
+# 约定：第1层=墙(Walls)，第2层=敌人(Enemies)，第3层未用，第4层=玩家(Player)
+# - 正常：与墙+敌人碰撞 => 1 + 2 = 3
+# - 闪避：只与墙碰撞（可穿过敌人）=> 1
+const _NORMAL_COLLISION_MASK: int = 3
+const _DODGE_COLLISION_MASK: int = 1
+const _PLAYER_COLLISION_LAYER: int = 4
+const _DODGE_PLAYER_COLLISION_LAYER: int = 8 # 闪避专用层：让敌人不再“顶开/挡住”玩家
+
 # 血量变化信号
 signal health_changed(current: float, maximum: float)
 signal character_died
@@ -118,6 +127,12 @@ func _ready() -> void:
 	# 初始化血量
 	current_health = max_health
 	emit_signal("health_changed", current_health, max_health)
+	
+	# 将玩家本体放到“玩家层”，避免与墙层/敌人层混用
+	collision_layer = _PLAYER_COLLISION_LAYER
+	
+	# 初始化碰撞掩码：默认与墙+敌人发生碰撞
+	collision_mask = _NORMAL_COLLISION_MASK
 
 func _physics_process(delta: float) -> void:
 	if is_game_over:
@@ -360,8 +375,13 @@ func start_dodge() -> void:
 	_dodge_dir = dir.normalized()
 	
 	_set_dodge_invincible(true)
-	# 闪避时关闭碰撞箱以实现无敌
-	_set_collision_enabled(false)
+	# 重要：闪避无敌不应关闭碰撞（否则会穿出空气墙/边界）
+	# 伤害免疫由 _dodge_invincible 控制，碰撞仍保持开启以便被墙体阻挡
+	# 同时：闪避期间可选择“穿过敌人”，只保留与墙的碰撞
+	collision_mask = _DODGE_COLLISION_MASK
+	# 注意：物理碰撞过滤对“移动的敌人”是单向的（敌人 mask 包含玩家层即可顶开玩家）
+	# 为确保闪避能真正穿怪，这里把玩家临时切到一个“闪避层”，敌人 mask(5) 不包含该层
+	collision_layer = _DODGE_PLAYER_COLLISION_LAYER
 
 func _update_dodge(delta: float) -> void:
 	if not _is_dodging:
@@ -388,8 +408,11 @@ func _update_dodge(delta: float) -> void:
 	if t >= 1.0:
 		_is_dodging = false
 		_set_dodge_invincible(false)
-		# 闪避结束后恢复碰撞箱
-		_set_collision_enabled(true)
+		# 碰撞在闪避期间始终保持开启，无需恢复
+		# 恢复正常碰撞：墙+敌人
+		collision_mask = _NORMAL_COLLISION_MASK
+		# 恢复玩家层
+		collision_layer = _PLAYER_COLLISION_LAYER
 
 func _is_currently_invincible() -> bool:
 	return _hurt_invincible or _dodge_invincible

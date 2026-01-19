@@ -171,8 +171,7 @@ func _start_dodge() -> void:
 	_dodge_dir = dir.normalized()
 	
 	_set_dodge_invincible(true)
-	# 闪避时关闭碰撞箱以实现无敌
-	_set_collision_enabled(false)
+	# 重要：闪避无敌不应关闭碰撞（否则会穿出空气墙/边界）
 
 func _update_dodge(delta: float) -> void:
 	if not _is_dodging:
@@ -198,8 +197,7 @@ func _update_dodge(delta: float) -> void:
 	if t >= 1.0:
 		_is_dodging = false
 		_set_dodge_invincible(false)
-		# 闪避结束后恢复碰撞箱
-		_set_collision_enabled(true)
+		# 碰撞在闪避期间始终保持开启，无需恢复
 
 # 更新剑的朝向（朝向鼠标）
 func update_sword_direction() -> void:

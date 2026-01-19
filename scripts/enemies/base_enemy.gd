@@ -68,6 +68,15 @@ func _apply_stats_to_enemy() -> void:
 	current_health = max_health
 
 func _ready() -> void:
+	# 碰撞层约定：第1层=墙(Walls)，第2层=敌人(Enemies)
+	# 敌人本体放到“敌人层”，避免和墙层混用，方便玩家在闪避时只碰墙
+	collision_layer = 2
+	# 敌人需要：
+	# - 与墙碰撞（不穿出空气墙）=> +1
+	# - 与玩家碰撞（用于接触伤害/阻挡）=> +4（玩家层）
+	# 合计：1 + 4 = 5
+	collision_mask = 5
+	
 	# 如果没有通过 initialize 初始化，创建默认属性
 	if current_stats == null:
 		current_stats = EnemyStats.new()
