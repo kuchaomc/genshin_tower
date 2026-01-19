@@ -37,6 +37,8 @@ var debug_toggle_button: Button
 var debug_show_hitboxes: bool = false
 # 玩家引用
 var player: BaseCharacter
+# 暂停菜单引用
+var pause_menu: Control
 
 func _ready() -> void:
 	# 获取UI组件
@@ -58,6 +60,7 @@ func _ready() -> void:
 		enemy_scene = preload("res://scenes/enemies/enemy.tscn")
 	
 	# 创建敌人生成计时器
+	# 注意：Timer使用默认的PROCESS_MODE_INHERIT，会在游戏暂停时自动暂停
 	enemy_spawn_timer = Timer.new()
 	enemy_spawn_timer.wait_time = 3.0  # 每3秒生成一个敌人
 	enemy_spawn_timer.timeout.connect(_on_enemy_spawn_timer_timeout)
@@ -65,6 +68,7 @@ func _ready() -> void:
 	enemy_spawn_timer.start()
 	
 	# 创建游戏结束计时器
+	# 注意：Timer使用默认的PROCESS_MODE_INHERIT，会在游戏暂停时自动暂停
 	game_over_timer = Timer.new()
 	game_over_timer.one_shot = true
 	game_over_timer.timeout.connect(_on_game_over_timer_timeout)
@@ -75,11 +79,60 @@ func _ready() -> void:
 		RunManager.health_changed.connect(_on_player_health_changed)
 		RunManager.gold_changed.connect(_on_gold_changed)
 	
+	# 初始化暂停菜单
+	initialize_pause_menu()
+	
 	print("战斗管理器已初始化")
 	_apply_crosshair_cursor()
 
 func _exit_tree() -> void:
 	_restore_default_cursor()
+
+func _input(event: InputEvent) -> void:
+	# 处理ESC键打开/关闭暂停菜单
+	# 注意：暂停时此方法不会执行，由暂停菜单自己处理ESC键
+	if event.is_action_pressed("esc") and not get_tree().paused:
+		if pause_menu:
+			pause_menu.handle_esc_key()
+
+## 初始化暂停菜单
+func initialize_pause_menu() -> void:
+	# 加载暂停菜单场景
+	var pause_menu_scene = preload("res://scenes/ui/pause_menu.tscn") as PackedScene
+	if pause_menu_scene:
+		pause_menu = pause_menu_scene.instantiate() as Control
+		if pause_menu:
+			# 添加到CanvasLayer下，确保在最上层
+			var canvas_layer = get_node_or_null("CanvasLayer")
+			if canvas_layer:
+				canvas_layer.add_child(pause_menu)
+			else:
+				# 如果没有CanvasLayer，直接添加到场景根节点
+				add_child(pause_menu)
+			
+			# 连接暂停菜单信号
+			if pause_menu.has_signal("resume_game"):
+				pause_menu.resume_game.connect(_on_pause_menu_resume)
+			if pause_menu.has_signal("return_to_main_menu"):
+				pause_menu.return_to_main_menu.connect(_on_pause_menu_return_to_main_menu)
+			
+			# 添加到battle_manager组，方便暂停菜单查找
+			add_to_group("battle_manager")
+			print("暂停菜单已初始化")
+
+## 暂停菜单继续游戏
+func _on_pause_menu_resume() -> void:
+	# 恢复游戏逻辑
+	pass
+
+## 暂停菜单返回主菜单
+func _on_pause_menu_return_to_main_menu() -> void:
+	# 返回主菜单前的清理工作
+	pass
+
+## 获取玩家实例（供暂停菜单使用）
+func get_player() -> BaseCharacter:
+	return player
 
 ## 初始化玩家
 func initialize_player() -> void:

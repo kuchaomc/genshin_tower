@@ -1,4 +1,4 @@
-[gd_scene load_steps=32 format=3 uid="uid://bb2kswvspaq4f"]
+[gd_scene load_steps=34 format=3 uid="uid://bb2kswvspaq4f"]
 
 [ext_resource type="Script" uid="uid://d11ele5x3lbm1" path="res://scripts/characters/kamisato_ayaka_character.gd" id="1_sword_char"]
 [ext_resource type="Texture2D" uid="uid://p5yv5ngfrcoo" path="res://textures/characters/神里idel.png" id="2_sd6lh"]
@@ -115,57 +115,71 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_skill"]
 radius = 150.0
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_charged_1"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_kqtwu"]
 atlas = ExtResource("6_charged")
 region = Rect2(0, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_charged_2"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_6eyoc"]
 atlas = ExtResource("6_charged")
 region = Rect2(64, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_charged_3"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_eojnx"]
 atlas = ExtResource("6_charged")
 region = Rect2(128, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_charged_4"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_qgnko"]
 atlas = ExtResource("6_charged")
 region = Rect2(192, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_charged_5"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_7vyk4"]
 atlas = ExtResource("6_charged")
 region = Rect2(256, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_charged_6"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_2l4js"]
 atlas = ExtResource("6_charged")
 region = Rect2(320, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_charged_7"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_jk2m4"]
 atlas = ExtResource("6_charged")
 region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xhtjm"]
+atlas = ExtResource("6_charged")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k4v7y"]
+atlas = ExtResource("6_charged")
+region = Rect2(512, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_charged"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_charged_1")
+"texture": SubResource("AtlasTexture_kqtwu")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_charged_2")
+"texture": SubResource("AtlasTexture_6eyoc")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_charged_3")
+"texture": SubResource("AtlasTexture_eojnx")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_charged_4")
+"texture": SubResource("AtlasTexture_qgnko")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_charged_5")
+"texture": SubResource("AtlasTexture_7vyk4")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_charged_6")
+"texture": SubResource("AtlasTexture_2l4js")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_charged_7")
+"texture": SubResource("AtlasTexture_jk2m4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xhtjm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k4v7y")
 }],
 "loop": false,
 "name": &"default",
@@ -235,7 +249,7 @@ shape = SubResource("CircleShape2D_skill")
 [node name="ChargedEffect" type="AnimatedSprite2D" parent="."]
 scale = Vector2(4, 4)
 sprite_frames = SubResource("SpriteFrames_charged")
-frame = 6
+frame = 8
 frame_progress = 1.0
 
 [node name="ChargedArea" type="Area2D" parent="."]

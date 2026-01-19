@@ -1,0 +1,154 @@
+[gd_scene load_steps=2 format=3 uid="uid://pause_menu_scene"]
+
+[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="1_pause"]
+
+[node name="PauseMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_pause")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="MainContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -600.0
+offset_top = -400.0
+offset_right = 600.0
+offset_bottom = 400.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LeftPanel" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="Title" type="Label" parent="MainContainer/LeftPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "暂停菜单"
+horizontal_alignment = 1
+
+[node name="Spacer1" type="Control" parent="MainContainer/LeftPanel"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+
+[node name="ContinueButton" type="Button" parent="MainContainer/LeftPanel"]
+custom_minimum_size = Vector2(250, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "继续游戏"
+
+[node name="Spacer2" type="Control" parent="MainContainer/LeftPanel"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="SettingsButton" type="Button" parent="MainContainer/LeftPanel"]
+custom_minimum_size = Vector2(250, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "设置"
+
+[node name="Spacer3" type="Control" parent="MainContainer/LeftPanel"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="MainMenuButton" type="Button" parent="MainContainer/LeftPanel"]
+custom_minimum_size = Vector2(250, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "返回主菜单"
+
+[node name="Spacer4" type="Control" parent="MainContainer/LeftPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RightPanel" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="CharacterTitle" type="Label" parent="MainContainer/RightPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "角色信息"
+horizontal_alignment = 1
+
+[node name="Spacer5" type="Control" parent="MainContainer/RightPanel"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="CharacterPortrait" type="TextureRect" parent="MainContainer/RightPanel"]
+layout_mode = 2
+stretch_mode = 5
+expand_mode = 1
+
+[node name="Spacer6" type="Control" parent="MainContainer/RightPanel"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="CharacterName" type="Label" parent="MainContainer/RightPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "角色名称"
+horizontal_alignment = 1
+
+[node name="Spacer7" type="Control" parent="MainContainer/RightPanel"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="StatsContainer" type="VBoxContainer" parent="MainContainer/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HPStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "生命值: 100/100"
+
+[node name="AttackStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "攻击力: 25"
+
+[node name="DefenseStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "防御: 0%"
+
+[node name="MoveSpeedStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "移动速度: 100"
+
+[node name="CritRateStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "暴击率: 5%"
+
+[node name="CritDamageStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "暴击伤害: +50%"
+
+[node name="AttackSpeedStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "攻击速度: 1.0x"

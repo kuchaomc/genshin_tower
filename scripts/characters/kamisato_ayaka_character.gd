@@ -38,6 +38,9 @@ var target_position: Vector2
 var hit_enemies_phase1: Array[Node2D] = []
 var hit_enemies_phase2: Array[Node2D] = []
 var original_position: Vector2
+# 重击动画状态管理
+var _charged_effect_should_visible: bool = false  # 重击动画是否应该显示
+var _charged_effect_hide_timer: float = -1.0  # 隐藏动画的倒计时（秒），-1表示不隐藏
 
 # ========== 重击属性 ==========
 @export var charged_effect: AnimatedSprite2D  # 重击特效动画
@@ -152,6 +155,9 @@ func _physics_process(delta: float) -> void:
 		# 更新大招充能显示
 		_update_burst_energy_display()
 		
+		# 更新重击动画状态
+		_update_charged_effect()
+		
 		# 攻击时强制检查覆盖，减少漏判
 		if attack_state == 1 and sword_area and sword_area.monitoring:
 			_force_check_sword_overlaps()
@@ -246,6 +252,17 @@ func finish_attack() -> void:
 	_stop_phase1_trail()
 	if sword_area:
 		sword_area.monitoring = false
+	
+	# 如果重击动画正在显示，标记为应该隐藏
+	# 实际隐藏会在_update_charged_effect()中处理
+	if attack_state == 2:
+		_charged_effect_should_visible = false
+		_charged_effect_hide_timer = -1.0
+		# 如果游戏未暂停，立即隐藏
+		if not get_tree().paused and charged_effect:
+			charged_effect.visible = false
+			charged_effect.stop()
+	
 	attack_state = 0
 	
 	hit_enemies_phase1.clear()
@@ -263,17 +280,16 @@ func start_phase2_attack() -> void:
 	
 	# 在准星位置生成重击特效
 	if charged_effect:
+		_charged_effect_should_visible = true
 		charged_effect.visible = true
 		charged_effect.global_position = mouse_position
 		if charged_effect.sprite_frames:
 			charged_effect.play("default")
-			# 监听动画完成信号
-			if not charged_effect.animation_finished.is_connected(_on_charged_effect_finished):
-				charged_effect.animation_finished.connect(_on_charged_effect_finished)
+			# 不再依赖动画完成信号，而是使用基于时间的隐藏逻辑
+			# 动画会循环播放，直到攻击状态改变
 		else:
-			# 如果没有sprite_frames，使用简单的定时器
-			var hide_timer = get_tree().create_timer(0.7)
-			hide_timer.timeout.connect(_on_charged_effect_finished)
+			# 如果没有sprite_frames，设置隐藏倒计时
+			_charged_effect_hide_timer = 0.7
 	
 	# 设置重击伤害区域位置
 	if charged_area:
@@ -319,14 +335,43 @@ func _on_charged_damage_finished() -> void:
 	if charged_area:
 		charged_area.monitoring = false
 
-## 重击特效播放完成
-func _on_charged_effect_finished() -> void:
-	if charged_effect:
-		charged_effect.visible = false
-		charged_effect.stop()
-		# 断开信号连接（避免重复连接）
-		if charged_effect.animation_finished.is_connected(_on_charged_effect_finished):
-			charged_effect.animation_finished.disconnect(_on_charged_effect_finished)
+## 更新重击动画状态（每帧调用）
+func _update_charged_effect() -> void:
+	if not charged_effect:
+		return
+	
+	# 如果游戏暂停，保持当前状态不变（不执行任何操作）
+	# 这样动画会保持当前帧和可见状态
+	if get_tree().paused:
+		return
+	
+	# 根据攻击状态和倒计时决定是否显示
+	var should_show = _charged_effect_should_visible and attack_state == 2
+	
+	# 如果有隐藏倒计时，更新它
+	if _charged_effect_hide_timer > 0:
+		_charged_effect_hide_timer -= get_physics_process_delta_time()
+		if _charged_effect_hide_timer <= 0:
+			should_show = false
+	
+	# 更新可见性
+	if should_show:
+		# 应该显示：确保可见并播放
+		if not charged_effect.visible:
+			charged_effect.visible = true
+		if not charged_effect.is_playing():
+			charged_effect.play("default")
+	else:
+		# 应该隐藏：隐藏并停止
+		if charged_effect.visible:
+			charged_effect.visible = false
+			charged_effect.stop()
+		_charged_effect_should_visible = false
+		_charged_effect_hide_timer = -1.0
+
+## 获取重击特效（供暂停菜单使用）
+func get_charged_effect() -> AnimatedSprite2D:
+	return charged_effect
 
 ## 重击区域碰撞回调
 func _on_charged_area_entered(area: Area2D) -> void:
@@ -382,9 +427,18 @@ func _force_check_charged_overlaps() -> void:
 func finish_phase2() -> void:
 	if charged_area:
 		charged_area.monitoring = false
-	if charged_effect:
-		charged_effect.visible = false
-		charged_effect.stop()
+	
+	# 标记重击动画应该隐藏
+	_charged_effect_should_visible = false
+	_charged_effect_hide_timer = -1.0
+	
+	# 如果游戏未暂停，立即隐藏动画
+	# 如果游戏已暂停，动画会在恢复时通过_update_charged_effect()隐藏
+	if not get_tree().paused:
+		if charged_effect:
+			charged_effect.visible = false
+			charged_effect.stop()
+	
 	attack_state = 0
 	
 	hit_enemies_phase1.clear()
