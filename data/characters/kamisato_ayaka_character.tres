@@ -1,15 +1,9 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=2 format=3 uid="uid://c2ojwr6swsrjw"]
 
-[ext_resource type="Script" path="res://scripts/characters/character_data.gd" id="1_char_data"]
+[ext_resource type="Script" uid="uid://btuxq8fk8sjog" path="res://scripts/characters/character_data.gd" id="1_char_data"]
 
 [resource]
 script = ExtResource("1_char_data")
 id = "kamisato_ayaka"
 display_name = "神里绫华"
 description = "使用剑进行近战攻击的角色（Kamisato Ayaka），拥有两段攻击：位移挥剑和原地剑花"
-max_health = 100.0
-move_speed = 100.0
-base_damage = 25.0
-attack_speed = 1.0
-scene_path = "res://scenes/玩家.tscn"
-abilities = []

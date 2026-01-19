@@ -22,15 +22,15 @@ enum GameState {
 var current_state: GameState = GameState.MAIN_MENU
 
 # 场景路径
-const SCENE_MAIN_MENU = "res://scenes/主界面.tscn"
-const SCENE_CHARACTER_SELECT = "res://scenes/角色选择.tscn"
-const SCENE_MAP_VIEW = "res://scenes/地图.tscn"
-const SCENE_BATTLE = "res://scenes/游戏场景.tscn"
-const SCENE_SHOP = "res://scenes/商店.tscn"
-const SCENE_REST = "res://scenes/休息处.tscn"
-const SCENE_EVENT = "res://scenes/奇遇.tscn"
-const SCENE_BOSS = "res://scenes/BOSS战.tscn"
-const SCENE_RESULT = "res://scenes/结算界面.tscn"
+const SCENE_MAIN_MENU = "res://scenes/ui/main_menu.tscn"
+const SCENE_CHARACTER_SELECT = "res://scenes/ui/character_select.tscn"
+const SCENE_MAP_VIEW = "res://scenes/ui/map_view.tscn"
+const SCENE_BATTLE = "res://scenes/battle/battle_scene.tscn"
+const SCENE_SHOP = "res://scenes/ui/shop.tscn"
+const SCENE_REST = "res://scenes/ui/rest_area.tscn"
+const SCENE_EVENT = "res://scenes/ui/event.tscn"
+const SCENE_BOSS = "res://scenes/battle/boss_battle.tscn"
+const SCENE_RESULT = "res://scenes/ui/result_screen.tscn"
 
 # 存档路径
 const SAVE_FILE_PATH = "user://save_data.json"

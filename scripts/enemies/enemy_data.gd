@@ -27,7 +27,7 @@ class_name EnemyData
 @export var drop_exp: int = 1
 
 # 敌人场景路径
-@export var scene_path: String = "res://scenes/敌人.tscn"
+@export var scene_path: String = "res://scenes/enemies/enemy.tscn"
 
 # 敌人类型（用于地图生成）
 @export var enemy_type: String = "normal"  # normal, elite, boss

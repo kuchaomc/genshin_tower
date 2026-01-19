@@ -22,7 +22,7 @@ class_name CharacterData
 @export var knockback_force: float = 150.0  # 击退力度
 
 # 角色场景路径
-@export var scene_path: String = "res://scenes/玩家.tscn"
+@export var scene_path: String = "res://scenes/characters/player.tscn"
 
 # 角色技能（未来扩展）
 @export var abilities: Array[String] = []

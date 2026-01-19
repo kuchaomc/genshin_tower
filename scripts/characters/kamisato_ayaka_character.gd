@@ -616,7 +616,7 @@ func use_burst() -> void:
 	
 	# 如果没有加载场景，尝试加载
 	if burst_scene == null:
-		burst_scene = load("res://scenes/burst_projectile.tscn") as PackedScene
+		burst_scene = load("res://scenes/projectiles/burst_projectile.tscn") as PackedScene
 	
 	if not burst_scene:
 		print("错误：大招投射物场景未加载")

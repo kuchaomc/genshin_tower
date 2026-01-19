@@ -18,7 +18,7 @@ func _ready() -> void:
 			icon_texture.texture = skill_icon
 		else:
 			# 如果没有设置图标，尝试加载默认图标
-			var default_icon = load("res://textures/神里技能图标.png")
+			var default_icon = load("res://textures/icons/神里技能图标.png")
 			if default_icon:
 				icon_texture.texture = default_icon
 	

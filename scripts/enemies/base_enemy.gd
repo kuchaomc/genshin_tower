@@ -105,7 +105,7 @@ func _ready() -> void:
 ## 创建警告图标
 func _create_warning_sprite() -> void:
 	warning_sprite = Sprite2D.new()
-	var warning_texture = load("res://textures/warning.png")
+	var warning_texture = load("res://textures/effects/warning.png")
 	if warning_texture:
 		warning_sprite.texture = warning_texture
 		warning_sprite.z_index = 10

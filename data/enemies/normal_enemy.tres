@@ -14,5 +14,5 @@ warning_duration = 2.0
 behavior_type = "chase"
 drop_gold = 10
 drop_exp = 1
-scene_path = "res://scenes/敌人.tscn"
+scene_path = "res://scenes/enemies/enemy.tscn"
 enemy_type = "normal"
