@@ -11,6 +11,7 @@ enum GameState {
 	CHARACTER_SELECT,
 	MAP_VIEW,
 	BATTLE,
+	TREASURE,
 	SHOP,
 	REST,
 	EVENT,
@@ -74,6 +75,16 @@ func go_to_map_view() -> void:
 func start_battle(_enemy_data: EnemyData = null) -> void:
 	current_state = GameState.BATTLE
 	change_scene_to(SCENE_BATTLE)
+
+## 打开宝箱
+func open_treasure() -> void:
+	current_state = GameState.TREASURE
+	# 宝箱直接给予奖励，然后返回地图
+	# TODO: 实现宝箱奖励逻辑
+	print("打开宝箱！获得奖励")
+	# 暂时直接返回地图
+	await get_tree().create_timer(1.0).timeout
+	go_to_map_view()
 
 ## 进入商店
 func enter_shop() -> void:

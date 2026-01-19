@@ -1,24 +1,56 @@
 {
-  "floors": 15,
-  "nodes_per_floor": [2, 4],
+  "description": "地图配置文件 - 16阶地图，玩家行动15步",
+  "floors": 16,
+  "nodes_per_floor": {
+    "min": 3,
+    "max": 5,
+    "floor_15": 3,
+    "floor_16": 1
+  },
   "node_types": {
     "enemy": {
-      "weight": 50,
+      "weight": 45,
+      "min_floor": 1,
       "description": "普通战斗"
+    },
+    "treasure": {
+      "weight": 12,
+      "min_floor": 2,
+      "description": "宝箱"
     },
     "shop": {
       "weight": 10,
+      "min_floor": 3,
       "description": "商店"
     },
     "rest": {
-      "weight": 10,
+      "weight": 12,
+      "min_floor": 4,
       "description": "休息处"
     },
     "event": {
-      "weight": 15,
+      "weight": 21,
+      "min_floor": 2,
       "description": "奇遇事件"
     }
   },
-  "boss_floor": 15,
+  "special_floors": {
+    "floor_15": {
+      "type": "rest",
+      "count": 3,
+      "description": "倒数第二阶固定为3个休息节点"
+    },
+    "floor_16": {
+      "type": "boss",
+      "count": 1,
+      "description": "终点固定为1个BOSS节点"
+    }
+  },
+  "connection_rules": {
+    "min_connections_per_node": 1,
+    "max_connections_per_node": 3,
+    "no_crossing_lines": true
+  },
+  "boss_floor": 16,
   "boss_description": "最终BOSS"
 }

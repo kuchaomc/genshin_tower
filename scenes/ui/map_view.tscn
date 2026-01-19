@@ -2,27 +2,25 @@
 
 [ext_resource type="Script" path="res://scripts/ui/map_view.gd" id="1_map_view"]
 
-[node name="Node2D" type="Node2D"]
+[node name="MapView" type="Node2D"]
 script = ExtResource("1_map_view")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(960, 540)
+position = Vector2(960, 880)
 
 [node name="MapContainer" type="Node2D" parent="."]
 
 [node name="Background" type="ColorRect" parent="MapContainer"]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.1, 0.1, 0.15, 1)
+z_index = -10
+offset_left = -500.0
+offset_top = -3000.0
+offset_right = 2500.0
+offset_bottom = 1200.0
+color = Color(0.08, 0.08, 0.12, 1)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
-layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
@@ -35,4 +33,26 @@ grow_vertical = 0
 [node name="FloorLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "当前楼层: 0"
+text = "当前楼层: 1 / 16"
+
+[node name="HintLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "滚轮滚动 | 拖拽移动地图"
+
+[node name="TopUI" type="VBoxContainer" parent="CanvasLayer"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
+offset_top = 20.0
+offset_right = 150.0
+offset_bottom = 80.0
+grow_horizontal = 2
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer/TopUI"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "地图"
+horizontal_alignment = 1

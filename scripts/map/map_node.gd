@@ -6,8 +6,9 @@ class_name MapNode
 
 enum NodeType {
 	ENEMY,      # 普通战斗
-	SHOP,       # 商店
+	TREASURE,   # 宝箱
 	REST,       # 休息处
+	SHOP,       # 商店
 	EVENT,      # 奇遇事件
 	BOSS        # BOSS战
 }
@@ -84,6 +85,8 @@ func update_node_icon() -> void:
 	match node_type:
 		NodeType.ENEMY:
 			icon_path = "res://textures/icons/普通战斗房间图标.png"
+		NodeType.TREASURE:
+			icon_path = "res://textures/icons/商店图标.png"  # 宝箱暂用商店图标
 		NodeType.SHOP:
 			icon_path = "res://textures/icons/商店图标.png"
 		NodeType.REST:
@@ -112,6 +115,8 @@ func update_visual_state() -> void:
 		match node_type:
 			NodeType.ENEMY:
 				node_button.modulate = Color(1.0, 0.8, 0.8, 1.0)  # 淡红色
+			NodeType.TREASURE:
+				node_button.modulate = Color(1.0, 0.9, 0.6, 1.0)  # 金色
 			NodeType.SHOP:
 				node_button.modulate = Color(0.8, 0.8, 1.0, 1.0)  # 淡蓝色
 			NodeType.REST:
@@ -147,6 +152,8 @@ func get_type_name() -> String:
 	match node_type:
 		NodeType.ENEMY:
 			return "普通战斗"
+		NodeType.TREASURE:
+			return "宝箱"
 		NodeType.SHOP:
 			return "商店"
 		NodeType.REST:

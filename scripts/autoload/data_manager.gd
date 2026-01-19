@@ -40,6 +40,11 @@ func load_characters() -> void:
 				var resource_path = dir_path + "/" + file_name
 				var resource = load(resource_path)
 				if resource:
+					# 只处理CharacterData类型的资源，跳过CharacterStats等其他资源
+					if not resource is CharacterDataClass:
+						file_name = dir.get_next()
+						continue
+					
 					# 尝试访问id属性
 					var char_id = resource.get("id")
 					if char_id and char_id != "":
@@ -70,6 +75,11 @@ func load_enemies() -> void:
 				var resource_path = dir_path + "/" + file_name
 				var resource = load(resource_path)
 				if resource:
+					# 只处理EnemyData类型的资源，跳过EnemyStats等其他资源
+					if not resource is EnemyDataClass:
+						file_name = dir.get_next()
+						continue
+					
 					# 尝试访问id属性
 					var enemy_id = resource.get("id")
 					if enemy_id and enemy_id != "":

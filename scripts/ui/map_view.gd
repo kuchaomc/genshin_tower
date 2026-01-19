@@ -1,6 +1,7 @@
 extends Node2D
 
 ## 地图界面脚本
+## 地图从下往上显示，玩家从底部开始向上攀升
 
 @onready var map_container: Node2D = $MapContainer
 @onready var floor_label: Label = $CanvasLayer/VBoxContainer/FloorLabel
@@ -8,8 +9,23 @@ extends Node2D
 
 var map_generator: MapGenerator
 var current_map: Dictionary = {}
-var node_spacing: Vector2 = Vector2(250, 200)  # 节点之间的间距
-var map_offset: Vector2 = Vector2(400, 100)  # 地图起始偏移（居中显示）
+
+# 布局参数
+var node_spacing_x: float = 180.0  # 节点水平间距
+var node_spacing_y: float = 150.0  # 节点垂直间距
+var map_bottom_margin: float = 100.0  # 地图底部边距
+var map_width: float = 1000.0  # 地图宽度
+
+# 节点实例字典，用于绘制连接线
+var node_instances: Dictionary = {}  # node_id -> MapNode instance
+
+# 当前可选择的节点（从起点出发或从已访问节点出发可达的节点）
+var selectable_nodes: Array = []
+
+# 滚动和拖拽
+var is_dragging: bool = false
+var drag_start_pos: Vector2 = Vector2.ZERO
+var camera_start_pos: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	# 检查必要的单例是否存在
@@ -21,17 +37,39 @@ func _ready() -> void:
 		print("错误：RunManager未找到")
 		return
 	
-	# 设置相机位置
-	var camera = get_node_or_null("Camera2D")
-	if camera:
-		var viewport_size = get_viewport().get_visible_rect().size
-		camera.position = Vector2(viewport_size.x / 2.0, viewport_size.y / 2.0)
-	
 	generate_and_display_map()
 	
 	# 更新楼层显示
 	if floor_label:
-		floor_label.text = "当前楼层: %d" % RunManager.current_floor
+		floor_label.text = "当前楼层: %d / 16" % RunManager.current_floor
+
+func _input(event: InputEvent) -> void:
+	# 处理鼠标拖拽滚动地图
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				is_dragging = true
+				drag_start_pos = event.position
+				camera_start_pos = camera.position
+			else:
+				is_dragging = false
+		# 鼠标滚轮缩放
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_scroll_map(-100)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_scroll_map(100)
+	
+	elif event is InputEventMouseMotion and is_dragging:
+		var delta = event.position - drag_start_pos
+		camera.position = camera_start_pos - delta
+
+## 滚动地图
+func _scroll_map(amount: float) -> void:
+	camera.position.y += amount
+	# 限制相机位置
+	var min_y = 200.0
+	var max_y = 16 * node_spacing_y + map_bottom_margin
+	camera.position.y = clampf(camera.position.y, min_y, max_y)
 
 ## 生成并显示地图
 func generate_and_display_map() -> void:
@@ -42,24 +80,24 @@ func generate_and_display_map() -> void:
 	# 获取地图配置
 	var config = DataManager.get_map_config()
 	if config.is_empty():
-		print("警告：地图配置为空，使用默认配置")
-		config = {
-			"floors": 15,
-			"nodes_per_floor": [2, 4],
-			"node_types": {
-				"enemy": {"weight": 50},
-				"shop": {"weight": 10},
-				"rest": {"weight": 10},
-				"event": {"weight": 15}
-			},
-			"boss_floor": 15
-		}
+		print("使用默认地图配置")
+		config = {}
 	
 	# 生成地图
 	current_map = map_generator.generate_map(config)
 	
 	# 显示地图
 	display_map()
+	
+	# 设置初始相机位置（显示底部起点）
+	_setup_camera()
+
+## 设置相机初始位置
+func _setup_camera() -> void:
+	if camera:
+		var viewport_size = get_viewport().get_visible_rect().size
+		# 相机初始位置在底部，显示第一层
+		camera.position = Vector2(viewport_size.x / 2.0, viewport_size.y - 200)
 
 ## 显示地图
 func display_map() -> void:
@@ -69,43 +107,45 @@ func display_map() -> void:
 	
 	# 清空现有节点
 	for child in map_container.get_children():
-		child.queue_free()
+		if child.name != "Background":
+			child.queue_free()
+	
+	node_instances.clear()
 	
 	var floors = current_map.get("floors", [])
 	if floors.is_empty():
 		print("警告：没有生成任何楼层")
 		return
 	
-	# 计算地图总宽度（用于居中）
-	var max_nodes_per_floor = 0
-	for floor_idx in range(floors.size()):
-		var floor_nodes = floors[floor_idx]
-		if floor_nodes.size() > max_nodes_per_floor:
-			max_nodes_per_floor = floor_nodes.size()
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center_x = viewport_size.x / 2.0
 	
-	var map_width = max_nodes_per_floor * node_spacing.x
-	var start_x = (get_viewport().get_visible_rect().size.x - map_width) / 2.0
-	if start_x < 0:
-		start_x = map_offset.x
+	# 计算地图总高度
+	var total_height = floors.size() * node_spacing_y
 	
-	# 为每一层创建节点
+	# 从下往上绘制每一层
+	# floor_idx = 0 是第1层（最底层），应该显示在屏幕底部
 	for floor_idx in range(floors.size()):
-		var floor_nodes = floors[floor_idx]
-		if floor_nodes.is_empty():
+		var floor_nodes_data = floors[floor_idx]
+		if floor_nodes_data.is_empty():
 			continue
-			
-		var floor_y = map_offset.y + floor_idx * node_spacing.y
 		
-		# 计算这一层节点的起始X位置（居中）
-		var floor_width = floor_nodes.size() * node_spacing.x
-		var floor_start_x = start_x + (map_width - floor_width) / 2.0
+		var node_count = floor_nodes_data.size()
 		
-		for node_idx in range(floor_nodes.size()):
-			var node_data = floor_nodes[node_idx]
+		# 计算Y坐标：第1层在底部，第16层在顶部
+		# 使用viewport高度作为参考，第1层在viewport_height - margin
+		var floor_y = viewport_size.y - map_bottom_margin - (floor_idx * node_spacing_y)
+		
+		# 计算这一层节点的X位置（居中分布）
+		var floor_width = (node_count - 1) * node_spacing_x
+		var floor_start_x = center_x - floor_width / 2.0
+		
+		for node_idx in range(node_count):
+			var node_data = floor_nodes_data[node_idx]
 			if not node_data:
 				continue
-				
-			var node_x = floor_start_x + node_idx * node_spacing.x
+			
+			var node_x = floor_start_x + node_idx * node_spacing_x
 			
 			# 创建新的节点实例
 			var node_instance = MapNode.new()
@@ -114,7 +154,7 @@ func display_map() -> void:
 			node_instance.floor_number = node_data.floor_number
 			node_instance.position_in_floor = node_data.position_in_floor
 			
-			# 复制连接的节点（确保类型正确）
+			# 复制连接的节点
 			if node_data.connected_nodes:
 				for conn_id in node_data.connected_nodes:
 					if conn_id is String:
@@ -123,62 +163,123 @@ func display_map() -> void:
 			node_instance.position = Vector2(node_x, floor_y)
 			node_instance.node_selected.connect(_on_node_selected)
 			map_container.add_child(node_instance)
+			
+			# 保存实例引用
+			node_instances[node_data.node_id] = node_instance
 	
 	# 绘制所有连接线
-	draw_all_connections(floors, start_x, map_width)
+	_draw_all_connections(floors)
+	
+	# 更新可选择的节点状态
+	_update_selectable_nodes()
 
 ## 绘制所有连接线
-func draw_all_connections(floors: Array, start_x: float, map_width: float) -> void:
-	for floor_idx in range(floors.size() - 1):
-		var current_floor = floors[floor_idx]
-		var next_floor = floors[floor_idx + 1]
+func _draw_all_connections(floors: Array) -> void:
+	var connections = current_map.get("connections", [])
+	var viewport_size = get_viewport().get_visible_rect().size
+	var center_x = viewport_size.x / 2.0
+	
+	for floor_idx in range(connections.size()):
+		var floor_conns = connections[floor_idx]
+		var current_floor_data = floors[floor_idx]
+		var next_floor_data = floors[floor_idx + 1]
 		
-		if current_floor.is_empty() or next_floor.is_empty():
-			continue
+		var current_count = current_floor_data.size()
+		var next_count = next_floor_data.size()
 		
-		var current_y = map_offset.y + floor_idx * node_spacing.y
-		var next_y = map_offset.y + (floor_idx + 1) * node_spacing.y
+		# 计算当前层和下一层的Y坐标
+		var current_y = viewport_size.y - map_bottom_margin - (floor_idx * node_spacing_y)
+		var next_y = viewport_size.y - map_bottom_margin - ((floor_idx + 1) * node_spacing_y)
 		
-		# 计算每层的节点位置
-		for current_node in current_floor:
-			if not current_node:
-				continue
-				
-			var current_floor_width = current_floor.size() * node_spacing.x
-			var current_floor_start_x = start_x + (map_width - current_floor_width) / 2.0
-			var current_x = current_floor_start_x + current_node.position_in_floor * node_spacing.x
-			var current_pos = Vector2(current_x, current_y)
+		# 计算当前层节点的X起始位置
+		var current_floor_width = (current_count - 1) * node_spacing_x
+		var current_start_x = center_x - current_floor_width / 2.0
+		
+		# 计算下一层节点的X起始位置
+		var next_floor_width = (next_count - 1) * node_spacing_x
+		var next_start_x = center_x - next_floor_width / 2.0
+		
+		for conn in floor_conns:
+			var out_idx = conn[0]
+			var in_idx = conn[1]
 			
-			# 连接到下一层的所有节点
-			for next_node in next_floor:
-				if not next_node:
-					continue
-					
-				var next_floor_width = next_floor.size() * node_spacing.x
-				var next_floor_start_x = start_x + (map_width - next_floor_width) / 2.0
-				var next_x = next_floor_start_x + next_node.position_in_floor * node_spacing.x
-				var next_pos = Vector2(next_x, next_y)
-				
-				# 创建连接线
-				var line = Line2D.new()
-				line.width = 2.0
-				line.default_color = Color(0.5, 0.5, 0.5, 0.3)
-				line.add_point(current_pos)
-				line.add_point(next_pos)
-				line.z_index = -1  # 确保线条在节点下方
-				map_container.add_child(line)
+			var from_x = current_start_x + out_idx * node_spacing_x
+			var to_x = next_start_x + in_idx * node_spacing_x
+			
+			var from_pos = Vector2(from_x, current_y)
+			var to_pos = Vector2(to_x, next_y)
+			
+			# 创建连接线
+			var line = Line2D.new()
+			line.width = 3.0
+			line.default_color = Color(0.4, 0.4, 0.5, 0.6)
+			line.add_point(from_pos)
+			line.add_point(to_pos)
+			line.z_index = -1  # 确保线条在节点下方
+			map_container.add_child(line)
+
+## 更新可选择的节点状态
+func _update_selectable_nodes() -> void:
+	selectable_nodes.clear()
+	
+	var current_floor = RunManager.current_floor if RunManager else 1
+	
+	# 如果是第一层，所有第一层节点都可选
+	if current_floor == 1:
+		var first_floor = current_map.get("floors", [[]])[0]
+		for node_data in first_floor:
+			if node_data and not node_data.is_visited:
+				selectable_nodes.append(node_data.node_id)
+	else:
+		# 找到当前层已访问的节点，其连接的节点可选
+		var floors = current_map.get("floors", [])
+		if current_floor > 0 and current_floor <= floors.size():
+			var prev_floor = floors[current_floor - 2] if current_floor > 1 else []
+			for node_data in prev_floor:
+				if node_data and node_data.is_visited:
+					for conn_id in node_data.connected_nodes:
+						if conn_id not in selectable_nodes:
+							var target_node = map_generator.get_map_node(conn_id)
+							if target_node and not target_node.is_visited:
+								selectable_nodes.append(conn_id)
+	
+	# 更新节点的可点击状态
+	for node_id in node_instances:
+		var node_instance = node_instances[node_id]
+		if node_instance and node_instance.node_button:
+			var is_selectable = node_id in selectable_nodes
+			node_instance.node_button.disabled = not is_selectable and not node_instance.is_visited
 
 ## 节点被选中
 func _on_node_selected(node: MapNode) -> void:
 	print("选择节点：", node.node_id, " 类型：", node.get_type_name())
 	
+	# 检查节点是否可选
+	if node.node_id not in selectable_nodes and RunManager.current_floor > 1:
+		print("该节点不可选择")
+		return
+	
 	# 访问节点
 	node.visit()
+	
+	# 更新楼层
+	if RunManager:
+		RunManager.set_floor(node.floor_number)
+		if floor_label:
+			floor_label.text = "当前楼层: %d / 16" % node.floor_number
+	
+	# 滚动相机跟随
+	_scroll_to_floor(node.floor_number)
+	
+	# 更新可选择状态
+	_update_selectable_nodes()
 	
 	# 根据节点类型执行相应操作
 	match node.node_type:
 		MapNode.NodeType.ENEMY:
 			start_battle(node)
+		MapNode.NodeType.TREASURE:
+			open_treasure()
 		MapNode.NodeType.SHOP:
 			enter_shop()
 		MapNode.NodeType.REST:
@@ -188,11 +289,25 @@ func _on_node_selected(node: MapNode) -> void:
 		MapNode.NodeType.BOSS:
 			start_boss_battle()
 
+## 滚动到指定楼层
+func _scroll_to_floor(floor_num: int) -> void:
+	if not camera:
+		return
+	
+	var viewport_size = get_viewport().get_visible_rect().size
+	var target_y = viewport_size.y - map_bottom_margin - ((floor_num - 1) * node_spacing_y)
+	
+	# 创建缓动动画
+	var tween = create_tween()
+	tween.tween_property(camera, "position:y", target_y, 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+## 打开宝箱
+func open_treasure() -> void:
+	if GameManager:
+		GameManager.open_treasure()
+
 ## 开始战斗
 func start_battle(node: MapNode) -> void:
-	if RunManager:
-		RunManager.set_floor(node.floor_number)
-	
 	if GameManager:
 		GameManager.start_battle()
 
@@ -213,8 +328,5 @@ func enter_event() -> void:
 
 ## 开始BOSS战
 func start_boss_battle() -> void:
-	if RunManager:
-		RunManager.set_floor(RunManager.current_floor + 1)
-	
 	if GameManager:
 		GameManager.start_boss_battle()
