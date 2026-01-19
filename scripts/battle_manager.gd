@@ -28,6 +28,8 @@ var score_label: Label
 # 玩家血量UI引用
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
+# 技能UI引用
+var skill_ui: SkillUI
 # 调试：显示判定/碰撞箱开关
 var debug_toggle_button: Button
 var debug_show_hitboxes: bool = false
@@ -39,6 +41,7 @@ func _ready() -> void:
 	score_label = get_node_or_null("CanvasLayer/Label") as Label
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
 	player_hp_label = get_node_or_null("CanvasLayer/PlayerHPBar/Label") as Label
+	skill_ui = get_node_or_null("CanvasLayer/SkillUIContainer/SkillUI") as SkillUI
 	debug_toggle_button = get_node_or_null("CanvasLayer/DebugToggle") as Button
 	if debug_toggle_button:
 		debug_toggle_button.pressed.connect(_on_debug_toggle_pressed)
@@ -118,9 +121,19 @@ func connect_player_signals() -> void:
 		if player.has_signal("character_died"):
 			player.character_died.connect(_on_player_died)
 		
+		# 连接技能冷却时间信号
+		if player.has_signal("skill_cooldown_changed"):
+			player.skill_cooldown_changed.connect(_on_skill_cooldown_changed)
+		
 		# 初始化血量UI显示
 		if player.has_method("get_current_health") and player.has_method("get_max_health"):
 			_on_player_health_changed(player.get_current_health(), player.get_max_health())
+		
+		# 初始化技能UI
+		if skill_ui and player is KamisatoAyakaCharacter:
+			var skill_icon = load("res://textures/神里技能图标.png")
+			if skill_icon:
+				skill_ui.set_skill_icon(skill_icon)
 
 ## 敌人生成计时器回调
 func _on_enemy_spawn_timer_timeout() -> void:
@@ -234,6 +247,11 @@ func _apply_hitbox_visibility_to_player() -> void:
 func _apply_hitbox_visibility_to_enemy(enemy_node: Node) -> void:
 	var enemy_shape = enemy_node.get_node_or_null("CollisionShape2D") as CollisionShape2D
 	_set_shape_visible(enemy_shape, debug_show_hitboxes, Color(1, 0, 0, 0.3))
+
+## 技能冷却时间变化回调
+func _on_skill_cooldown_changed(remaining_time: float, cooldown_time: float) -> void:
+	if skill_ui:
+		skill_ui.update_cooldown(remaining_time, cooldown_time)
 
 ## 统一设置碰撞形状的可见性与颜色（Godot 4可直接显示CollisionShape2D）
 func _set_shape_visible(shape: CollisionShape2D, visible_state: bool, debug_color: Color) -> void:

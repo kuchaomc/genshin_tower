@@ -23,6 +23,18 @@ var hit_enemies_phase1: Array[Area2D] = []
 var hit_enemies_phase2: Array[Area2D] = []
 var original_position: Vector2
 
+# ========== E技能属性 ==========
+@export var skill_area: Area2D  # 技能范围伤害区域
+@export var skill_effect: AnimatedSprite2D  # 技能特效动画
+@export var skill_damage: float = 50.0  # 技能伤害
+@export var skill_radius: float = 150.0  # 技能范围半径
+@export var skill_cooldown: float = 10.0  # 技能冷却时间（秒）
+var skill_next_ready_ms: int = 0  # 技能下次可用时间（毫秒）
+var skill_hit_enemies: Array[Area2D] = []  # 本次技能已命中的敌人
+
+# 技能冷却时间变化信号（用于UI更新）
+signal skill_cooldown_changed(remaining_time: float, cooldown_time: float)
+
 func _ready() -> void:
 	super._ready()
 	
@@ -33,11 +45,35 @@ func _ready() -> void:
 	if sword_area:
 		sword_area.area_entered.connect(_on_sword_area_entered)
 		sword_area.monitoring = false
+	
+	# 初始化技能区域和特效
+	if skill_area == null:
+		skill_area = get_node_or_null("SkillArea") as Area2D
+	
+	if skill_area:
+		skill_area.area_entered.connect(_on_skill_area_entered)
+		skill_area.monitoring = false
+		# 设置技能范围
+		var collision_shape = skill_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		if collision_shape and collision_shape.shape is CircleShape2D:
+			(collision_shape.shape as CircleShape2D).radius = skill_radius
+	
+	if skill_effect == null:
+		skill_effect = get_node_or_null("SkillEffect") as AnimatedSprite2D
+	
+	if skill_effect:
+		skill_effect.visible = false
 
 func _physics_process(delta: float) -> void:
 	if not is_game_over:
 		# 处理攻击输入
 		handle_attack_input()
+		
+		# 处理E键技能输入
+		handle_skill_input()
+		
+		# 更新技能冷却时间显示
+		_update_skill_cooldown_display()
 		
 		# 攻击时强制检查覆盖，减少漏判
 		if attack_state == 1 and sword_area and sword_area.monitoring:
@@ -262,3 +298,120 @@ func _force_check_sword_overlaps() -> void:
 		return
 	for area in sword_area.get_overlapping_areas():
 		_on_sword_area_entered(area)
+
+# ========== E技能相关方法 ==========
+
+## 处理E键技能输入
+var _last_e_pressed: bool = false
+
+func handle_skill_input() -> void:
+	# 检测E键按下（使用is_physical_key_pressed并检查状态变化）
+	var e_pressed = Input.is_physical_key_pressed(KEY_E)
+	if (Input.is_action_just_pressed("ui_select") or (e_pressed and not _last_e_pressed)):
+		if _is_skill_ready():
+			use_skill()
+	_last_e_pressed = e_pressed
+
+## 检查技能是否可用
+func _is_skill_ready() -> bool:
+	return Time.get_ticks_msec() >= skill_next_ready_ms
+
+## 使用E技能：围绕角色造成范围伤害
+func use_skill() -> void:
+	if not _is_skill_ready():
+		return
+	
+	# 设置冷却时间
+	skill_next_ready_ms = Time.get_ticks_msec() + int(skill_cooldown * 1000.0)
+	
+	# 清空已命中敌人列表
+	skill_hit_enemies.clear()
+	
+	# 启用技能区域检测
+	if skill_area:
+		skill_area.monitoring = true
+		skill_area.global_position = global_position
+		# 强制检查范围内的敌人
+		_force_check_skill_overlaps()
+		# 短暂启用后关闭（单段伤害）
+		var timer = get_tree().create_timer(0.1)
+		timer.timeout.connect(_on_skill_damage_finished)
+	
+	# 播放技能特效
+	if skill_effect:
+		skill_effect.visible = true
+		skill_effect.global_position = global_position
+		if skill_effect.sprite_frames:
+			skill_effect.play("default")
+			# 监听动画完成信号
+			if not skill_effect.animation_finished.is_connected(_on_skill_effect_finished):
+				skill_effect.animation_finished.connect(_on_skill_effect_finished)
+		else:
+			# 如果没有sprite_frames，使用简单的定时器
+			var hide_timer = get_tree().create_timer(0.5)
+			hide_timer.timeout.connect(_on_skill_effect_finished)
+	
+	print("使用E技能：范围伤害")
+
+## 技能伤害检测完成
+func _on_skill_damage_finished() -> void:
+	if skill_area:
+		skill_area.monitoring = false
+
+## 技能特效播放完成
+func _on_skill_effect_finished() -> void:
+	if skill_effect:
+		skill_effect.visible = false
+		skill_effect.stop()
+		# 断开信号连接（避免重复连接）
+		if skill_effect.animation_finished.is_connected(_on_skill_effect_finished):
+			skill_effect.animation_finished.disconnect(_on_skill_effect_finished)
+
+## 技能区域碰撞回调
+func _on_skill_area_entered(area: Area2D) -> void:
+	if area.is_in_group("enemies"):
+		# 检查是否已经命中过
+		if area in skill_hit_enemies:
+			return
+		
+		skill_hit_enemies.append(area)
+		
+		# 造成伤害
+		if area.has_method("take_damage"):
+			var damage = skill_damage
+			# 应用升级加成
+			if RunManager:
+				var damage_upgrade = RunManager.get_upgrade_level("damage")
+				damage *= (1.0 + damage_upgrade * 0.1)
+			var knockback_dir = (area.global_position - global_position).normalized()
+			area.take_damage(damage, knockback_dir * knockback_force)
+			if RunManager:
+				RunManager.record_damage_dealt(damage)
+			print("E技能命中敌人，造成伤害: ", damage)
+
+## 强制检查技能范围内的敌人
+func _force_check_skill_overlaps() -> void:
+	if not skill_area:
+		return
+	
+	# 获取范围内的所有敌人
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		var enemy_area = enemy as Area2D
+		if not enemy_area:
+			continue
+		
+		# 计算距离
+		var distance = (enemy_area.global_position - global_position).length()
+		if distance <= skill_radius:
+			# 在范围内，触发碰撞
+			_on_skill_area_entered(enemy_area)
+
+## 更新技能冷却时间显示
+func _update_skill_cooldown_display() -> void:
+	var current_time_ms = Time.get_ticks_msec()
+	if current_time_ms < skill_next_ready_ms:
+		var remaining_time = (skill_next_ready_ms - current_time_ms) / 1000.0
+		emit_signal("skill_cooldown_changed", remaining_time, skill_cooldown)
+	else:
+		emit_signal("skill_cooldown_changed", 0.0, skill_cooldown)

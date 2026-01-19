@@ -1,9 +1,10 @@
-[gd_scene load_steps=12 format=3 uid="uid://bb2kswvspaq4f"]
+[gd_scene load_steps=22 format=3 uid="uid://bb2kswvspaq4f"]
 
-[ext_resource type="Script" uid="uid://br7dfmt5nc80r" path="res://scripts/characters/kamisato_ayaka_character.gd" id="1_sword_char"]
+[ext_resource type="Script" uid="uid://d11ele5x3lbm1" path="res://scripts/characters/kamisato_ayaka_character.gd" id="1_sword_char"]
 [ext_resource type="Texture2D" uid="uid://p5yv5ngfrcoo" path="res://textures/神里idel.png" id="2_sd6lh"]
 [ext_resource type="Texture2D" uid="uid://bc3cgn2g32xk5" path="res://textures/神里move.png" id="3_sd6lh"]
 [ext_resource type="Texture2D" uid="uid://dx8q3hoy4l72j" path="res://textures/无锋剑.png" id="4_sword"]
+[ext_resource type="Texture2D" uid="uid://dcx7li7uvt85x" path="res://textures/ayaka技能精灵表.png" id="5_skill"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_rj564"]
 atlas = ExtResource("2_sd6lh")
@@ -52,9 +53,72 @@ radius = 2.9027624
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_sword"]
 size = Vector2(22, 96)
 
-[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("sword_area", "animator")]
+[sub_resource type="CircleShape2D" id="CircleShape2D_skill"]
+radius = 150.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4yhug"]
+atlas = ExtResource("5_skill")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3v4it"]
+atlas = ExtResource("5_skill")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xiv0e"]
+atlas = ExtResource("5_skill")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fw1k4"]
+atlas = ExtResource("5_skill")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2rba2"]
+atlas = ExtResource("5_skill")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1axs2"]
+atlas = ExtResource("5_skill")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vp1mf"]
+atlas = ExtResource("5_skill")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_skill"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4yhug")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3v4it")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xiv0e")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fw1k4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2rba2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1axs2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vp1mf")
+}],
+"loop": false,
+"name": &"default",
+"speed": 8.0
+}]
+
+[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("sword_area", "skill_area", "skill_effect", "animator")]
 script = ExtResource("1_sword_char")
 sword_area = NodePath("SwordArea")
+skill_area = NodePath("SkillArea")
+skill_effect = NodePath("SkillEffect")
+skill_damage = 75.0
 hurt_speed_boost_multiplier = 1.5
 animator = NodePath("AnimatedSprite2D")
 knockback_force = 50.0
@@ -82,3 +146,16 @@ offset = Vector2(20, 0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SwordArea"]
 position = Vector2(1, -38)
 shape = SubResource("RectangleShape2D_sword")
+
+[node name="SkillArea" type="Area2D" parent="."]
+monitoring = false
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SkillArea"]
+shape = SubResource("CircleShape2D_skill")
+
+[node name="SkillEffect" type="AnimatedSprite2D" parent="."]
+scale = Vector2(4.735, 4.735)
+sprite_frames = SubResource("SpriteFrames_skill")
+frame = 2
+frame_progress = 0.29577997

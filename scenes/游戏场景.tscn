@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3 uid="uid://c5vy4j04yih54"]
+[gd_scene load_steps=7 format=3 uid="uid://c5vy4j04yih54"]
 
 [ext_resource type="Texture2D" uid="uid://qfej3gbql253" path="res://textures/游戏背景.png" id="1_0d42y"]
 [ext_resource type="Script" path="res://scripts/battle_manager.gd" id="1_battle"]
 [ext_resource type="Script" uid="uid://tuf8sc1sf5gd" path="res://scripts/camera_follower.gd" id="3_0d42y"]
 [ext_resource type="PackedScene" uid="uid://bb2kswvspaq4f" path="res://scenes/玩家.tscn" id="3_3epie"]
+[ext_resource type="PackedScene" uid="uid://b8k5x3m2n4p9q" path="res://scenes/ui/skill_ui.tscn" id="4_skill_ui"]
 
 [sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_yqjtg"]
 normal = Vector2(-4.101825e-08, -1)
@@ -112,3 +113,27 @@ offset_right = 140.0
 offset_bottom = 60.0
 text = "显示判定"
 button_pressed = false
+
+[node name="SkillUIContainer" type="Control" parent="CanvasLayer"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -100.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 84.0
+grow_horizontal = 0
+
+[node name="SkillUI" parent="CanvasLayer/SkillUIContainer" instance=ExtResource("4_skill_ui")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
