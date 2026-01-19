@@ -59,6 +59,10 @@ func handle_movement() -> void:
 func can_move() -> bool:
 	return attack_state == 0
 
+func can_dodge() -> bool:
+	# 攻击期间禁止闪避，避免与攻击状态/判定冲突；需要的话以后可放开
+	return attack_state == 0 and super.can_dodge()
+
 ## 更新剑的朝向（朝向鼠标）
 func update_sword_direction() -> void:
 	if not sword_area or attack_state != 0:

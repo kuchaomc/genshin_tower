@@ -72,7 +72,8 @@ grow_vertical = 2
 text = "游戏说明：
 操作方式：
 WASD键 - 控制角色移动
-鼠标左键 - 射击"
+鼠标左键 - 攻击（长按可触发重击）
+鼠标右键 - 闪避（向鼠标方向，闪避期间无敌）"
 
 [node name="CloseButton" type="Button" parent="CanvasLayer/Panel"]
 layout_mode = 1

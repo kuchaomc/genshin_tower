@@ -7,8 +7,23 @@ extends CharacterBody2D
 var current_health : float = 100.0
 # 受伤无敌时间（秒）
 @export var invincibility_duration : float = 1.0
-# 是否处于无敌状态
+# 是否处于无敌状态（兼容字段：由“受伤无敌/闪避无敌”合并而来）
 var is_invincible : bool = false
+var _hurt_invincible: bool = false
+var _dodge_invincible: bool = false
+
+# ========== 闪避属性 ==========
+@export var dodge_duration: float = 0.18
+@export var dodge_cooldown: float = 0.6
+@export var dodge_distance: float = 120.0
+@export var dodge_speed_multiplier: float = 3.0
+@export var dodge_alpha: float = 0.7
+
+var _is_dodging: bool = false
+var _dodge_elapsed: float = 0.0
+var _dodge_dir: Vector2 = Vector2.ZERO
+var _dodge_next_ready_ms: int = 0
+var _last_nonzero_move_dir: Vector2 = Vector2.RIGHT
 
 # 血量变化信号（用于UI更新）
 signal health_changed(current: float, maximum: float)
@@ -35,7 +50,7 @@ signal player_died
 @export var phase2_hit_count : int = 3
 # 触发重击（第二段）的最小按住时长（秒），防止连点误触
 # 提高阈值以进一步降低快速连点误触概率
-const PHASE2_HOLD_THRESHOLD := 0.5
+const PHASE2_HOLD_THRESHOLD: float = 0.5
 
 var is_game_over : bool = false
 var phase2_current_hit : int = 0  # 当前第二段已造成的伤害次数
@@ -68,19 +83,27 @@ func _ready() -> void:
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta: float) -> void:
 	if not is_game_over:
+		# 闪避输入/更新（放在移动前，确保覆盖本帧速度）
+		_handle_dodge_input()
+		_update_dodge(delta)
+		
 		# 攻击状态下阻止移动
-		if attack_state == 0:
+		if attack_state == 0 and not _is_dodging:
 			# 监听键盘并乘以移动速度，赋予玩家速度
 			velocity = Input.get_vector("left", "right", "up", "down") * move_speed
+			if velocity != Vector2.ZERO:
+				_last_nonzero_move_dir = velocity.normalized()
 		else:
-			velocity = Vector2.ZERO
+			# 闪避时速度由闪避逻辑控制；攻击时速度为0
+			if attack_state != 0:
+				velocity = Vector2.ZERO
 		
 		# 记录第一段攻击中是否出现过松开事件，避免连点触发重击
 		if attack_state == 1 and Input.is_action_just_released("mouse1"):
 			phase1_had_release = true
 		
 		# 检测鼠标左键按下（挥剑攻击）
-		if Input.is_action_just_pressed("mouse1") and attack_state == 0:
+		if Input.is_action_just_pressed("mouse1") and attack_state == 0 and not _is_dodging:
 			start_attack()
 		
 		# 只在非攻击状态下更新剑的朝向
@@ -104,6 +127,56 @@ func _physics_process(delta: float) -> void:
 		
 		# 按照速度开始移动
 		move_and_slide()
+
+func _handle_dodge_input() -> void:
+	if is_game_over:
+		return
+	# 旧玩家脚本：攻击期间不允许闪避，避免与位移/判定冲突
+	if attack_state != 0:
+		return
+	if Input.is_action_just_pressed("mouse2") and _is_dodge_ready() and not _is_dodging:
+		_start_dodge()
+
+func _is_dodge_ready() -> bool:
+	return Time.get_ticks_msec() >= _dodge_next_ready_ms
+
+func _start_dodge() -> void:
+	_is_dodging = true
+	_dodge_elapsed = 0.0
+	_dodge_next_ready_ms = Time.get_ticks_msec() + int(dodge_cooldown * 1000.0)
+	
+	var mouse_pos: Vector2 = get_global_mouse_position()
+	var dir: Vector2 = mouse_pos - global_position
+	if dir == Vector2.ZERO:
+		dir = _last_nonzero_move_dir
+	_dodge_dir = dir.normalized()
+	
+	_set_dodge_invincible(true)
+
+func _update_dodge(delta: float) -> void:
+	if not _is_dodging:
+		return
+	
+	_dodge_elapsed += delta
+	var t: float = 0.0
+	if dodge_duration > 0.0:
+		t = clamp(_dodge_elapsed / dodge_duration, 0.0, 1.0)
+	
+	# 基础速度取决于“目标闪避距离 / 持续时间”
+	var base_speed: float = float(move_speed)
+	if dodge_duration > 0.0:
+		base_speed = dodge_distance / dodge_duration
+	
+	# 速度曲线：初始很快，逐渐回落（平滑）；平均速度约为 base_speed
+	var start_speed: float = base_speed * dodge_speed_multiplier
+	var end_speed: float = base_speed * 0.8
+	var ease_out: float = 1.0 - pow(1.0 - t, 2.0)
+	var speed: float = lerp(start_speed, end_speed, ease_out)
+	velocity = _dodge_dir * speed
+	
+	if t >= 1.0:
+		_is_dodging = false
+		_set_dodge_invincible(false)
 
 # 更新剑的朝向（朝向鼠标）
 func update_sword_direction() -> void:
@@ -185,8 +258,8 @@ func finish_phase1() -> void:
 		sword_area.monitoring = false
 	
 	# 检查鼠标是否持续按住且按住时长超过阈值，防止连点误触第二段
-	var continuous_hold := Input.is_action_pressed("mouse1") and not phase1_had_release
-	var held_long_enough := continuous_hold and (Time.get_ticks_msec() - phase1_press_timestamp_ms) / 1000.0 >= PHASE2_HOLD_THRESHOLD
+	var continuous_hold: bool = Input.is_action_pressed("mouse1") and not phase1_had_release
+	var held_long_enough: bool = continuous_hold and (Time.get_ticks_msec() - phase1_press_timestamp_ms) / 1000.0 >= PHASE2_HOLD_THRESHOLD
 	if held_long_enough:
 		# 鼠标仍然按住，开始第二段
 		attack_state = 2
@@ -351,7 +424,7 @@ func _on_sword_area_entered(area: Area2D) -> void:
 # 受到伤害方法
 func take_damage(damage_amount: float) -> void:
 	# 如果已经游戏结束或处于无敌状态，不受伤害
-	if is_game_over or is_invincible:
+	if is_game_over or _is_currently_invincible():
 		return
 	
 	# 减少血量
@@ -372,11 +445,7 @@ func take_damage(damage_amount: float) -> void:
 
 # 开始无敌状态
 func start_invincibility() -> void:
-	is_invincible = true
-	
-	# 闪烁效果：让玩家半透明
-	if animator:
-		animator.modulate.a = 0.5
+	_set_hurt_invincible(true)
 	
 	# 创建计时器结束无敌状态
 	var timer = get_tree().create_timer(invincibility_duration)
@@ -384,10 +453,29 @@ func start_invincibility() -> void:
 
 # 结束无敌状态
 func end_invincibility() -> void:
-	is_invincible = false
-	
-	# 恢复正常透明度
-	if animator:
+	_set_hurt_invincible(false)
+
+func _is_currently_invincible() -> bool:
+	return _hurt_invincible or _dodge_invincible
+
+func _set_hurt_invincible(active: bool) -> void:
+	_hurt_invincible = active
+	_refresh_invincible_state()
+
+func _set_dodge_invincible(active: bool) -> void:
+	_dodge_invincible = active
+	_refresh_invincible_state()
+
+func _refresh_invincible_state() -> void:
+	is_invincible = _is_currently_invincible()
+	if not animator:
+		return
+	# 优先展示受伤无敌，其次闪避无敌
+	if _hurt_invincible:
+		animator.modulate.a = 0.5
+	elif _dodge_invincible:
+		animator.modulate.a = dodge_alpha
+	else:
 		animator.modulate.a = 1.0
 
 # 回复血量方法
