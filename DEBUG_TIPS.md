@@ -23,7 +23,6 @@ RunManager="*res://scripts/autoload/run_manager.gd"
 确保以下文件存在：
 - `data/characters/kamisato_ayaka_character.tres`
 - `data/enemies/normal_enemy.tres`
-- `data/enemies/elite_enemy.tres`
 - `data/config/map_config.json`
 
 ### 4. 检查场景文件

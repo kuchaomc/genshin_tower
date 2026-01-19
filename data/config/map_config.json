@@ -6,11 +6,6 @@
       "weight": 50,
       "description": "普通战斗"
     },
-    "elite": {
-      "weight": 15,
-      "min_floor": 5,
-      "description": "精英战斗"
-    },
     "shop": {
       "weight": 10,
       "description": "商店"

@@ -111,8 +111,6 @@ func type_name_to_enum(type_name: String) -> MapNode.NodeType:
 	match type_name:
 		"enemy":
 			return MapNode.NodeType.ENEMY
-		"elite":
-			return MapNode.NodeType.ELITE
 		"shop":
 			return MapNode.NodeType.SHOP
 		"rest":

@@ -246,8 +246,6 @@ func spawn_enemy() -> void:
 	if enemy_instance.has_method("initialize"):
 		# 随机选择一个敌人类型
 		var enemy_types = DataManager.get_enemies_by_type("normal")
-		if enemy_types.is_empty():
-			enemy_types = DataManager.get_enemies_by_type("elite")
 		
 		if not enemy_types.is_empty():
 			var enemy_data = enemy_types[randi() % enemy_types.size()]

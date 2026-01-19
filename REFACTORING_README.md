@@ -39,8 +39,7 @@ data/
 ├── characters/        # 角色配置 (.tres)
 │   └── kamisato_ayaka_character.tres
 ├── enemies/           # 敌人配置 (.tres)
-│   ├── normal_enemy.tres
-│   └── elite_enemy.tres
+│   └── normal_enemy.tres
 └── config/            # JSON配置
     └── map_config.json
 ```
@@ -110,7 +109,7 @@ data/
 
 #### MapNode
 地图节点：
-- 节点类型（ENEMY, ELITE, SHOP, REST, EVENT, BOSS）
+- 节点类型（ENEMY, SHOP, REST, EVENT, BOSS）
 - 节点UI显示
 - 访问状态管理
 

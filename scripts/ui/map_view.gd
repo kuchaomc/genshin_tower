@@ -48,7 +48,6 @@ func generate_and_display_map() -> void:
 			"nodes_per_floor": [2, 4],
 			"node_types": {
 				"enemy": {"weight": 50},
-				"elite": {"weight": 15, "min_floor": 5},
 				"shop": {"weight": 10},
 				"rest": {"weight": 10},
 				"event": {"weight": 15}
@@ -178,7 +177,7 @@ func _on_node_selected(node: MapNode) -> void:
 	
 	# 根据节点类型执行相应操作
 	match node.node_type:
-		MapNode.NodeType.ENEMY, MapNode.NodeType.ELITE:
+		MapNode.NodeType.ENEMY:
 			start_battle(node)
 		MapNode.NodeType.SHOP:
 			enter_shop()

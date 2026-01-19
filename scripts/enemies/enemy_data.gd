@@ -26,7 +26,7 @@ class_name EnemyData
 @export var scene_path: String = "res://scenes/enemies/enemy.tscn"
 
 # 敌人类型（用于地图生成）
-@export var enemy_type: String = "normal"  # normal, elite, boss
+@export var enemy_type: String = "normal"  # normal, boss
 
 ## 获取敌人属性对象
 func get_stats() -> EnemyStats:

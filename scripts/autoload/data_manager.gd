@@ -111,7 +111,6 @@ func create_default_map_config() -> void:
 		"nodes_per_floor": [2, 4],
 		"node_types": {
 			"enemy": {"weight": 50},
-			"elite": {"weight": 15, "min_floor": 5},
 			"shop": {"weight": 10},
 			"rest": {"weight": 10},
 			"event": {"weight": 15}

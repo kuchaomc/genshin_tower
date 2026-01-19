@@ -21,7 +21,7 @@
 ### 游戏特性
 
 - **类杀戮尖塔地图系统**：垂直爬塔式地图，每层多个可选节点
-- **多样化节点类型**：战斗、精英战、商店、休息、奇遇、BOSS
+- **多样化节点类型**：战斗、商店、休息、奇遇、BOSS
 - **实时动作战斗**：流畅的近战战斗系统
 - **角色成长系统**：战斗后升级选择，提升角色属性
 - **数据驱动设计**：使用 Resource 和 JSON 配置，易于平衡调整
@@ -109,8 +109,6 @@ genshin_game/
 │   ├── enemies/               # 敌人配置
 │   │   ├── normal_enemy.tres      # 普通敌人数据
 │   │   ├── normal_enemy_stats.tres # 普通敌人属性（NEW）
-│   │   ├── elite_enemy.tres       # 精英敌人数据
-│   │   └── elite_enemy_stats.tres  # 精英敌人属性（NEW）
 │   │
 │   └── config/                # JSON 配置文件
 │       └── map_config.json    # 地图生成配置
@@ -417,7 +415,7 @@ ChaseEnemy / RangedEnemy (具体敌人)
 
 # 场景配置
 @export var scene_path: String           # 敌人场景路径
-@export var enemy_type: String = "normal"  # 敌人类型（normal/elite/boss）
+@export var enemy_type: String = "normal"  # 敌人类型（normal/boss）
 ```
 
 #### EnemyStats - 敌人属性系统（NEW）
@@ -491,7 +489,6 @@ Floor 0:    [起点]              ← 起始层
   "boss_floor": 5,
   "node_weights": {
     "enemy": 50,
-    "elite": 15,
     "shop": 10,
     "rest": 10,
     "event": 15
@@ -513,7 +510,6 @@ func _connect_nodes(floor_nodes, next_floor_nodes)  # 连接节点
 ```gdscript
 enum NodeType {
     ENEMY,      # 普通战斗
-    ELITE,      # 精英战斗
     SHOP,       # 商店
     REST,       # 休息处
     EVENT,      # 奇遇事件
@@ -765,8 +761,7 @@ func apply_upgrade(upgrade_id: String) -> void:
   "max_nodes_per_floor": 5,       // 每层最多节点
   "boss_floor": 7,                // BOSS 楼层
   "node_weights": {
-    "enemy": 40,                  // 降低普通战斗权重
-    "elite": 25,                  // 增加精英战斗权重
+    "enemy": 50,
     "shop": 15,
     "rest": 10,
     "event": 10
