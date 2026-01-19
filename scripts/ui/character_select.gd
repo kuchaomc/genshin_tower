@@ -56,9 +56,9 @@ func load_characters() -> void:
 ## 创建默认角色（如果没有角色数据）
 func create_default_character() -> void:
 	var default_char = CharacterData.new()
-	default_char.id = "sword_character"
-	default_char.display_name = "剑士"
-	default_char.description = "使用剑进行近战攻击的角色"
+	default_char.id = "kamisato_ayaka"
+	default_char.display_name = "神里绫华"
+	default_char.description = "使用剑进行近战攻击的角色（Kamisato Ayaka）"
 	default_char.max_health = 100.0
 	default_char.move_speed = 100.0
 	default_char.base_damage = 25.0

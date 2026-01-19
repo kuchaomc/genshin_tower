@@ -1,7 +1,7 @@
 extends BaseCharacter
-class_name SwordCharacter
+class_name KamisatoAyakaCharacter
 
-## 剑士角色
+## 神里绫华角色（Kamisato Ayaka）
 ## 实现两段攻击：第一段位移挥剑，第二段原地剑花
 
 # ========== 攻击属性 ==========

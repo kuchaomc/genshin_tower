@@ -19,9 +19,9 @@ scripts/
 │   └── run_manager.gd     # 单局游戏状态管理
 ├── characters/         # 角色系统
 │   ├── character_data.gd  # 角色数据Resource
-│   ├── ability_data.gd     # 技能数据Resource
-│   ├── base_character.gd  # 角色基类
-│   └── sword_character.gd # 剑士角色实现
+│   ├── ability_data.gd      # 技能数据Resource
+│   ├── base_character.gd    # 角色基类
+│   └── kamisato_ayaka_character.gd # 神里绫华角色实现（Kamisato Ayaka）
 ├── enemies/            # 敌人系统
 │   ├── enemy_data.gd      # 敌人数据Resource
 │   └── base_enemy.gd      # 敌人基类
@@ -37,7 +37,7 @@ scripts/
 
 data/
 ├── characters/        # 角色配置 (.tres)
-│   └── sword_character.tres
+│   └── kamisato_ayaka_character.tres
 ├── enemies/           # 敌人配置 (.tres)
 │   ├── normal_enemy.tres
 │   └── elite_enemy.tres
@@ -78,8 +78,8 @@ data/
 - 动画处理
 - 伤害和回复
 
-#### SwordCharacter
-剑士角色实现：
+#### KamisatoAyakaCharacter
+神里绫华角色实现（Kamisato Ayaka）：
 - 两段攻击系统（位移挥剑 + 原地剑花）
 - 继承自BaseCharacter
 
