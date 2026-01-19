@@ -12,6 +12,10 @@ var current_health: float = 100.0
 var max_health: float = 100.0
 @export var invincibility_duration: float = 1.0
 var is_invincible: bool = false
+var base_move_speed: float = 100.0
+@export var hurt_speed_boost_multiplier: float = 1.1  # 受伤后移动速度倍率（略微提升）
+@export var hurt_speed_boost_duration: float = 2.0   # 提升持续时间（秒）
+var _hurt_speed_timer: Timer
 
 # 血量变化信号
 signal health_changed(current: float, maximum: float)
@@ -20,6 +24,7 @@ signal character_died
 # ========== 移动属性 ==========
 @export var move_speed: float = 100.0
 @export var animator: AnimatedSprite2D
+@export var knockback_force: float = 150.0  # 对敌人造成击退的力度，可在角色数据中配置
 
 # ========== 状态 ==========
 var is_game_over: bool = false
@@ -29,7 +34,9 @@ func initialize(data: CharacterData) -> void:
 	character_data = data
 	max_health = data.max_health
 	current_health = max_health
-	move_speed = data.move_speed
+	base_move_speed = data.move_speed
+	move_speed = base_move_speed
+	knockback_force = data.knockback_force
 	
 	emit_signal("health_changed", current_health, max_health)
 	print("角色初始化：", data.display_name)
@@ -38,6 +45,10 @@ func _ready() -> void:
 	# 如果没有手动分配动画器，则自动查找
 	if animator == null:
 		animator = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	
+	# 没有通过initialize赋值时，使用当前速度作为基准
+	if base_move_speed == 0:
+		base_move_speed = move_speed
 	
 	# 初始化血量
 	current_health = max_health
@@ -115,6 +126,7 @@ func take_damage(damage_amount: float) -> void:
 		on_death()
 	else:
 		start_invincibility()
+		apply_hurt_speed_boost()
 
 ## 开始无敌状态
 func start_invincibility() -> void:
@@ -169,3 +181,22 @@ func on_death() -> void:
 ## 游戏结束
 func game_over() -> void:
 	is_game_over = true
+
+## 受伤后临时提高移动速度
+func apply_hurt_speed_boost() -> void:
+	# 设置提升后的移动速度
+	move_speed = base_move_speed * hurt_speed_boost_multiplier
+	
+	# 如果已有计时器，重置时间；否则创建新计时器
+	if _hurt_speed_timer == null:
+		_hurt_speed_timer = Timer.new()
+		_hurt_speed_timer.one_shot = true
+		add_child(_hurt_speed_timer)
+		_hurt_speed_timer.timeout.connect(_reset_hurt_speed_boost)
+	
+	_hurt_speed_timer.wait_time = hurt_speed_boost_duration
+	_hurt_speed_timer.start()
+
+## 恢复受伤前的基础速度
+func _reset_hurt_speed_boost() -> void:
+	move_speed = base_move_speed

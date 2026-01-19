@@ -25,6 +25,9 @@ var score_label: Label
 # 玩家血量UI引用
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
+# 调试：显示判定/碰撞箱开关
+var debug_toggle_button: Button
+var debug_show_hitboxes: bool = false
 # 玩家引用
 var player: BaseCharacter
 
@@ -33,9 +36,13 @@ func _ready() -> void:
 	score_label = get_node_or_null("CanvasLayer/Label") as Label
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
 	player_hp_label = get_node_or_null("CanvasLayer/PlayerHPBar/Label") as Label
+	debug_toggle_button = get_node_or_null("CanvasLayer/DebugToggle") as Button
+	if debug_toggle_button:
+		debug_toggle_button.pressed.connect(_on_debug_toggle_pressed)
 	
 	# 初始化玩家
 	initialize_player()
+	_update_all_hitbox_visibility()
 	
 	# 如果没有手动分配敌人场景，则预加载默认敌人场景
 	if enemy_scene == null:
@@ -143,6 +150,7 @@ func spawn_enemy() -> void:
 	
 	# 添加到场景树中
 	add_child(enemy_instance)
+	_apply_hitbox_visibility_to_enemy(enemy_instance)
 	
 	print("生成新敌人，位置：", enemy_instance.position)
 
@@ -194,3 +202,92 @@ func _on_player_died() -> void:
 func _on_gold_changed(_gold: int) -> void:
 	# 可以在这里更新金币显示
 	pass
+
+## 调试开关：显示/隐藏判定与碰撞箱
+func _on_debug_toggle_pressed() -> void:
+	debug_show_hitboxes = not debug_show_hitboxes
+	_update_all_hitbox_visibility()
+	if debug_toggle_button:
+		debug_toggle_button.text = "隐藏判定" if debug_show_hitboxes else "显示判定"
+
+## 更新所有相关碰撞/攻击判定的可见性
+func _update_all_hitbox_visibility() -> void:
+	_apply_hitbox_visibility_to_player()
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		_apply_hitbox_visibility_to_enemy(enemy)
+
+func _apply_hitbox_visibility_to_player() -> void:
+	if not player:
+		return
+	var body_shape = player.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var sword_shape = player.get_node_or_null("SwordArea/CollisionShape2D") as CollisionShape2D
+	_set_shape_visible(body_shape, debug_show_hitboxes, Color(0, 0.8, 1, 0.3))
+	_set_shape_visible(sword_shape, debug_show_hitboxes, Color(1, 0.6, 0, 0.3))
+
+func _apply_hitbox_visibility_to_enemy(enemy_node: Node) -> void:
+	var enemy_shape = enemy_node.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	_set_shape_visible(enemy_shape, debug_show_hitboxes, Color(1, 0, 0, 0.3))
+
+## 统一设置碰撞形状的可见性与颜色（Godot 4可直接显示CollisionShape2D）
+func _set_shape_visible(shape: CollisionShape2D, visible_state: bool, debug_color: Color) -> void:
+	if not shape:
+		return
+	var overlay: Node2D = null
+	if shape.has_meta("debug_overlay"):
+		overlay = shape.get_meta("debug_overlay") as Node2D
+	if visible_state:
+		if overlay == null:
+			overlay = _create_shape_overlay(shape, debug_color)
+			if overlay:
+				shape.add_child(overlay)
+				shape.set_meta("debug_overlay", overlay)
+		if overlay:
+			overlay.visible = true
+	else:
+		if overlay:
+			overlay.visible = false
+
+## 为给定CollisionShape2D创建可视化Polygon2D覆盖
+func _create_shape_overlay(shape: CollisionShape2D, color: Color) -> Node2D:
+	if not shape or not shape.shape:
+		return null
+	var poly := Polygon2D.new()
+	poly.color = color
+	poly.z_index = 999
+	
+	if shape.shape is RectangleShape2D:
+		var extents: Vector2 = (shape.shape as RectangleShape2D).size * 0.5
+		poly.polygon = PackedVector2Array([
+			Vector2(-extents.x, -extents.y),
+			Vector2(extents.x, -extents.y),
+			Vector2(extents.x, extents.y),
+			Vector2(-extents.x, extents.y),
+		])
+	elif shape.shape is CircleShape2D:
+		var radius: float = (shape.shape as CircleShape2D).radius
+		var points: Array[Vector2] = []
+		var segments := 28
+		for i in range(segments):
+			var angle = TAU * float(i) / float(segments)
+			points.append(Vector2(cos(angle), sin(angle)) * radius)
+		poly.polygon = PackedVector2Array(points)
+	elif shape.shape is CapsuleShape2D:
+		var capsule := shape.shape as CapsuleShape2D
+		var radius: float = capsule.radius
+		var height: float = capsule.height
+		var points: Array[Vector2] = []
+		var segments := 20
+		# 上半圆
+		for i in range(segments / 2 + 1):
+			var angle = PI * float(i) / float(segments / 2)
+			points.append(Vector2(cos(angle) * radius, -height * 0.5 + sin(angle) * radius))
+		# 下半圆
+		for i in range(segments / 2, -1, -1):
+			var angle = PI * float(i) / float(segments / 2)
+			points.append(Vector2(cos(angle) * radius, height * 0.5 + sin(angle) * radius))
+		poly.polygon = PackedVector2Array(points)
+	else:
+		# 其他形状暂不处理
+		return null
+	
+	return poly

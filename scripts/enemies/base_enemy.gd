@@ -21,6 +21,8 @@ var hp_bar_container: Node2D
 var animated_sprite: AnimatedSprite2D
 var warning_sprite: Sprite2D
 var collision_shape: CollisionShape2D
+var knockback_tween: Tween
+var is_knockback_active: bool = false
 
 # ========== 状态 ==========
 var is_spawned: bool = false
@@ -102,6 +104,9 @@ func perform_ai_behavior(delta: float) -> void:
 
 ## 追逐玩家（默认行为）
 func chase_player(delta: float) -> void:
+	if is_knockback_active:
+		return
+	
 	var player = get_tree().current_scene.get_node_or_null("player") as CharacterBody2D
 	if not player:
 		player = get_node_or_null("../player") as CharacterBody2D
@@ -134,7 +139,7 @@ func update_hp_display() -> void:
 		hp_label.text = str(int(current_health)) + "/" + str(int(max_health))
 
 ## 受到伤害
-func take_damage(damage_amount: float) -> void:
+func take_damage(damage_amount: float, knockback: Vector2 = Vector2.ZERO) -> void:
 	if not is_spawned or is_dead:
 		return
 	
@@ -145,8 +150,29 @@ func take_damage(damage_amount: float) -> void:
 	
 	print("敌人受到伤害: ", damage_amount, "点，剩余生命值: ", current_health, "/", max_health)
 	
+	if knockback != Vector2.ZERO:
+		apply_knockback(knockback)
+	
 	if current_health <= 0:
 		on_death()
+
+## 施加击退效果
+func apply_knockback(knockback_offset: Vector2, duration: float = 0.12) -> void:
+	if is_dead or knockback_offset == Vector2.ZERO:
+		return
+	
+	# 结束旧的击退
+	if knockback_tween:
+		knockback_tween.kill()
+	
+	is_knockback_active = true
+	knockback_tween = create_tween()
+	knockback_tween.set_ease(Tween.EASE_OUT)
+	knockback_tween.set_trans(Tween.TRANS_SINE)
+	knockback_tween.tween_property(self, "global_position", global_position + knockback_offset, duration)
+	knockback_tween.tween_callback(func ():
+		is_knockback_active = false
+	)
 
 ## 死亡处理
 func on_death() -> void:

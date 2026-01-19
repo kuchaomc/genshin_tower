@@ -14,6 +14,7 @@ class_name CharacterData
 @export var move_speed: float = 100.0
 @export var base_damage: float = 25.0
 @export var attack_speed: float = 1.0  # 攻击速度倍率
+@export var knockback_force: float = 150.0  # 击退力度
 
 # 角色场景路径
 @export var scene_path: String = "res://scenes/玩家.tscn"

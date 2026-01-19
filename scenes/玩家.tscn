@@ -1,6 +1,6 @@
 [gd_scene load_steps=12 format=3 uid="uid://bb2kswvspaq4f"]
 
-[ext_resource type="Script" path="res://scripts/characters/sword_character.gd" id="1_sword_char"]
+[ext_resource type="Script" uid="uid://br7dfmt5nc80r" path="res://scripts/characters/sword_character.gd" id="1_sword_char"]
 [ext_resource type="Texture2D" uid="uid://p5yv5ngfrcoo" path="res://textures/神里idel.png" id="2_sd6lh"]
 [ext_resource type="Texture2D" uid="uid://bc3cgn2g32xk5" path="res://textures/神里move.png" id="3_sd6lh"]
 [ext_resource type="Texture2D" uid="uid://dx8q3hoy4l72j" path="res://textures/无锋剑.png" id="4_sword"]
@@ -50,12 +50,14 @@ animations = [{
 radius = 2.9027624
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_sword"]
-size = Vector2(6.5, 117.75)
+size = Vector2(22, 96)
 
-[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("animator", "sword_area")]
+[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("sword_area", "animator")]
 script = ExtResource("1_sword_char")
-animator = NodePath("AnimatedSprite2D")
 sword_area = NodePath("SwordArea")
+hurt_speed_boost_multiplier = 1.5
+animator = NodePath("AnimatedSprite2D")
+knockback_force = 50.0
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_fjrip")
@@ -78,5 +80,5 @@ texture = ExtResource("4_sword")
 offset = Vector2(20, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SwordArea"]
-position = Vector2(0.75, -55.125)
+position = Vector2(1, -38)
 shape = SubResource("RectangleShape2D_sword")

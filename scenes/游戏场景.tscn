@@ -104,3 +104,11 @@ offset_bottom = 0.0
 theme_override_colors/font_color = Color(0.8, 0.1, 0.1, 1)
 theme_override_font_sizes/font_size = 20
 text = "玩家血量"
+
+[node name="DebugToggle" type="CheckButton" parent="CanvasLayer"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 140.0
+offset_bottom = 60.0
+text = "显示判定"
+button_pressed = false

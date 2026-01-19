@@ -39,6 +39,10 @@ func _physics_process(delta: float) -> void:
 		# 处理攻击输入
 		handle_attack_input()
 		
+		# 攻击时强制检查覆盖，减少漏判
+		if attack_state == 1 and sword_area and sword_area.monitoring:
+			_force_check_sword_overlaps()
+		
 		# 只在非攻击状态下更新剑的朝向
 		if attack_state == 0:
 			update_sword_direction()
@@ -71,13 +75,12 @@ func perform_attack() -> void:
 		return
 	
 	var mouse_position = get_global_mouse_position()
-	var input_direction = Input.get_vector("left", "right", "up", "down")
-	if input_direction == Vector2.ZERO:
-		input_direction = (mouse_position - global_position).normalized()
-	else:
-		input_direction = input_direction.normalized()
+	var mouse_direction = mouse_position - global_position
+	if mouse_direction == Vector2.ZERO:
+		mouse_direction = Vector2.RIGHT  # 鼠标重合时使用默认方向，避免零向量
+	var input_direction = mouse_direction.normalized()
 	
-	target_position = global_position + input_direction * dash_distance
+	target_position = global_position  # 取消位移，保持原地攻击
 	original_position = global_position
 	
 	hit_enemies_phase1.clear()
@@ -89,6 +92,7 @@ func perform_attack() -> void:
 ## 第一段攻击：向鼠标方向位移并挥剑
 func start_phase1_attack(mouse_target: Vector2) -> void:
 	sword_area.monitoring = true
+	sword_area.monitorable = true
 	
 	var direction = (mouse_target - global_position).normalized()
 	var base_angle = direction.angle() + PI / 2
@@ -100,11 +104,8 @@ func start_phase1_attack(mouse_target: Vector2) -> void:
 	
 	sword_area.rotation = base_angle - swing_angle / 2
 	
-	position_tween = create_tween()
-	position_tween.set_parallel(true)
-	position_tween.tween_property(self, "global_position", target_position, swing_duration)
-	
 	swing_tween = create_tween()
+	swing_tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	swing_tween.set_ease(Tween.EASE_OUT)
 	swing_tween.set_trans(Tween.TRANS_BACK)
 	swing_tween.tween_property(sword_area, "rotation", base_angle + swing_angle / 2, swing_duration)
@@ -211,7 +212,8 @@ func perform_raycast_attack(attack_target: Vector2) -> void:
 					if RunManager:
 						var damage_upgrade = RunManager.get_upgrade_level("damage")
 						damage *= (1.0 + damage_upgrade * 0.1)  # 每级+10%伤害
-					enemy_area.take_damage(damage)
+					var knockback_dir = (enemy_pos - global_position).normalized()
+					enemy_area.take_damage(damage, knockback_dir * knockback_force)
 					if RunManager:
 						RunManager.record_damage_dealt(damage)
 
@@ -245,6 +247,14 @@ func _on_sword_area_entered(area: Area2D) -> void:
 			if RunManager:
 				var damage_upgrade = RunManager.get_upgrade_level("damage")
 				damage *= (1.0 + damage_upgrade * 0.1)
-			area.take_damage(damage)
+			var knockback_dir = (area.global_position - global_position).normalized()
+			area.take_damage(damage, knockback_dir * knockback_force)
 			if RunManager:
 				RunManager.record_damage_dealt(damage)
+
+## 主动检查覆盖，避免物理帧遗漏
+func _force_check_sword_overlaps() -> void:
+	if not sword_area:
+		return
+	for area in sword_area.get_overlapping_areas():
+		_on_sword_area_entered(area)
