@@ -30,6 +30,19 @@ var visited_nodes: Array[String] = []  # 已访问的地图节点ID
 ## 存储各属性的总加成值（每次升级后重新计算）
 var _stat_bonuses: Dictionary = {}
 
+# ========== 通用升级属性 ==========
+## 所有角色都拥有的通用属性升级列表（用于向后兼容）
+const COMMON_UPGRADE_STATS: Array[Dictionary] = [
+	{"property": "max_health", "target_stat": UpgradeData.TargetStat.MAX_HEALTH},
+	{"property": "attack", "target_stat": UpgradeData.TargetStat.ATTACK},
+	{"property": "defense_percent", "target_stat": UpgradeData.TargetStat.DEFENSE_PERCENT},
+	{"property": "move_speed", "target_stat": UpgradeData.TargetStat.MOVE_SPEED},
+	{"property": "attack_speed", "target_stat": UpgradeData.TargetStat.ATTACK_SPEED},
+	{"property": "crit_rate", "target_stat": UpgradeData.TargetStat.CRIT_RATE},
+	{"property": "crit_damage", "target_stat": UpgradeData.TargetStat.CRIT_DAMAGE},
+	{"property": "knockback_force", "target_stat": UpgradeData.TargetStat.KNOCKBACK_FORCE}
+]
+
 # 统计数据
 var enemies_killed: int = 0
 var damage_dealt: float = 0.0
@@ -203,13 +216,13 @@ func apply_upgrades_to_character(character: Node) -> void:
 	if character == null:
 		return
 	
-	# 检查角色是否有应用升级的方法
+	# 检查角色是否有应用升级的方法（优先使用角色的方法）
 	if character.has_method("apply_upgrades"):
 		character.apply_upgrades(self)
 		emit_signal("upgrades_applied")
 		return
 	
-	# 如果角色没有专用方法，尝试直接应用到 current_stats
+	# 如果角色没有专用方法，尝试直接应用到 current_stats（向后兼容）
 	if not character.has_method("get_base_stats") or not character.has_method("get_current_stats"):
 		return
 	
@@ -219,17 +232,17 @@ func apply_upgrades_to_character(character: Node) -> void:
 	if base_stats == null or current_stats == null:
 		return
 	
-	# 应用各属性升级
-	_apply_stat_to_character(character, current_stats, base_stats, "max_health", UpgradeData.TargetStat.MAX_HEALTH)
-	_apply_stat_to_character(character, current_stats, base_stats, "attack", UpgradeData.TargetStat.ATTACK)
-	_apply_stat_to_character(character, current_stats, base_stats, "defense_percent", UpgradeData.TargetStat.DEFENSE_PERCENT)
-	_apply_stat_to_character(character, current_stats, base_stats, "move_speed", UpgradeData.TargetStat.MOVE_SPEED)
-	_apply_stat_to_character(character, current_stats, base_stats, "attack_speed", UpgradeData.TargetStat.ATTACK_SPEED)
-	_apply_stat_to_character(character, current_stats, base_stats, "crit_rate", UpgradeData.TargetStat.CRIT_RATE)
-	_apply_stat_to_character(character, current_stats, base_stats, "crit_damage", UpgradeData.TargetStat.CRIT_DAMAGE)
-	_apply_stat_to_character(character, current_stats, base_stats, "knockback_force", UpgradeData.TargetStat.KNOCKBACK_FORCE)
+	# 应用通用属性升级
+	_apply_common_stats_to_character(character, current_stats, base_stats)
 	
 	emit_signal("upgrades_applied")
+
+## 应用通用属性升级到角色（向后兼容方法）
+func _apply_common_stats_to_character(character: Node, current_stats: Resource, base_stats: Resource) -> void:
+	for stat_config in COMMON_UPGRADE_STATS:
+		var property_name = stat_config.get("property")
+		var target_stat = stat_config.get("target_stat")
+		_apply_stat_to_character(character, current_stats, base_stats, property_name, target_stat)
 
 ## 应用单个属性升级
 func _apply_stat_to_character(character: Node, current_stats: Resource, base_stats: Resource, property_name: String, target_stat: int) -> void:

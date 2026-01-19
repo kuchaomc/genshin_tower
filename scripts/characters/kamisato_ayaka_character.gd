@@ -659,11 +659,8 @@ func _handle_skill_hit(target: Node2D) -> void:
 	
 	# 造成伤害
 	if target.has_method("take_damage"):
-		# 计算实际技能伤害倍率（应用升级加成）
-		var actual_skill_multiplier = skill_damage_multiplier * get_skill_damage_multiplier()
-		
-		# 使用统一伤害计算系统
-		var damage_result = deal_damage_to(target, actual_skill_multiplier)
+		# 使用统一伤害计算系统（技能伤害通过攻击力提升）
+		var damage_result = deal_damage_to(target, skill_damage_multiplier)
 		var damage = damage_result[0]
 		var is_crit = damage_result[1]
 		
@@ -756,16 +753,13 @@ func use_burst() -> void:
 	burst_instance.direction = direction
 	burst_instance.speed = burst_speed
 	
-	# 计算实际大招伤害倍率（应用升级加成）
-	var actual_burst_multiplier = burst_damage_multiplier * get_burst_damage_multiplier()
-	
-	# 使用统一伤害计算系统计算大招伤害
+	# 使用统一伤害计算系统计算大招伤害（大招伤害通过攻击力提升）
 	if current_stats:
-		var damage_result = current_stats.calculate_damage(actual_burst_multiplier, 0.0, false, false)
+		var damage_result = current_stats.calculate_damage(burst_damage_multiplier, 0.0, false, false)
 		burst_instance.damage = damage_result[0]
 		burst_instance.is_crit = damage_result[1]
 	else:
-		burst_instance.damage = burst_damage * get_burst_damage_multiplier()
+		burst_instance.damage = burst_damage
 		burst_instance.is_crit = false
 	
 	# 添加到场景树（添加到当前节点的父节点或根节点）

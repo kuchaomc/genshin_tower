@@ -166,6 +166,22 @@ func get_rarity_name() -> String:
 		_:
 			return "未知"
 
+## 获取稀有度星星emoji
+func get_rarity_stars() -> String:
+	match rarity:
+		Rarity.COMMON:
+			return "⭐"
+		Rarity.UNCOMMON:
+			return "⭐⭐"
+		Rarity.RARE:
+			return "⭐⭐⭐"
+		Rarity.EPIC:
+			return "⭐⭐⭐⭐"
+		Rarity.LEGENDARY:
+			return "⭐⭐⭐⭐⭐"
+		_:
+			return "⭐"
+
 # ========== 条件检查 ==========
 
 ## 检查角色是否可以获得此升级

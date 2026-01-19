@@ -163,9 +163,9 @@ func _create_upgrade_button(upgrade: UpgradeData) -> void:
 	title_hbox.add_theme_constant_override("separation", 10)
 	vbox.add_child(title_hbox)
 	
-	# 稀有度标签
+	# 稀有度标签（使用星星emoji）
 	var rarity_label = Label.new()
-	rarity_label.text = "[%s]" % upgrade.get_rarity_name()
+	rarity_label.text = upgrade.get_rarity_stars()
 	rarity_label.add_theme_color_override("font_color", upgrade.get_rarity_color())
 	title_hbox.add_child(rarity_label)
 	

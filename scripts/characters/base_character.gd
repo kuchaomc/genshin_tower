@@ -70,6 +70,22 @@ var is_knockback_active: bool = false
 
 # ========== 状态 ==========
 var is_game_over: bool = false
+## 充能效率倍率（通用升级，所有角色共享）
+var energy_gain_multiplier: float = 1.0
+
+# ========== 通用升级属性 ==========
+## 所有角色都拥有的通用属性升级列表
+## 子类可以通过重写 _apply_custom_upgrades() 方法来实现非通用属性的升级
+const COMMON_UPGRADE_STATS: Array[Dictionary] = [
+	{"property": "max_health", "target_stat": UpgradeData.TargetStat.MAX_HEALTH},
+	{"property": "attack", "target_stat": UpgradeData.TargetStat.ATTACK},
+	{"property": "defense_percent", "target_stat": UpgradeData.TargetStat.DEFENSE_PERCENT},
+	{"property": "move_speed", "target_stat": UpgradeData.TargetStat.MOVE_SPEED},
+	{"property": "attack_speed", "target_stat": UpgradeData.TargetStat.ATTACK_SPEED},
+	{"property": "crit_rate", "target_stat": UpgradeData.TargetStat.CRIT_RATE},
+	{"property": "crit_damage", "target_stat": UpgradeData.TargetStat.CRIT_DAMAGE},
+	{"property": "knockback_force", "target_stat": UpgradeData.TargetStat.KNOCKBACK_FORCE}
+]
 
 ## 初始化角色
 func initialize(data: CharacterData) -> void:
@@ -583,15 +599,8 @@ func apply_upgrades(run_manager: Node) -> void:
 	# 先重置到基础值
 	current_stats = base_stats.duplicate_stats()
 	
-	# 应用基础属性升级
-	_apply_stat_upgrade(run_manager, "max_health", UpgradeData.TargetStat.MAX_HEALTH)
-	_apply_stat_upgrade(run_manager, "attack", UpgradeData.TargetStat.ATTACK)
-	_apply_stat_upgrade(run_manager, "defense_percent", UpgradeData.TargetStat.DEFENSE_PERCENT)
-	_apply_stat_upgrade(run_manager, "move_speed", UpgradeData.TargetStat.MOVE_SPEED)
-	_apply_stat_upgrade(run_manager, "attack_speed", UpgradeData.TargetStat.ATTACK_SPEED)
-	_apply_stat_upgrade(run_manager, "crit_rate", UpgradeData.TargetStat.CRIT_RATE)
-	_apply_stat_upgrade(run_manager, "crit_damage", UpgradeData.TargetStat.CRIT_DAMAGE)
-	_apply_stat_upgrade(run_manager, "knockback_force", UpgradeData.TargetStat.KNOCKBACK_FORCE)
+	# 应用通用属性升级（所有角色都拥有的基础属性）
+	_apply_common_upgrades(run_manager)
 	
 	# 应用闪避属性升级
 	_apply_dodge_upgrades(run_manager)
@@ -599,10 +608,26 @@ func apply_upgrades(run_manager: Node) -> void:
 	# 应用特殊属性升级
 	_apply_special_upgrades(run_manager)
 	
+	# 应用非通用属性升级（由子类重写实现）
+	_apply_custom_upgrades(run_manager)
+	
 	# 同步属性到角色
 	_sync_stats_to_character()
 	
 	print("角色升级已应用：", current_stats.get_summary())
+
+## 应用通用属性升级（所有角色都拥有的基础属性）
+func _apply_common_upgrades(run_manager: Node) -> void:
+	for stat_config in COMMON_UPGRADE_STATS:
+		var property_name = stat_config.get("property")
+		var target_stat = stat_config.get("target_stat")
+		_apply_stat_upgrade(run_manager, property_name, target_stat)
+
+## 应用非通用属性升级（由子类重写实现）
+## 子类可以重写此方法来实现角色专属的升级逻辑
+## 例如：技能伤害、大招充能、特殊效果等
+func _apply_custom_upgrades(run_manager: Node) -> void:
+	pass  # 默认不处理，由子类重写
 
 ## 应用单个属性升级
 func _apply_stat_upgrade(run_manager: Node, property_name: String, target_stat: int) -> void:
@@ -644,6 +669,10 @@ func _apply_special_upgrades(run_manager: Node) -> void:
 	# 击退抗性
 	var knockback_resist_bonus = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.KNOCKBACK_RESISTANCE)
 	knockback_resistance = clamp(knockback_resistance + knockback_resist_bonus, 0.0, 1.0)
+	
+	# 充能效率（通用升级）
+	var energy_gain_bonus = run_manager.get_stat_percent_bonus(UpgradeData.TargetStat.ENERGY_GAIN)
+	energy_gain_multiplier = 1.0 + energy_gain_bonus
 
 ## 同步属性到角色实际数值
 func _sync_stats_to_character() -> void:
@@ -672,13 +701,6 @@ func _sync_stats_to_character() -> void:
 	# 发出血量变化信号
 	emit_signal("health_changed", current_health, max_health)
 
-## 获取技能伤害倍率加成
-func get_skill_damage_multiplier() -> float:
-	if RunManager:
-		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.SKILL_DAMAGE)
-		return 1.0 + bonus
-	return 1.0
-
 ## 获取技能冷却倍率（1.0 - 减少比例）
 func get_skill_cooldown_multiplier() -> float:
 	if RunManager:
@@ -693,16 +715,6 @@ func get_skill_radius_multiplier() -> float:
 		return 1.0 + bonus
 	return 1.0
 
-## 获取大招伤害倍率加成
-func get_burst_damage_multiplier() -> float:
-	if RunManager:
-		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.BURST_DAMAGE)
-		return 1.0 + bonus
-	return 1.0
-
-## 获取充能效率倍率
+## 获取充能效率倍率（通用升级）
 func get_energy_gain_multiplier() -> float:
-	if RunManager:
-		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.ENERGY_GAIN)
-		return 1.0 + bonus
-	return 1.0
+	return energy_gain_multiplier
