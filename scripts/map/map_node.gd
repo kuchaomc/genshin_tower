@@ -104,31 +104,41 @@ func update_node_icon() -> void:
 		print("警告：无法加载节点图标 ", icon_path, " (节点类型: ", node_type, ")")
 
 ## 更新视觉状态
-func update_visual_state() -> void:
+func update_visual_state(is_selectable: bool = false) -> void:
 	if not node_button:
 		return
 	
 	if is_visited:
-		node_button.modulate = Color(0.5, 0.5, 0.5, 1.0)  # 灰色表示已访问
+		# 已访问的节点：灰色，禁用
+		node_button.modulate = Color(0.5, 0.5, 0.5, 1.0)
+		node_button.disabled = true
+	elif not is_selectable:
+		# 不可选择的节点：更暗的颜色，半透明，禁用
+		var base_color = _get_base_color()
+		node_button.modulate = Color(base_color.r * 0.3, base_color.g * 0.3, base_color.b * 0.3, 0.5)
 		node_button.disabled = true
 	else:
-		# 根据节点类型设置不同颜色
-		match node_type:
-			NodeType.ENEMY:
-				node_button.modulate = Color(1.0, 0.8, 0.8, 1.0)  # 淡红色
-			NodeType.TREASURE:
-				node_button.modulate = Color(1.0, 0.9, 0.6, 1.0)  # 金色
-			NodeType.SHOP:
-				node_button.modulate = Color(0.8, 0.8, 1.0, 1.0)  # 淡蓝色
-			NodeType.REST:
-				node_button.modulate = Color(0.8, 1.0, 0.8, 1.0)  # 淡绿色
-			NodeType.EVENT:
-				node_button.modulate = Color(1.0, 1.0, 0.8, 1.0)  # 淡黄色
-			NodeType.BOSS:
-				node_button.modulate = Color(1.0, 0.4, 0.4, 1.0)  # 深红色
-			_:
-				node_button.modulate = Color.WHITE
+		# 可选择的节点：正常颜色，启用
+		node_button.modulate = _get_base_color()
 		node_button.disabled = false
+
+## 获取节点基础颜色
+func _get_base_color() -> Color:
+	match node_type:
+		NodeType.ENEMY:
+			return Color(1.0, 0.8, 0.8, 1.0)  # 淡红色
+		NodeType.TREASURE:
+			return Color(1.0, 0.9, 0.6, 1.0)  # 金色
+		NodeType.SHOP:
+			return Color(0.8, 0.8, 1.0, 1.0)  # 淡蓝色
+		NodeType.REST:
+			return Color(0.8, 1.0, 0.8, 1.0)  # 淡绿色
+		NodeType.EVENT:
+			return Color(1.0, 1.0, 0.8, 1.0)  # 淡黄色
+		NodeType.BOSS:
+			return Color(1.0, 0.4, 0.4, 1.0)  # 深红色
+		_:
+			return Color.WHITE
 
 ## 节点被点击
 func _on_node_pressed() -> void:
@@ -138,7 +148,7 @@ func _on_node_pressed() -> void:
 ## 访问节点
 func visit() -> void:
 	is_visited = true
-	update_visual_state()
+	update_visual_state(false)  # 已访问节点不可选择
 	
 	if RunManager:
 		RunManager.visit_node(node_id)

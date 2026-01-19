@@ -9,6 +9,7 @@ extends Node2D
 
 var map_generator: MapGenerator
 var current_map: Dictionary = {}
+var map_seed: int = -1  # 地图随机种子，用于保持地图一致性
 
 # 布局参数
 var node_spacing_x: float = 180.0  # 节点水平间距
@@ -36,6 +37,11 @@ func _ready() -> void:
 	if not RunManager:
 		print("错误：RunManager未找到")
 		return
+	
+	# 如果是新游戏（current_node_id为空），生成新地图
+	# 否则重用现有地图（通过固定种子）
+	if RunManager.current_node_id.is_empty() and map_seed == -1:
+		map_seed = randi()
 	
 	generate_and_display_map()
 	
@@ -76,6 +82,10 @@ func generate_and_display_map() -> void:
 	# 创建地图生成器
 	map_generator = MapGenerator.new()
 	add_child(map_generator)
+	
+	# 如果已有地图种子，使用固定种子生成相同地图
+	if map_seed != -1:
+		seed(map_seed)
 	
 	# 获取地图配置
 	var config = DataManager.get_map_config()
@@ -166,6 +176,11 @@ func display_map() -> void:
 			
 			# 保存实例引用
 			node_instances[node_data.node_id] = node_instance
+			
+			# 恢复已访问节点的状态
+			if RunManager and RunManager.is_node_visited(node_data.node_id):
+				node_instance.is_visited = true
+				node_instance.update_visual_state(false)  # 已访问节点不可选择
 	
 	# 绘制所有连接线
 	_draw_all_connections(floors)
@@ -223,45 +238,49 @@ func _update_selectable_nodes() -> void:
 	selectable_nodes.clear()
 	
 	var current_floor = RunManager.current_floor if RunManager else 1
+	var current_node_id = RunManager.current_node_id if RunManager else ""
 	
-	# 如果当前楼层 <= 1，所有第一层节点都可选
-	if current_floor <= 1:
+	# 如果当前楼层 <= 1 且没有当前节点，所有第一层节点都可选
+	if current_floor <= 1 and current_node_id.is_empty():
 		for node_id in node_instances:
 			var node_instance = node_instances[node_id]
 			if node_instance and node_instance.floor_number == 1 and not node_instance.is_visited:
 				selectable_nodes.append(node_id)
 	else:
-		# 找到当前层已访问的节点，其连接的节点可选
-		var floors = current_map.get("floors", [])
-		if current_floor > 0 and current_floor <= floors.size():
-			var prev_floor = floors[current_floor - 2] if current_floor > 1 else []
-			for node_data in prev_floor:
-				if node_data and node_data.is_visited:
-					for conn_id in node_data.connected_nodes:
-						if conn_id not in selectable_nodes:
-							var target_node = map_generator.get_map_node(conn_id)
-							if target_node and not target_node.is_visited:
-								selectable_nodes.append(conn_id)
+		# 找到当前所在节点，只有它连接的节点可选
+		if not current_node_id.is_empty():
+			var current_node_instance = node_instances.get(current_node_id)
+			if current_node_instance:
+				for conn_id in current_node_instance.connected_nodes:
+					var target_node_instance = node_instances.get(conn_id)
+					if target_node_instance and not target_node_instance.is_visited:
+						selectable_nodes.append(conn_id)
 	
-	# 更新节点的可点击状态
+	# 更新节点的可点击状态和视觉状态
 	for node_id in node_instances:
 		var node_instance = node_instances[node_id]
 		if node_instance and node_instance.node_button:
 			var is_selectable = false
-			if current_floor <= 1 and node_instance.floor_number == 1:
+			if current_floor <= 1 and current_node_id.is_empty() and node_instance.floor_number == 1:
 				is_selectable = not node_instance.is_visited
 			else:
 				is_selectable = node_id in selectable_nodes
 			
-			node_instance.node_button.disabled = not is_selectable or node_instance.is_visited
+			# 更新视觉状态（区分已访问、可选择、不可选择）
+			node_instance.update_visual_state(is_selectable)
 
 ## 节点被选中
 func _on_node_selected(node: MapNode) -> void:
+	# 首先检查节点是否已访问
+	if node.is_visited:
+		return
+	
 	# 检查节点是否可选
 	var current_floor = RunManager.current_floor if RunManager else 1
+	var current_node_id = RunManager.current_node_id if RunManager else ""
 	var is_selectable = false
 	
-	if current_floor <= 1 and node.floor_number == 1:
+	if current_floor <= 1 and current_node_id.is_empty() and node.floor_number == 1:
 		is_selectable = not node.is_visited
 	elif node.node_id in selectable_nodes:
 		is_selectable = true
@@ -272,9 +291,10 @@ func _on_node_selected(node: MapNode) -> void:
 	# 访问节点
 	node.visit()
 	
-	# 更新楼层
+	# 更新楼层和当前节点
 	if RunManager:
 		RunManager.set_floor(node.floor_number)
+		RunManager.current_node_id = node.node_id
 		if floor_label:
 			floor_label.text = "当前楼层: %d / 16" % node.floor_number
 	
