@@ -4,6 +4,9 @@ class_name BattleManager
 ## 战斗管理器
 ## 管理战斗场景的状态和逻辑
 
+# 战斗场景准星贴图
+const CROSSHAIR_TEXTURE := preload("res://textures/mouse.png")
+
 enum GameState {
 	PLAYING,
 	GAME_OVER
@@ -67,6 +70,10 @@ func _ready() -> void:
 		RunManager.gold_changed.connect(_on_gold_changed)
 	
 	print("战斗管理器已初始化")
+	_apply_crosshair_cursor()
+
+func _exit_tree() -> void:
+	_restore_default_cursor()
 
 ## 初始化玩家
 func initialize_player() -> void:
@@ -291,3 +298,13 @@ func _create_shape_overlay(shape: CollisionShape2D, color: Color) -> Node2D:
 		return null
 	
 	return poly
+
+## 设置自定义鼠标准星
+func _apply_crosshair_cursor() -> void:
+	if CROSSHAIR_TEXTURE:
+		var hotspot := CROSSHAIR_TEXTURE.get_size() * 0.5
+		Input.set_custom_mouse_cursor(CROSSHAIR_TEXTURE, Input.CURSOR_ARROW, hotspot)
+
+## 离开战斗场景时还原鼠标
+func _restore_default_cursor() -> void:
+	Input.set_custom_mouse_cursor(null)

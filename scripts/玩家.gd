@@ -33,6 +33,9 @@ signal player_died
 @export var swing_angle : float = PI * 1.2  # 约216度
 # 第二段攻击伤害次数
 @export var phase2_hit_count : int = 3
+# 触发重击（第二段）的最小按住时长（秒），防止连点误触
+# 提高阈值以进一步降低快速连点误触概率
+const PHASE2_HOLD_THRESHOLD := 0.5
 
 var is_game_over : bool = false
 var phase2_current_hit : int = 0  # 当前第二段已造成的伤害次数
@@ -43,6 +46,8 @@ var target_position : Vector2  # 第一段的目标位置
 var hit_enemies_phase1 : Array[Area2D] = []  # 第一段已受伤的敌人
 var hit_enemies_phase2 : Array[Area2D] = []  # 第二段已受伤的敌人
 var original_position : Vector2  # 原始位置（用于第二段）
+var phase1_press_timestamp_ms : int = 0  # 记录第一段开始时的按下时间
+var phase1_had_release : bool = false  # 第一段过程中是否松开过鼠标
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -69,6 +74,10 @@ func _physics_process(delta: float) -> void:
 			velocity = Input.get_vector("left", "right", "up", "down") * move_speed
 		else:
 			velocity = Vector2.ZERO
+		
+		# 记录第一段攻击中是否出现过松开事件，避免连点触发重击
+		if attack_state == 1 and Input.is_action_just_released("mouse1"):
+			phase1_had_release = true
 		
 		# 检测鼠标左键按下（挥剑攻击）
 		if Input.is_action_just_pressed("mouse1") and attack_state == 0:
@@ -117,6 +126,9 @@ func start_attack() -> void:
 	
 	# 记录鼠标位置（用于挥剑方向）
 	var mouse_position = get_global_mouse_position()
+	# 记录按键按下时间，用于判定是否按住触发第二段
+	phase1_press_timestamp_ms = Time.get_ticks_msec()
+	phase1_had_release = false
 	
 	# 获取操控方向（键盘输入方向）用于位移
 	var input_direction = Input.get_vector("left", "right", "up", "down")
@@ -172,8 +184,10 @@ func finish_phase1() -> void:
 	if sword_area:
 		sword_area.monitoring = false
 	
-	# 检查鼠标是否仍然按住
-	if Input.is_action_pressed("mouse1"):
+	# 检查鼠标是否持续按住且按住时长超过阈值，防止连点误触第二段
+	var continuous_hold := Input.is_action_pressed("mouse1") and not phase1_had_release
+	var held_long_enough := continuous_hold and (Time.get_ticks_msec() - phase1_press_timestamp_ms) / 1000.0 >= PHASE2_HOLD_THRESHOLD
+	if held_long_enough:
 		# 鼠标仍然按住，开始第二段
 		attack_state = 2
 		start_phase2_attack()
@@ -186,6 +200,8 @@ func finish_attack() -> void:
 	if sword_area:
 		sword_area.monitoring = false
 	attack_state = 0
+	phase1_press_timestamp_ms = 0
+	phase1_had_release = false
 	
 	# 清空已受伤敌人列表
 	hit_enemies_phase1.clear()
@@ -302,6 +318,8 @@ func finish_phase2() -> void:
 	if sword_area:
 		sword_area.monitoring = false
 	attack_state = 0
+	phase1_press_timestamp_ms = 0
+	phase1_had_release = false
 	
 	# 清空已受伤敌人列表
 	hit_enemies_phase1.clear()
