@@ -95,8 +95,27 @@ func initialize(data: CharacterData) -> void:
 	base_stats = data.get_stats()
 	current_stats = base_stats.duplicate_stats()
 	
+	# 在应用属性前，保存RunManager中的当前血量（如果存在）
+	var saved_health: float = -1.0
+	var saved_max_health: float = -1.0
+	if RunManager:
+		saved_health = RunManager.health
+		saved_max_health = RunManager.max_health
+	
 	# 应用属性到角色
 	_apply_stats_to_character()
+	
+	# 如果RunManager中有保存的血量，且最大血量匹配，则恢复保存的血量
+	if RunManager and saved_health >= 0 and saved_max_health > 0:
+		# 如果最大血量发生变化（例如升级），按比例调整当前血量
+		if abs(saved_max_health - max_health) > 0.01:
+			var health_ratio = saved_health / saved_max_health
+			current_health = max_health * health_ratio
+		else:
+			# 最大血量没变，直接恢复当前血量
+			current_health = saved_health
+		# 确保血量不超过最大值
+		current_health = min(current_health, max_health)
 	
 	emit_signal("health_changed", current_health, max_health)
 	print("角色初始化：", data.display_name, " | ", current_stats.get_summary())
