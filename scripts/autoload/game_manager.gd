@@ -32,6 +32,7 @@ const SCENE_REST = "res://scenes/ui/rest_area.tscn"
 const SCENE_EVENT = "res://scenes/ui/event.tscn"
 const SCENE_BOSS = "res://scenes/battle/boss_battle.tscn"
 const SCENE_RESULT = "res://scenes/ui/result_screen.tscn"
+const SCENE_UPGRADE_SELECTION = "res://scenes/ui/upgrade_selection.tscn"
 
 # 存档路径
 const SAVE_FILE_PATH = "user://save_data.json"
@@ -110,6 +111,11 @@ func start_boss_battle() -> void:
 func show_result(_victory: bool = false) -> void:
 	current_state = GameState.RESULT
 	change_scene_to(SCENE_RESULT)
+
+## 显示升级选择界面
+func show_upgrade_selection() -> void:
+	current_state = GameState.MAP_VIEW
+	change_scene_to(SCENE_UPGRADE_SELECTION)
 
 ## 游戏结束
 func game_over() -> void:

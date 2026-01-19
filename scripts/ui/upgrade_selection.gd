@@ -238,6 +238,14 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 	
 	emit_signal("upgrade_selected", upgrade_id)
 	print("选择升级：", upgrade_id)
+	
+	# 结束当前战斗局（标记为胜利）
+	if RunManager:
+		RunManager.end_run(true)
+	
+	# 返回地图界面
+	if GameManager:
+		GameManager.go_to_map_view()
 
 ## 刷新升级选项（可在运行时调用）
 func refresh_options() -> void:

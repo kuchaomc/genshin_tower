@@ -353,17 +353,19 @@ func game_over() -> void:
 
 ## 游戏结束计时器回调
 func _on_game_over_timer_timeout() -> void:
-	print("返回地图...")
 	# 判断是胜利还是失败
 	var is_victory = enemies_killed_in_battle >= enemies_required_to_kill
 	
-	# 结束当前局（如果是胜利，传递true；如果是失败，传递false）
-	if RunManager:
-		RunManager.end_run(is_victory)
-	
-	# 返回地图界面
-	if GameManager:
-		GameManager.go_to_map_view()
+	if is_victory:
+		# 战斗胜利，显示升级选择界面
+		if GameManager:
+			GameManager.show_upgrade_selection()
+	else:
+		# 战斗失败，直接返回地图
+		if RunManager:
+			RunManager.end_run(false)
+		if GameManager:
+			GameManager.go_to_map_view()
 
 ## 玩家血量变化回调
 func _on_player_health_changed(current: float, maximum: float) -> void:
