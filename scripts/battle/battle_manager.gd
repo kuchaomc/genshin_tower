@@ -43,6 +43,10 @@ var debug_show_hitboxes: bool = false
 var player: BaseCharacter
 # 暂停菜单引用
 var pause_menu: Control
+# 层数提示UI引用
+var floor_notification: Control
+var floor_notification_label: Label
+var floor_notification_timer: Timer
 
 func _ready() -> void:
 	# 获取UI组件
@@ -54,6 +58,10 @@ func _ready() -> void:
 	debug_toggle_button = get_node_or_null("CanvasLayer/DebugToggle") as Button
 	if debug_toggle_button:
 		debug_toggle_button.pressed.connect(_on_debug_toggle_pressed)
+	
+	# 获取层数提示UI组件
+	floor_notification = get_node_or_null("CanvasLayer/FloorNotification") as Control
+	floor_notification_label = get_node_or_null("CanvasLayer/FloorNotification/Label") as Label
 	
 	# 初始化玩家
 	initialize_player()
@@ -105,6 +113,9 @@ func _ready() -> void:
 	
 	print("战斗管理器已初始化")
 	_apply_crosshair_cursor()
+	
+	# 显示层数提示
+	show_floor_notification()
 
 func _exit_tree() -> void:
 	_restore_default_cursor()
@@ -535,3 +546,39 @@ func _apply_crosshair_cursor() -> void:
 ## 离开战斗场景时还原鼠标
 func _restore_default_cursor() -> void:
 	Input.set_custom_mouse_cursor(null)
+
+## 显示层数提示
+func show_floor_notification() -> void:
+	if not floor_notification or not floor_notification_label:
+		return
+	
+	# 获取当前层数
+	var current_floor = RunManager.current_floor if RunManager else 1
+	
+	# 设置提示文本
+	floor_notification_label.text = "正在进入第%d层" % current_floor
+	
+	# 显示提示并设置为完全不透明
+	floor_notification.visible = true
+	floor_notification.modulate.a = 1.0
+	
+	# 创建定时器，5秒后开始淡出
+	if floor_notification_timer:
+		floor_notification_timer.queue_free()
+	
+	floor_notification_timer = Timer.new()
+	floor_notification_timer.wait_time = 5.0
+	floor_notification_timer.one_shot = true
+	floor_notification_timer.timeout.connect(_on_floor_notification_timer_timeout)
+	add_child(floor_notification_timer)
+	floor_notification_timer.start()
+
+## 层数提示定时器回调（开始淡出）
+func _on_floor_notification_timer_timeout() -> void:
+	if not floor_notification:
+		return
+	
+	# 创建淡出动画
+	var tween = create_tween()
+	tween.tween_property(floor_notification, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(func(): floor_notification.visible = false)
