@@ -24,7 +24,7 @@ var enemy_spawn_timer: Timer
 var game_over_timer: Timer
 
 # 战斗胜利条件
-var enemies_required_to_kill: int = 1  # 需要击杀的敌人数量（初始n=1）
+var enemies_required_to_kill: int = 5  # 需要击杀的敌人数量（初始值=5，每往上走一个节点层就+5）
 var enemies_killed_in_battle: int = 0  # 当前战斗中已击杀的敌人数量
 
 # 玩家血量UI引用
@@ -61,7 +61,9 @@ func _ready() -> void:
 	
 	# 初始化战斗胜利条件
 	enemies_killed_in_battle = 0
-	enemies_required_to_kill = 1  # 初始需要击杀1个敌人
+	# 根据当前楼层计算需要击杀的敌人数量：初始值5，每往上走一个节点层就+5
+	var current_floor = RunManager.current_floor if RunManager else 1
+	enemies_required_to_kill = 5 + (current_floor - 1) * 5
 	
 	# 更新击杀计数器显示
 	update_enemy_kill_counter_display()
@@ -73,7 +75,15 @@ func _ready() -> void:
 	# 创建敌人生成计时器
 	# 注意：Timer使用默认的PROCESS_MODE_INHERIT，会在游戏暂停时自动暂停
 	enemy_spawn_timer = Timer.new()
-	enemy_spawn_timer.wait_time = 3.0  # 每3秒生成一个敌人
+	# 根据当前楼层计算生成速度：每向上两层，生成速度提升（wait_time减少）
+	# 基础速度：3.0秒，每两层减少0.5秒，最低0.5秒
+	var base_spawn_time = 3.0
+	var speed_increase_per_two_floors = 0.5
+	var min_spawn_time = 0.5
+	var floors_up = int((current_floor - 1) / 2)  # 每两层算一次提升（向下取整）
+	var calculated_spawn_time = base_spawn_time - floors_up * speed_increase_per_two_floors
+	enemy_spawn_timer.wait_time = max(min_spawn_time, calculated_spawn_time)
+	print("当前楼层：", current_floor, "，怪物生成间隔：", enemy_spawn_timer.wait_time, "秒")
 	enemy_spawn_timer.timeout.connect(_on_enemy_spawn_timer_timeout)
 	add_child(enemy_spawn_timer)
 	enemy_spawn_timer.start()
