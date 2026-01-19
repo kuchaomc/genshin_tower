@@ -19,8 +19,14 @@ var map_width: float = 1000.0  # 地图宽度
 # 节点实例字典，用于绘制连接线
 var node_instances: Dictionary = {}  # node_id -> MapNode instance
 
+# 连接线字典，用于更新视觉状态
+var connection_lines: Dictionary = {}  # "from_node_id_to_node_id" -> Line2D
+
 # 当前可选择的节点（从起点出发或从已访问节点出发可达的节点）
 var selectable_nodes: Array = []
+
+# 所有可达节点（从起点开始）
+var reachable_nodes: Dictionary = {}  # node_id -> bool
 
 # 滚动和拖拽
 var is_dragging: bool = false
@@ -149,6 +155,8 @@ func display_map() -> void:
 			child.queue_free()
 	
 	node_instances.clear()
+	connection_lines.clear()
+	reachable_nodes.clear()
 	
 	var floors = current_map.get("floors", [])
 	if floors.is_empty():
@@ -215,51 +223,73 @@ func display_map() -> void:
 	
 	# 更新可选择的节点状态
 	_update_selectable_nodes()
+	
+	# 如果已经选择了初始节点，计算可达节点并淡化不可达节点
+	# 注意：初始时所有节点都应该是可达的，只有选择初始节点后才计算可达性
+	var current_node_id = RunManager.current_node_id if RunManager else ""
+	var current_floor = RunManager.current_floor if RunManager else 1
+	
+	# 只有当玩家已经选择了初始节点（第1层）时，才计算可达性
+	# 初始状态下，reachable_nodes 为空，所有节点和连接线都正常显示
+	if not current_node_id.is_empty() and current_floor >= 1:
+		# 玩家已经选择了初始节点，计算从该节点开始的所有可达节点
+		_calculate_reachable_nodes(current_node_id)
+		# 更新不可达节点和连接线的视觉状态
+		_update_unreachable_nodes_visual()
+	# 初始状态：reachable_nodes 为空，_update_node_visual_state 会使用默认视觉状态
 
 ## 绘制所有连接线
 func _draw_all_connections(floors: Array) -> void:
 	var connections = current_map.get("connections", [])
-	var viewport_size = get_viewport().get_visible_rect().size
-	var center_x = viewport_size.x / 2.0
 	
 	for floor_idx in range(connections.size()):
 		var floor_conns = connections[floor_idx]
-		var current_floor_data = floors[floor_idx]
-		var next_floor_data = floors[floor_idx + 1]
-		
-		var current_count = current_floor_data.size()
-		var next_count = next_floor_data.size()
-		
-		# 计算当前层和下一层的Y坐标
-		var current_y = viewport_size.y - map_bottom_margin - (floor_idx * node_spacing_y)
-		var next_y = viewport_size.y - map_bottom_margin - ((floor_idx + 1) * node_spacing_y)
-		
-		# 计算当前层节点的X起始位置
-		var current_floor_width = (current_count - 1) * node_spacing_x
-		var current_start_x = center_x - current_floor_width / 2.0
-		
-		# 计算下一层节点的X起始位置
-		var next_floor_width = (next_count - 1) * node_spacing_x
-		var next_start_x = center_x - next_floor_width / 2.0
 		
 		for conn in floor_conns:
 			var out_idx = conn[0]
 			var in_idx = conn[1]
 			
-			var from_x = current_start_x + out_idx * node_spacing_x
-			var to_x = next_start_x + in_idx * node_spacing_x
+			# 获取连接的节点实例
+			var from_node_data = floors[floor_idx][out_idx]
+			var to_node_data = floors[floor_idx + 1][in_idx]
 			
-			var from_pos = Vector2(from_x, current_y)
-			var to_pos = Vector2(to_x, next_y)
+			if not from_node_data or not to_node_data:
+				continue
+			
+			var from_node_instance = node_instances.get(from_node_data.node_id)
+			var to_node_instance = node_instances.get(to_node_data.node_id)
+			
+			if not from_node_instance or not to_node_instance:
+				continue
+			
+			# 获取按钮的中心位置
+			# 按钮大小是 64x64，按钮在 VBoxContainer 顶部，所以中心偏移是 (32, 32)
+			var button_size = Vector2(64, 64)
+			var button_center_offset = button_size / 2.0
+			
+			# MapNode 的 position 就是它在 map_container 中的位置
+			# 按钮在 VBoxContainer 中，VBoxContainer 在 MapNode 中，默认位置都是 (0, 0)
+			# 所以按钮的中心位置 = MapNode.position + button_center_offset
+			var from_pos = from_node_instance.position + button_center_offset
+			var to_pos = to_node_instance.position + button_center_offset
 			
 			# 创建连接线
 			var line = Line2D.new()
-			line.width = 3.0
+			line.width = 5.0  # 加粗线条（从3.0改为5.0）
 			line.default_color = Color(0.4, 0.4, 0.5, 0.6)
 			line.add_point(from_pos)
 			line.add_point(to_pos)
 			line.z_index = -1  # 确保线条在节点下方
 			map_container.add_child(line)
+			
+			# 保存连接线引用，用于后续更新视觉状态
+			# 使用特殊分隔符避免node_id中包含下划线时的问题
+			var line_key = "%s|%s" % [from_node_data.node_id, to_node_data.node_id]
+			connection_lines[line_key] = {
+				"line": line,
+				"from_node_id": from_node_data.node_id,
+				"to_node_id": to_node_data.node_id
+			}
 
 ## 更新可选择的节点状态
 func _update_selectable_nodes() -> void:
@@ -294,8 +324,13 @@ func _update_selectable_nodes() -> void:
 			else:
 				is_selectable = node_id in selectable_nodes
 			
+			# 如果已经计算了可达节点，确保不可达节点不会被标记为可选择
+			if not reachable_nodes.is_empty() and not reachable_nodes.has(node_id):
+				is_selectable = false
+			
 			# 更新视觉状态（区分已访问、可选择、不可选择）
-			node_instance.update_visual_state(is_selectable)
+			# 初始状态下，所有节点都不淡化
+			_update_node_visual_state(node_instance, is_selectable)
 
 ## 节点被选中
 func _on_node_selected(node: MapNode) -> void:
@@ -331,6 +366,13 @@ func _on_node_selected(node: MapNode) -> void:
 	
 	# 更新可选择状态
 	_update_selectable_nodes()
+	
+	# 如果这是初始节点选择（第1层），计算所有可达节点并淡化不可达节点
+	if node.floor_number == 1 and not node.is_visited:
+		# 选择初始节点后，计算从该节点开始的所有可达节点
+		_calculate_reachable_nodes(node.node_id)
+		# 更新不可达节点和连接线的视觉状态
+		_update_unreachable_nodes_visual()
 	
 	# 根据节点类型执行相应操作
 	match node.node_type:
@@ -392,3 +434,142 @@ func enter_event() -> void:
 func start_boss_battle() -> void:
 	if GameManager:
 		GameManager.start_boss_battle()
+
+## 计算从起点开始所有可达的节点（使用BFS）
+func _calculate_reachable_nodes(start_node_id: String) -> void:
+	reachable_nodes.clear()
+	if start_node_id.is_empty() or not node_instances.has(start_node_id):
+		return
+	
+	# 使用BFS遍历所有可达节点
+	var queue: Array = [start_node_id]
+	var visited: Dictionary = {}
+	visited[start_node_id] = true
+	reachable_nodes[start_node_id] = true
+	
+	while not queue.is_empty():
+		var current_id = queue.pop_front()
+		var current_node = node_instances.get(current_id)
+		
+		if not current_node:
+			continue
+		
+		# 遍历当前节点的所有连接
+		for connected_id in current_node.connected_nodes:
+			if not visited.has(connected_id):
+				visited[connected_id] = true
+				reachable_nodes[connected_id] = true
+				queue.append(connected_id)
+
+## 更新不可达节点和连接线的视觉状态（淡化）
+func _update_unreachable_nodes_visual() -> void:
+	if reachable_nodes.is_empty():
+		# 如果没有计算可达节点，所有连接线都正常显示
+		for line_key in connection_lines:
+			var line_data = connection_lines[line_key]
+			if line_data and line_data.has("line"):
+				var line = line_data["line"]
+				line.default_color = Color(0.4, 0.4, 0.5, 0.6)
+		return
+	
+	# 更新所有节点的视觉状态
+	for node_id in node_instances:
+		var node_instance = node_instances[node_id]
+		if not node_instance:
+			continue
+		
+		var is_selectable = node_id in selectable_nodes
+		_update_node_visual_state(node_instance, is_selectable)
+	
+	# 更新连接线的视觉状态
+	for line_key in connection_lines:
+		var line_data = connection_lines[line_key]
+		if not line_data or not line_data.has("line"):
+			continue
+		
+		var line = line_data["line"]
+		var from_node_id = line_data["from_node_id"]
+		var to_node_id = line_data["to_node_id"]
+		
+		# 检查连接线的两个端点是否都可达
+		var from_reachable = reachable_nodes.has(from_node_id)
+		var to_reachable = reachable_nodes.has(to_node_id)
+		
+		if from_reachable and to_reachable:
+			# 可达的连接线：正常显示
+			line.default_color = Color(0.4, 0.4, 0.5, 0.6)
+		else:
+			# 不可达的连接线：淡化
+			line.default_color = Color(0.4, 0.4, 0.5, 0.15)
+
+## 更新节点视觉状态（考虑可达性）
+func _update_node_visual_state(node_instance: MapNode, is_selectable: bool) -> void:
+	if not node_instance or not node_instance.node_button:
+		return
+	
+	# 如果已经计算了可达节点
+	if not reachable_nodes.is_empty():
+		var node_id = node_instance.node_id
+		var is_reachable = reachable_nodes.has(node_id)
+		
+		if node_instance.is_visited:
+			# 已访问的节点：灰色，禁用
+			node_instance.node_button.modulate = Color(0.5, 0.5, 0.5, 1.0)
+			node_instance.node_button.disabled = true
+		elif not is_reachable:
+			# 不可达节点：严重淡化
+			var base_color = _get_node_base_color(node_instance)
+			node_instance.node_button.modulate = Color(base_color.r * 0.2, base_color.g * 0.2, base_color.b * 0.2, 0.3)
+			node_instance.node_button.disabled = true
+		elif not is_selectable:
+			# 可达但还未到达的节点：轻微淡化，增强可读性
+			var base_color = _get_node_base_color(node_instance)
+			# 使用更高的亮度和透明度，让节点更清晰可见
+			node_instance.node_button.modulate = Color(base_color.r * 0.7, base_color.g * 0.7, base_color.b * 0.7, 0.75)
+			node_instance.node_button.disabled = true
+		else:
+			# 可达且可选择：正常颜色
+			node_instance.node_button.modulate = _get_node_base_color(node_instance)
+			node_instance.node_button.disabled = false
+	else:
+		# 初始状态：所有节点都不淡化，正常显示
+		node_instance.update_visual_state(is_selectable)
+
+## 获取节点基础颜色（辅助函数）
+func _get_node_base_color(node_instance: MapNode) -> Color:
+	match node_instance.node_type:
+		MapNode.NodeType.ENEMY:
+			return Color(1.0, 0.8, 0.8, 1.0)  # 淡红色
+		MapNode.NodeType.TREASURE:
+			return Color(1.0, 0.9, 0.6, 1.0)  # 金色
+		MapNode.NodeType.SHOP:
+			return Color(0.8, 0.8, 1.0, 1.0)  # 淡蓝色
+		MapNode.NodeType.REST:
+			return Color(0.8, 1.0, 0.8, 1.0)  # 淡绿色
+		MapNode.NodeType.EVENT:
+			return Color(1.0, 1.0, 0.8, 1.0)  # 淡黄色
+		MapNode.NodeType.BOSS:
+			return Color(1.0, 0.4, 0.4, 1.0)  # 深红色
+		_:
+			return Color.WHITE
+	
+	# 更新连接线的视觉状态
+	for line_key in connection_lines:
+		var line_data = connection_lines[line_key]
+		if not line_data or not line_data.has("line"):
+			continue
+		
+		var line = line_data["line"]
+		var from_node_id = line_data["from_node_id"]
+		var to_node_id = line_data["to_node_id"]
+		
+		# 检查连接线的两个端点是否都可达
+		var from_reachable = reachable_nodes.has(from_node_id)
+		var to_reachable = reachable_nodes.has(to_node_id)
+		
+		if from_reachable and to_reachable:
+			# 可达的连接线：正常显示
+			line.default_color = Color(0.4, 0.4, 0.5, 0.6)
+		else:
+			# 不可达的连接线：淡化
+			line.default_color = Color(0.4, 0.4, 0.5, 0.15)
