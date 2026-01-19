@@ -1,4 +1,4 @@
-[gd_scene load_steps=34 format=3 uid="uid://bb2kswvspaq4f"]
+[gd_scene load_steps=34 format=3 uid="uid://lp22f4lydf4p"]
 
 [ext_resource type="Script" uid="uid://d11ele5x3lbm1" path="res://scripts/characters/kamisato_ayaka_character.gd" id="1_sword_char"]
 [ext_resource type="Texture2D" uid="uid://p5yv5ngfrcoo" path="res://textures/characters/神里idel.png" id="2_sd6lh"]
