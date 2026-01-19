@@ -16,6 +16,7 @@ var current_character_node: Node = null  # 当前角色的场景节点引用
 # 游戏进度
 var current_floor: int = 0
 var current_node_id: String = ""  # 当前所在的地图节点ID
+var map_seed: int = -1  # 地图随机种子，用于保持地图一致性
 
 # 资源
 var gold: int = 0
@@ -54,6 +55,7 @@ func start_new_run(character: CharacterData) -> void:
 	current_character = character
 	current_floor = 0
 	current_node_id = ""
+	map_seed = -1  # 重置地图种子，新游戏会生成新地图
 	gold = 0
 	
 	# 从角色属性获取最大生命值

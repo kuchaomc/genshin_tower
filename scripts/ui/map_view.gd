@@ -9,7 +9,6 @@ extends Node2D
 
 var map_generator: MapGenerator
 var current_map: Dictionary = {}
-var map_seed: int = -1  # 地图随机种子，用于保持地图一致性
 
 # 布局参数
 var node_spacing_x: float = 180.0  # 节点水平间距
@@ -38,10 +37,13 @@ func _ready() -> void:
 		print("错误：RunManager未找到")
 		return
 	
-	# 如果是新游戏（current_node_id为空），生成新地图
+	# 如果是新游戏（current_node_id为空且没有地图种子），生成新地图种子
 	# 否则重用现有地图（通过固定种子）
-	if RunManager.current_node_id.is_empty() and map_seed == -1:
-		map_seed = randi()
+	if RunManager.current_node_id.is_empty() and RunManager.map_seed == -1:
+		RunManager.map_seed = randi()
+		print("生成新地图，种子：", RunManager.map_seed)
+	else:
+		print("重用现有地图，种子：", RunManager.map_seed)
 	
 	generate_and_display_map()
 	
@@ -84,8 +86,8 @@ func generate_and_display_map() -> void:
 	add_child(map_generator)
 	
 	# 如果已有地图种子，使用固定种子生成相同地图
-	if map_seed != -1:
-		seed(map_seed)
+	if RunManager and RunManager.map_seed != -1:
+		seed(RunManager.map_seed)
 	
 	# 获取地图配置
 	var config = DataManager.get_map_config()
