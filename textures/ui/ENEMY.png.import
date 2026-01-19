@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cfvpll5bunany"
-path="res://.godot/imported/奇遇图标.png-e1a965fb237d5c662d8d6b0fb11f5077.ctex"
+uid="uid://m0e20kmci0nd"
+path="res://.godot/imported/ENEMY.png-a9d14656400be36d1141af535ffcbc12.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/icons/奇遇图标.png"
-dest_files=["res://.godot/imported/奇遇图标.png-e1a965fb237d5c662d8d6b0fb11f5077.ctex"]
+source_file="res://textures/ui/ENEMY.png"
+dest_files=["res://.godot/imported/ENEMY.png-a9d14656400be36d1141af535ffcbc12.ctex"]
 
 [params]
 

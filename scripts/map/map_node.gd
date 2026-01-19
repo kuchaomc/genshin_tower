@@ -85,17 +85,17 @@ func update_node_icon() -> void:
 	var icon_path = ""
 	match node_type:
 		NodeType.ENEMY:
-			icon_path = "res://textures/icons/普通战斗房间图标.png"
+			icon_path = "res://textures/ui/ENEMY.png"
 		NodeType.TREASURE:
-			icon_path = "res://textures/icons/商店图标.png"  # 宝箱暂用商店图标
+			icon_path = "res://textures/ui/TREASURE.png"
 		NodeType.SHOP:
-			icon_path = "res://textures/icons/商店图标.png"
+			icon_path = "res://textures/ui/SHOP.png"
 		NodeType.REST:
-			icon_path = "res://textures/icons/普通战斗房间图标.png"  # 暂时使用相同图标
+			icon_path = "res://textures/ui/REST.png"
 		NodeType.EVENT:
-			icon_path = "res://textures/icons/奇遇图标.png"
+			icon_path = "res://textures/ui/EVENT.png"
 		NodeType.BOSS:
-			icon_path = "res://textures/icons/普通战斗房间图标.png"  # 暂时使用相同图标
+			icon_path = "res://textures/ui/BOSS.png"
 	
 	var texture = load(icon_path)
 	if texture:

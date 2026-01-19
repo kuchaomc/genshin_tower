@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cwd32pdr7vdkq"
-path="res://.godot/imported/商店图标.png-f872f7731346efd8d744742098daf1d7.ctex"
+uid="uid://dfclorkix30ls"
+path="res://.godot/imported/TREASURE.png-2cddd89c275bde59a7ca853d0718c115.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/icons/商店图标.png"
-dest_files=["res://.godot/imported/商店图标.png-f872f7731346efd8d744742098daf1d7.ctex"]
+source_file="res://textures/ui/TREASURE.png"
+dest_files=["res://.godot/imported/TREASURE.png-2cddd89c275bde59a7ca853d0718c115.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ckqy11lr7yrgd"
-path="res://.godot/imported/普通战斗房间图标.png-0bcc25a56d2a5b341fa105d4e6b65c02.ctex"
+uid="uid://drpcjllrmi7xr"
+path="res://.godot/imported/SHOP.png-b390a7a9072dba575ab32a51b511b904.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/icons/普通战斗房间图标.png"
-dest_files=["res://.godot/imported/普通战斗房间图标.png-0bcc25a56d2a5b341fa105d4e6b65c02.ctex"]
+source_file="res://textures/ui/SHOP.png"
+dest_files=["res://.godot/imported/SHOP.png-b390a7a9072dba575ab32a51b511b904.ctex"]
 
 [params]
 

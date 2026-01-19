@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://clbhlbi0nuca0"
-path="res://.godot/imported/敌人.png-d8cc80c322d65c808206d9a302a1d19a.ctex"
+uid="uid://cnp5qb5558oyu"
+path="res://.godot/imported/EVENT.png-794938d45e9820235543cd779c9380f3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/enemies/敌人.png"
-dest_files=["res://.godot/imported/敌人.png-d8cc80c322d65c808206d9a302a1d19a.ctex"]
+source_file="res://textures/ui/EVENT.png"
+dest_files=["res://.godot/imported/EVENT.png-794938d45e9820235543cd779c9380f3.ctex"]
 
 [params]
 
