@@ -10,6 +10,7 @@ extends Control
 @onready var character_portrait: TextureRect = $MainContainer/RightPanel/PortraitContainer/CharacterPortrait
 @onready var character_name_label: Label = $MainContainer/RightPanel/CharacterName
 @onready var stats_container: VBoxContainer = $MainContainer/RightPanel/StatsContainer
+@onready var upgrades_container: VBoxContainer = $MainContainer/RightPanel/UpgradesScrollContainer/UpgradesContainer
 
 # 信号
 signal resume_game
@@ -114,6 +115,9 @@ func update_character_info() -> void:
 	
 	# 更新角色属性
 	_update_stats_display()
+	
+	# 更新已选择升级
+	_update_upgrades_display()
 
 ## 获取角色立绘路径
 func _get_character_portrait_path(character_id: String) -> String:
@@ -162,6 +166,117 @@ func _update_stats_display() -> void:
 		labels[4].text = "暴击率: %.0f%%" % (stats.crit_rate * 100)
 		labels[5].text = "暴击伤害: +%.0f%%" % (stats.crit_damage * 100)
 		labels[6].text = "攻击速度: %.1fx" % stats.attack_speed
+
+## 更新已选择升级显示
+func _update_upgrades_display() -> void:
+	if not upgrades_container:
+		return
+	
+	# 清空现有升级显示
+	for child in upgrades_container.get_children():
+		child.queue_free()
+	
+	# 如果没有 RunManager 或没有升级，显示提示
+	if not RunManager or RunManager.upgrades.is_empty():
+		var empty_label = Label.new()
+		empty_label.text = "暂无升级"
+		empty_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		upgrades_container.add_child(empty_label)
+		return
+	
+	# 检查是否有 UpgradeRegistry
+	var registry = null
+	if has_node("/root/UpgradeRegistry"):
+		registry = get_node("/root/UpgradeRegistry")
+	
+	# 遍历所有已选择的升级
+	for upgrade_id in RunManager.upgrades:
+		var level = RunManager.upgrades[upgrade_id]
+		
+		# 创建升级项容器
+		var upgrade_item = PanelContainer.new()
+		upgrade_item.custom_minimum_size = Vector2(0, 70)
+		
+		# 设置背景样式
+		var style_box = StyleBoxFlat.new()
+		style_box.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+		style_box.border_color = Color(0.4, 0.4, 0.4, 0.5)
+		style_box.border_width_left = 2
+		style_box.border_width_right = 2
+		style_box.border_width_top = 2
+		style_box.border_width_bottom = 2
+		style_box.corner_radius_top_left = 4
+		style_box.corner_radius_top_right = 4
+		style_box.corner_radius_bottom_left = 4
+		style_box.corner_radius_bottom_right = 4
+		upgrade_item.add_theme_stylebox_override("panel", style_box)
+		
+		var vbox = VBoxContainer.new()
+		vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+		vbox.add_theme_constant_override("separation", 4)
+		var margin = MarginContainer.new()
+		margin.add_theme_constant_override("margin_left", 8)
+		margin.add_theme_constant_override("margin_right", 8)
+		margin.add_theme_constant_override("margin_top", 6)
+		margin.add_theme_constant_override("margin_bottom", 6)
+		margin.add_child(vbox)
+		upgrade_item.add_child(margin)
+		
+		# 创建名称和等级标签
+		var name_hbox = HBoxContainer.new()
+		vbox.add_child(name_hbox)
+		
+		var name_label = Label.new()
+		name_label.text = upgrade_id
+		name_label.add_theme_font_size_override("font_size", 18)
+		name_hbox.add_child(name_label)
+		
+		# 如果有 UpgradeRegistry，获取详细信息
+		if registry and registry.has_method("get_upgrade"):
+			var upgrade_data = registry.get_upgrade(upgrade_id)
+			if upgrade_data:
+				# 使用升级数据的显示名称
+				name_label.text = upgrade_data.display_name
+				
+				# 设置稀有度颜色
+				var rarity_color = upgrade_data.get_rarity_color()
+				name_label.add_theme_color_override("font_color", rarity_color)
+				
+				# 添加等级标签
+				var level_label = Label.new()
+				level_label.text = "Lv.%d" % level
+				if upgrade_data.max_level > 0:
+					level_label.text += "/%d" % upgrade_data.max_level
+				level_label.add_theme_font_size_override("font_size", 16)
+				level_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+				name_hbox.add_child(level_label)
+				
+				# 添加描述标签
+				var desc_label = Label.new()
+				desc_label.text = upgrade_data.get_formatted_description(level)
+				desc_label.add_theme_font_size_override("font_size", 14)
+				desc_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+				desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				vbox.add_child(desc_label)
+			else:
+				# 如果没有找到升级数据，显示ID和等级
+				var level_label = Label.new()
+				level_label.text = " (Lv.%d)" % level
+				level_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+				name_hbox.add_child(level_label)
+		else:
+			# 如果没有 UpgradeRegistry，只显示ID和等级
+			var level_label = Label.new()
+			level_label.text = " (Lv.%d)" % level
+			level_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+			name_hbox.add_child(level_label)
+		
+		# 添加间距
+		var spacer = Control.new()
+		spacer.custom_minimum_size = Vector2(0, 4)
+		upgrades_container.add_child(upgrade_item)
+		upgrades_container.add_child(spacer)
 
 ## 继续游戏按钮
 func _on_continue_pressed() -> void:

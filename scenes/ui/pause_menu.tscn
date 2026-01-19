@@ -157,3 +157,26 @@ text = "暴击伤害: +50%"
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "攻击速度: 1.0x"
+
+[node name="Spacer8" type="Control" parent="MainContainer/RightPanel"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="UpgradesTitle" type="Label" parent="MainContainer/RightPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "已选择升级"
+horizontal_alignment = 1
+
+[node name="Spacer9" type="Control" parent="MainContainer/RightPanel"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="UpgradesScrollContainer" type="ScrollContainer" parent="MainContainer/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 200)
+
+[node name="UpgradesContainer" type="VBoxContainer" parent="MainContainer/RightPanel/UpgradesScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
