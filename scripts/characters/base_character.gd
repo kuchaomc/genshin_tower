@@ -200,8 +200,10 @@ func perform_attack() -> void:
 ## damage_multiplier: 伤害倍率（普攻 1.0，技能可能 1.5、2.0 等）
 ## force_crit: 强制暴击
 ## force_no_crit: 强制不暴击
+## apply_knockback: 是否应用击退效果（默认 true，保持向后兼容）
+## apply_stun: 是否应用僵直效果（默认 false）
 ## 返回值: [实际造成的伤害, 是否暴击]
-func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bool = false, force_no_crit: bool = false) -> Array:
+func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bool = false, force_no_crit: bool = false, apply_knockback: bool = true, apply_stun: bool = false) -> Array:
 	if not current_stats:
 		return [0.0, false]
 	
@@ -226,12 +228,16 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 		if target is Node2D:
 			knockback_dir = (target.global_position - global_position).normalized()
 		
-		# 检查目标的 take_damage 方法签名
+		# 检查目标的 take_damage 方法签名，支持不同的参数组合
 		if target.has_method("take_damage"):
-			# 尝试带击退调用
-			var params = [final_damage, knockback_dir * current_stats.knockback_force]
-			if _can_call_with_params(target, "take_damage", 2):
+			# 检查是否支持僵直参数（3个参数：damage, knockback, apply_stun）
+			if apply_stun and _can_call_with_params(target, "take_damage", 3):
+				var knockback_force = knockback_dir * current_stats.knockback_force if apply_knockback else Vector2.ZERO
+				target.take_damage(final_damage, knockback_force, apply_stun)
+			# 检查是否支持击退参数（2个参数：damage, knockback）
+			elif apply_knockback and _can_call_with_params(target, "take_damage", 2):
 				target.take_damage(final_damage, knockback_dir * current_stats.knockback_force)
+			# 只传递伤害
 			else:
 				target.take_damage(final_damage)
 	

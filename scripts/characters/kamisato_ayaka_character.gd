@@ -540,7 +540,8 @@ func _handle_sword_hit(target: Node2D) -> void:
 	
 	if not already_hit and target.has_method("take_damage"):
 		# 使用统一伤害计算系统
-		var damage_result = deal_damage_to(target, normal_attack_multiplier)
+		# 普通攻击不击退，而是使敌人僵直
+		var damage_result = deal_damage_to(target, normal_attack_multiplier, false, false, false, true)
 		var damage = damage_result[0]
 		var is_crit = damage_result[1]
 		

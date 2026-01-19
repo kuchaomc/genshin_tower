@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://c5vy4j04yih54"]
+[gd_scene load_steps=8 format=3 uid="uid://c5vy4j04yih54"]
 
 [ext_resource type="Script" uid="uid://bwlkkwfk4bcuy" path="res://scripts/battle/battle_manager.gd" id="1_battle"]
 [ext_resource type="Texture2D" uid="uid://bnoahwud6qeff" path="res://textures/effects/战斗场景.png" id="2_3ma01"]
@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/skill_ui.tscn" id="4_skill_ui"]
 [ext_resource type="PackedScene" path="res://scenes/boundaries/ellipse_boundary.tscn" id="5_boundary"]
 [ext_resource type="Script" uid="uid://cf2cxfxf21emy" path="res://scripts/ui/enemy_indicator_manager.gd" id="6_indicator_manager"]
-[ext_resource type="PackedScene" path="res://scenes/ui/enemy_indicator.tscn" id="7_indicator"]
+[ext_resource type="PackedScene" uid="uid://b8k3j2h4m5n6p" path="res://scenes/ui/enemy_indicator.tscn" id="7_indicator"]
 
 [node name="Node2D" type="Node2D"]
 y_sort_enabled = true
@@ -26,6 +26,7 @@ target_path = NodePath("../player")
 ellipse_center = Vector2(0, 0)
 ellipse_radius_x = 1200.0
 ellipse_radius_y = 860.0
+boundary_thickness = 1.0
 boundary_segments = 128
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]

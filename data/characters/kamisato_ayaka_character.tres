@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3 uid="uid://c2ojwr6swsrjw"]
 
 [ext_resource type="Script" uid="uid://btuxq8fk8sjog" path="res://scripts/characters/character_data.gd" id="1_char_data"]
-[ext_resource type="Resource" path="res://data/characters/ayaka_stats.tres" id="2_stats"]
+[ext_resource type="Resource" uid="uid://bjtwl2073dk0e" path="res://data/characters/ayaka_stats.tres" id="2_stats"]
 
 [resource]
 script = ExtResource("1_char_data")

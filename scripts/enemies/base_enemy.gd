@@ -30,6 +30,11 @@ var collision_shape: CollisionShape2D
 var knockback_tween: Tween
 var is_knockback_active: bool = false
 
+# ========== 僵直系统 ==========
+var is_stunned: bool = false
+var stun_timer: float = 0.0
+@export var stun_duration: float = 0.3  # 僵直持续时间（秒）
+
 # 碰撞/接触伤害节流，避免连续帧内多次结算
 @export var contact_damage_cooldown: float = 0.6
 var _recently_damaged_bodies: Dictionary = {}
@@ -132,10 +137,17 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		return
 	
+	# 更新僵直计时器
+	if is_stunned:
+		stun_timer -= delta
+		if stun_timer <= 0.0:
+			is_stunned = false
+			stun_timer = 0.0
+	
 	# 执行AI行为（子类可重写）
 	perform_ai_behavior(delta)
 	
-	if is_knockback_active:
+	if is_knockback_active or is_stunned:
 		velocity = Vector2.ZERO
 	else:
 		move_and_slide()
@@ -162,11 +174,15 @@ func _process_collisions(delta: float) -> void:
 			continue
 		var collider = collision.get_collider()
 		
-		# 如果撞到空气墙/静态障碍，滑动并轻推离开，避免卡住
+		# 如果撞到空气墙/静态障碍，给一个反弹力
 		if collider is StaticBody2D:
 			var n: Vector2 = collision.get_normal()
 			if n != Vector2.ZERO:
-				velocity = velocity.slide(n)
+				# 反弹力：沿着法向量方向反弹，力度为当前速度的反弹系数
+				var bounce_strength: float = 1  # 反弹系数，0-1之间
+				var bounce_velocity: Vector2 = -velocity.project(n) * bounce_strength
+				velocity = velocity.slide(n) + bounce_velocity
+				# 轻微推离边界，避免卡住
 				global_position += n * 2.0
 			continue
 		
@@ -179,7 +195,7 @@ func perform_ai_behavior(delta: float) -> void:
 
 ## 追逐玩家（默认行为）
 func chase_player(delta: float) -> void:
-	if is_knockback_active:
+	if is_knockback_active or is_stunned:
 		velocity = Vector2.ZERO
 		return
 	
@@ -259,7 +275,9 @@ func update_hp_display() -> void:
 		hp_label.text = str(int(current_health)) + "/" + str(int(max_health))
 
 ## 受到伤害（应用自身减伤）
-func take_damage(damage_amount: float, knockback: Vector2 = Vector2.ZERO) -> void:
+## knockback: 击退方向向量（如果为 Vector2.ZERO 则不击退）
+## apply_stun: 是否应用僵直效果（默认 false）
+func take_damage(damage_amount: float, knockback: Vector2 = Vector2.ZERO, apply_stun: bool = false) -> void:
 	if not is_spawned or is_dead:
 		return
 	
@@ -275,8 +293,13 @@ func take_damage(damage_amount: float, knockback: Vector2 = Vector2.ZERO) -> voi
 	
 	print("敌人受到伤害: ", actual_damage, "点（原始: ", damage_amount, "），剩余生命值: ", current_health, "/", max_health)
 	
+	# 应用击退效果（如果提供）
 	if knockback != Vector2.ZERO:
 		apply_knockback(knockback)
+	
+	# 应用僵直效果（如果请求）
+	if apply_stun:
+		apply_stun_effect()
 	
 	if current_health <= 0:
 		on_death()
@@ -304,6 +327,19 @@ func apply_knockback(knockback_offset: Vector2, duration: float = 0.12) -> void:
 	knockback_tween.tween_callback(func ():
 		is_knockback_active = false
 	)
+
+## 施加僵直效果
+func apply_stun_effect(duration: float = -1.0) -> void:
+	if is_dead:
+		return
+	
+	# 如果未指定持续时间，使用默认值
+	if duration < 0.0:
+		duration = stun_duration
+	
+	is_stunned = true
+	stun_timer = duration
+	print("敌人被僵直，持续时间: ", duration, "秒")
 
 ## 死亡处理
 func on_death() -> void:
