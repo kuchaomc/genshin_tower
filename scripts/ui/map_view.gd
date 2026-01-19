@@ -27,6 +27,12 @@ var is_dragging: bool = false
 var drag_start_pos: Vector2 = Vector2.ZERO
 var camera_start_pos: Vector2 = Vector2.ZERO
 
+# 缩放
+var zoom_level: float = 1.0
+var min_zoom: float = 0.5
+var max_zoom: float = 2.0
+var zoom_step: float = 0.1
+
 func _ready() -> void:
 	# 检查必要的单例是否存在
 	if not DataManager:
@@ -63,21 +69,39 @@ func _input(event: InputEvent) -> void:
 				is_dragging = false
 		# 鼠标滚轮缩放
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_scroll_map(-100)
+			_zoom_camera(zoom_step, event.position)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_scroll_map(100)
+			_zoom_camera(-zoom_step, event.position)
 	
 	elif event is InputEventMouseMotion and is_dragging:
 		var delta = event.position - drag_start_pos
 		camera.position = camera_start_pos - delta
 
-## 滚动地图
-func _scroll_map(amount: float) -> void:
-	camera.position.y += amount
-	# 限制相机位置
-	var min_y = 200.0
-	var max_y = 16 * node_spacing_y + map_bottom_margin
-	camera.position.y = clampf(camera.position.y, min_y, max_y)
+## 缩放相机
+func _zoom_camera(delta: float, mouse_screen_pos: Vector2) -> void:
+	if not camera:
+		return
+	
+	var viewport = get_viewport()
+	var viewport_size = viewport.get_visible_rect().size
+	
+	# 计算鼠标相对于屏幕中心的位置
+	var screen_center = viewport_size / 2.0
+	var mouse_offset_from_center = mouse_screen_pos - screen_center
+	
+	# 计算鼠标指向的世界坐标（缩放前）
+	# 世界坐标 = 相机位置 + (屏幕坐标 - 屏幕中心) / 缩放
+	var mouse_world_before = camera.position + mouse_offset_from_center / camera.zoom.x
+	
+	# 更新缩放级别
+	zoom_level = clampf(zoom_level + delta, min_zoom, max_zoom)
+	camera.zoom = Vector2(zoom_level, zoom_level)
+	
+	# 计算缩放后鼠标应该指向的世界坐标
+	var mouse_world_after = camera.position + mouse_offset_from_center / camera.zoom.x
+	
+	# 调整相机位置，使鼠标指向的世界坐标保持不变
+	camera.position += mouse_world_before - mouse_world_after
 
 ## 生成并显示地图
 func generate_and_display_map() -> void:
@@ -110,6 +134,8 @@ func _setup_camera() -> void:
 		var viewport_size = get_viewport().get_visible_rect().size
 		# 相机初始位置在底部，显示第一层
 		camera.position = Vector2(viewport_size.x / 2.0, viewport_size.y - 200)
+		# 设置初始缩放
+		camera.zoom = Vector2(zoom_level, zoom_level)
 
 ## 显示地图
 func display_map() -> void:

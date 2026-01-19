@@ -51,14 +51,14 @@ func create_node_ui() -> void:
 	
 	# 创建按钮
 	node_button = Button.new()
-	node_button.custom_minimum_size = Vector2(100, 100)
+	node_button.custom_minimum_size = Vector2(64, 64)
 	node_button.disabled = false  # 确保按钮默认启用
 	node_button.pressed.connect(_on_node_pressed)
 	container.add_child(node_button)
 	
 	# 创建图标
 	node_icon = TextureRect.new()
-	node_icon.custom_minimum_size = Vector2(80, 80)
+	node_icon.custom_minimum_size = Vector2(64, 64)
 	node_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	node_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	node_button.add_child(node_icon)

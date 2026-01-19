@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cg31skqg4mc7p"]
 
-[ext_resource type="Script" path="res://scripts/ui/map_view.gd" id="1_map_view"]
+[ext_resource type="Script" uid="uid://f36eevsl8o8f" path="res://scripts/ui/map_view.gd" id="1_map_view"]
 
 [node name="MapView" type="Node2D"]
 script = ExtResource("1_map_view")
@@ -16,7 +16,7 @@ offset_left = -500.0
 offset_top = -3000.0
 offset_right = 2500.0
 offset_bottom = 1200.0
-color = Color(0.08, 0.08, 0.12, 1)
+color = Color(0.7607843, 0.69803923, 0.5019608, 1)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -37,9 +37,9 @@ text = "当前楼层: 1 / 16"
 
 [node name="HintLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-text = "滚轮滚动 | 拖拽移动地图"
+theme_override_font_sizes/font_size = 16
+text = "滚轮缩放 | 拖拽移动地图"
 
 [node name="TopUI" type="VBoxContainer" parent="CanvasLayer"]
 anchors_preset = 5
