@@ -62,7 +62,7 @@ func create_default_character() -> void:
 	default_char.max_health = 100.0
 	default_char.move_speed = 100.0
 	default_char.base_damage = 25.0
-	default_char.scene_path = "res://scenes/characters/player.tscn"
+	default_char.scene_path = "res://scenes/characters/kamisato_ayaka.tscn"
 	
 	# 保存到DataManager（临时）
 	DataManager.characters[default_char.id] = default_char

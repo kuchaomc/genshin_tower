@@ -1,4 +1,4 @@
-[gd_scene load_steps=34 format=3 uid="uid://bdn0hxld4oo0n"]
+[gd_scene load_steps=34 format=3 uid="uid://bb2kswvspaq4f"]
 
 [ext_resource type="Script" uid="uid://d11ele5x3lbm1" path="res://scripts/characters/kamisato_ayaka_character.gd" id="1_sword_char"]
 [ext_resource type="Texture2D" uid="uid://p5yv5ngfrcoo" path="res://textures/characters/神里idel.png" id="2_sd6lh"]
@@ -189,7 +189,7 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_charged"]
 radius = 145.0138
 
-[node name="player" type="CharacterBody2D" node_paths=PackedStringArray("sword_tip", "sword_area", "charged_effect", "charged_area", "skill_area", "skill_effect", "animator")]
+[node name="kamisato_ayaka" type="CharacterBody2D" node_paths=PackedStringArray("sword_tip", "sword_area", "charged_effect", "charged_area", "skill_area", "skill_effect", "animator")]
 script = ExtResource("1_sword_char")
 sword_tip = NodePath("SwordArea/SwordTip")
 phase1_trail_width = 4.0

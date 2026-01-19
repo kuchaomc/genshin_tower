@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://bwlkkwfk4bcuy" path="res://scripts/battle/battle_manager.gd" id="1_battle"]
 [ext_resource type="Texture2D" uid="uid://bnoahwud6qeff" path="res://textures/effects/战斗场景.png" id="2_3ma01"]
 [ext_resource type="Script" uid="uid://tuf8sc1sf5gd" path="res://scripts/camera/camera_follower.gd" id="3_0d42y"]
-[ext_resource type="PackedScene" uid="uid://bb2kswvspaq4f" path="res://scenes/characters/player.tscn" id="3_3epie"]
 [ext_resource type="PackedScene" path="res://scenes/ui/skill_ui.tscn" id="4_skill_ui"]
 [ext_resource type="PackedScene" path="res://scenes/boundaries/ellipse_boundary.tscn" id="5_boundary"]
 [ext_resource type="Script" uid="uid://cf2cxfxf21emy" path="res://scripts/ui/enemy_indicator_manager.gd" id="6_indicator_manager"]
@@ -21,9 +20,7 @@ texture = ExtResource("2_3ma01")
 scale = Vector2(1e-05, 1e-05)
 zoom = Vector2(2, 2)
 script = ExtResource("3_0d42y")
-
-[node name="player" parent="." instance=ExtResource("3_3epie")]
-position = Vector2(-653, -22)
+target_path = NodePath("../player")
 
 [node name="EllipseBoundary" parent="." instance=ExtResource("5_boundary")]
 ellipse_center = Vector2(0, 0)

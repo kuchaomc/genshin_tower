@@ -4,9 +4,13 @@ class_name CharacterData
 ## 角色数据Resource类
 ## 用于存储角色的基础属性和配置信息
 
+## 角色唯一标识符
 @export var id: String = ""
+## 角色显示名称
 @export var display_name: String = ""
+## 角色描述文本
 @export var description: String = ""
+## 角色图标
 @export var icon: Texture2D
 
 # ========== 统一属性系统 ==========
@@ -14,17 +18,22 @@ class_name CharacterData
 @export var stats: CharacterStats = null
 
 # ========== 兼容旧版属性（将被废弃） ==========
-@export_group("Legacy Attributes (Deprecated)")
+@export_group("旧版属性（将被废弃）")
+## 最大生命值
 @export var max_health: float = 100.0
+## 移动速度
 @export var move_speed: float = 100.0
+## 基础伤害
 @export var base_damage: float = 25.0
-@export var attack_speed: float = 1.0  # 攻击速度倍率
-@export var knockback_force: float = 150.0  # 击退力度
+## 攻击速度倍率
+@export var attack_speed: float = 1.0
+## 击退力度
+@export var knockback_force: float = 150.0
 
-# 角色场景路径
-@export var scene_path: String = "res://scenes/characters/player.tscn"
+## 角色场景路径（必须为每个角色显式设置）
+@export var scene_path: String = ""
 
-# 角色技能（未来扩展）
+## 角色技能列表（未来扩展）
 @export var abilities: Array[String] = []
 
 ## 获取有效的属性对象

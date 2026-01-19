@@ -13,14 +13,34 @@ var target: Node2D = null
 func _ready() -> void:
 	# 获取目标节点
 	if target_path:
-		target = get_node(target_path)
+		target = get_node_or_null(target_path)
 	
-	# 如果未设置目标路径，尝试自动查找名为"player"的节点
+	# 如果未设置目标路径或路径无效，尝试自动查找名为"player"的节点
 	if not target:
 		target = get_node_or_null("../player") as Node2D
 	
+	# 如果还没找到，等待一帧后重试（因为玩家可能是动态创建的）
+	if not target:
+		await get_tree().process_frame
+		_update_target()
+	
 	if not target:
 		print("警告：相机跟随脚本未找到目标节点")
+
+## 更新目标节点（供外部调用，例如玩家创建后）
+func _update_target() -> void:
+	if target and is_instance_valid(target):
+		return
+	
+	# 重新尝试获取目标节点
+	if target_path:
+		target = get_node_or_null(target_path)
+	
+	if not target:
+		target = get_node_or_null("../player") as Node2D
+	
+	if target:
+		print("相机已找到目标节点：", target.name)
 
 func _physics_process(delta: float) -> void:
 	# 如果没有目标节点，则不更新

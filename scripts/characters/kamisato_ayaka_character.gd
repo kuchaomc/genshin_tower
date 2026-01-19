@@ -5,26 +5,40 @@ class_name KamisatoAyakaCharacter
 ## 实现两段攻击：第一段位移挥剑，第二段原地剑花
 
 # ========== 普攻特效（第一段刀光） ==========
+## 剑尖节点（用于刀光轨迹采样）
 @export var sword_tip: Node2D
+## 启用第一段刀光特效
 @export var phase1_trail_enabled: bool = true
+## 刀光轨迹宽度
 @export var phase1_trail_width: float = 16.0
+## 刀光轨迹最大点数
 @export var phase1_trail_max_points: int = 12
+## 刀光采样最小距离
 @export var phase1_trail_min_distance: float = 6.0
+## 刀光淡出时间（秒）
 @export var phase1_trail_fade_time: float = 0.12
+## 刀光起始颜色
 @export var phase1_trail_start_color: Color = Color(0.75, 0.92, 1.0, 0.9)
+## 刀光结束颜色
 @export var phase1_trail_end_color: Color = Color(0.75, 0.92, 1.0, 0.0)
 var _phase1_trail: SwordTrail
 
 # ========== 攻击属性 ==========
+## 剑的碰撞检测区域
 @export var sword_area: Area2D
 ## 普攻伤害倍率（基于攻击力计算）
 @export var normal_attack_multiplier: float = 1.0
 ## 第二段攻击伤害倍率
 @export var phase2_attack_multiplier: float = 0.8
+## 挥剑动画持续时间（秒）
 @export var swing_duration: float = 0.3
+## 剑花攻击持续时间（秒）
 @export var flower_attack_duration: float = 0.4
+## 第一段冲刺距离
 @export var dash_distance: float = 40.0
+## 挥剑角度范围（弧度，约216度）
 @export var swing_angle: float = PI * 1.2  # 约216度
+## 第二段攻击伤害次数
 @export var phase2_hit_count: int = 3
 ## 兼容旧版：固定伤害值（当属性系统不可用时使用）
 @export var sword_damage: float = 25.0
@@ -43,19 +57,28 @@ var _charged_effect_should_visible: bool = false  # 重击动画是否应该显�
 var _charged_effect_hide_timer: float = -1.0  # 隐藏动画的倒计时（秒），-1表示不隐藏
 
 # ========== 重击属性 ==========
-@export var charged_effect: AnimatedSprite2D  # 重击特效动画
-@export var charged_area: Area2D  # 重击范围伤害区域
-@export var charged_radius: float = 100.0  # 重击范围半径
-@export var charged_hit_count: int = 3  # 重击伤害次数
-@export var charged_hit_interval: float = 0.15  # 每次伤害的间隔（秒）
+## 重击特效动画节点
+@export var charged_effect: AnimatedSprite2D
+## 重击范围伤害检测区域
+@export var charged_area: Area2D
+## 重击范围半径
+@export var charged_radius: float = 100.0
+## 重击伤害触发次数
+@export var charged_hit_count: int = 3
+## 每次伤害间隔时间（秒）
+@export var charged_hit_interval: float = 0.15
 
 # ========== E技能属性 ==========
-@export var skill_area: Area2D  # 技能范围伤害区域
-@export var skill_effect: AnimatedSprite2D  # 技能特效动画
+## E技能范围伤害检测区域
+@export var skill_area: Area2D
+## E技能特效动画节点
+@export var skill_effect: AnimatedSprite2D
 ## E技能伤害倍率（基于攻击力计算）
 @export var skill_damage_multiplier: float = 2.0
-@export var skill_radius: float = 150.0  # 技能范围半径
-@export var skill_cooldown: float = 10.0  # 技能冷却时间（秒）
+## E技能范围半径
+@export var skill_radius: float = 150.0
+## E技能冷却时间（秒）
+@export var skill_cooldown: float = 10.0
 var skill_next_ready_ms: int = 0  # 技能下次可用时间（毫秒）
 var skill_hit_enemies: Array[Node2D] = []  # 本次技能已命中的敌人
 ## 兼容旧版：固定伤害值
@@ -65,13 +88,17 @@ var skill_hit_enemies: Array[Node2D] = []  # 本次技能已命中的敌人
 signal skill_cooldown_changed(remaining_time: float, cooldown_time: float)
 
 # ========== 大招（Q技能）属性 ==========
-@export var burst_scene: PackedScene  # 大招特效投射物场景
+## 大招特效投射物场景（PackedScene）
+@export var burst_scene: PackedScene
 ## 大招伤害倍率（基于攻击力计算）
 @export var burst_damage_multiplier: float = 4.0
-@export var burst_speed: float = 300.0  # 大招投射物速度
-@export var burst_max_energy: float = 100.0  # 大招最大充能值
+## 大招投射物飞行速度
+@export var burst_speed: float = 300.0
+## 大招最大充能值
+@export var burst_max_energy: float = 100.0
 var burst_current_energy: float = 0.0  # 当前充能值
-@export var energy_per_hit: float = 10.0  # 每次命中敌人获得的充能值
+## 每次命中敌人获得的充能值
+@export var energy_per_hit: float = 10.0
 ## 兼容旧版：固定伤害值
 @export var burst_damage: float = 100.0
 
@@ -268,7 +295,7 @@ func finish_attack() -> void:
 	hit_enemies_phase1.clear()
 	hit_enemies_phase2.clear()
 
-## 第二段攻击：向准星位置生成剑花
+## 第二段攻击：剑收刀，同时在准星位置生成剑花
 func start_phase2_attack() -> void:
 	if attack_state != 2:
 		return
@@ -277,6 +304,23 @@ func start_phase2_attack() -> void:
 	
 	# 获取准星位置（鼠标位置）
 	var mouse_position = get_global_mouse_position()
+	
+	# 剑执行收刀动作（回到初始朝向）
+	if sword_area:
+		# 停止之前的 Tween
+		if swing_tween:
+			swing_tween.kill()
+		
+		# 计算收刀的目标角度（朝向鼠标的方向）
+		var sheath_direction = (mouse_position - global_position).normalized()
+		var sheath_angle = sheath_direction.angle() + PI / 2
+		
+		# 创建收刀动画
+		swing_tween = create_tween()
+		swing_tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+		swing_tween.set_ease(Tween.EASE_IN_OUT)
+		swing_tween.set_trans(Tween.TRANS_QUAD)
+		swing_tween.tween_property(sword_area, "rotation", sheath_angle, 0.2)
 	
 	# 在准星位置生成重击特效
 	if charged_effect:

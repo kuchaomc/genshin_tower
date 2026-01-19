@@ -191,9 +191,15 @@ func chase_player(delta: float) -> void:
 		velocity = Vector2.ZERO
 		return
 	
-	var player = get_tree().current_scene.get_node_or_null("player") as CharacterBody2D
+	# 尝试多种方式查找玩家节点
+	var player = get_node_or_null("../player") as CharacterBody2D
 	if not player:
-		player = get_node_or_null("../player") as CharacterBody2D
+		player = get_tree().current_scene.get_node_or_null("player") as CharacterBody2D
+	if not player:
+		# 尝试通过BattleManager获取
+		var battle_manager = get_tree().get_first_node_in_group("battle_manager")
+		if battle_manager and battle_manager.has_method("get_player"):
+			player = battle_manager.get_player() as CharacterBody2D
 	
 	if player:
 		var direction = (player.global_position - global_position).normalized()

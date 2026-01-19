@@ -148,37 +148,49 @@ func get_player() -> BaseCharacter:
 ## 初始化玩家
 func initialize_player() -> void:
 	if not RunManager or not RunManager.current_character:
-		print("警告：没有选择角色，使用默认玩家")
-		player = get_node_or_null("player") as BaseCharacter
-		if player:
-			connect_player_signals()
+		print("错误：没有选择角色，无法初始化玩家")
 		return
 	
 	var character_data = RunManager.current_character
 	
-	# 获取现有玩家节点或创建新节点
-	player = get_node_or_null("player") as BaseCharacter
+	# 如果场景中已有玩家节点，先移除它
+	var existing_player = get_node_or_null("player")
+	if existing_player:
+		existing_player.queue_free()
+		# 等待一帧确保节点被移除
+		await get_tree().process_frame
+	
+	# 加载角色场景
+	var character_scene = load(character_data.scene_path) as PackedScene
+	if not character_scene:
+		print("错误：无法加载角色场景 ", character_data.scene_path)
+		return
+	
+	# 实例化角色场景
+	var player_instance = character_scene.instantiate()
+	if not player_instance:
+		print("错误：无法实例化角色场景")
+		return
+	
+	player_instance.name = "player"
+	player_instance.position = Vector2(-653, -22)  # 默认位置
+	add_child(player_instance)
+	player = player_instance as BaseCharacter
 	
 	if not player:
-		# 加载角色场景
-		var character_scene = load(character_data.scene_path) as PackedScene
-		if character_scene:
-			var player_instance = character_scene.instantiate()
-			player_instance.name = "player"
-			add_child(player_instance)
-			player = player_instance as BaseCharacter
-		else:
-			print("错误：无法加载角色场景 ", character_data.scene_path)
-			return
+		print("错误：角色场景根节点不是 BaseCharacter 类型")
+		return
 	
 	# 初始化角色
-	if player:
-		player.initialize(character_data)
-		connect_player_signals()
-		
-		# 同步血量到RunManager
-		if RunManager:
-			RunManager.set_health(player.current_health, player.max_health)
+	player.initialize(character_data)
+	connect_player_signals()
+	
+	# 同步血量到RunManager
+	if RunManager:
+		RunManager.set_health(player.current_health, player.max_health)
+	
+	# 通知相机更新目标（如果相机存在）
+	_update_camera_target()
 
 ## 连接玩家信号
 func connect_player_signals() -> void:
@@ -200,17 +212,21 @@ func connect_player_signals() -> void:
 		if player.has_method("get_current_health") and player.has_method("get_max_health"):
 			_on_player_health_changed(player.get_current_health(), player.get_max_health())
 		
-		# 初始化技能UI
-		if skill_ui and player is KamisatoAyakaCharacter:
-			var skill_icon = load("res://textures/icons/神里技能图标.png")
-			if skill_icon:
-				skill_ui.set_skill_icon(skill_icon)
+		# 初始化技能UI（根据角色ID动态加载图标）
+		if skill_ui and RunManager and RunManager.current_character:
+			var skill_icon_path = _get_skill_icon_path(RunManager.current_character.id)
+			if skill_icon_path:
+				var skill_icon = load(skill_icon_path)
+				if skill_icon:
+					skill_ui.set_skill_icon(skill_icon)
 		
-		# 初始化大招UI
-		if burst_ui and player is KamisatoAyakaCharacter:
-			var burst_icon = load("res://textures/icons/ayaka大招图标.png")
-			if burst_icon:
-				burst_ui.set_skill_icon(burst_icon)
+		# 初始化大招UI（根据角色ID动态加载图标）
+		if burst_ui and RunManager and RunManager.current_character:
+			var burst_icon_path = _get_burst_icon_path(RunManager.current_character.id)
+			if burst_icon_path:
+				var burst_icon = load(burst_icon_path)
+				if burst_icon:
+					burst_ui.set_skill_icon(burst_icon)
 
 ## 敌人生成计时器回调
 func _on_enemy_spawn_timer_timeout() -> void:
@@ -469,6 +485,35 @@ func _create_shape_overlay(shape: CollisionShape2D, color: Color) -> Node2D:
 		return null
 	
 	return poly
+
+## 根据角色ID获取技能图标路径
+func _get_skill_icon_path(character_id: String) -> String:
+	match character_id:
+		"kamisato_ayaka":
+			return "res://textures/icons/神里技能图标.png"
+		_:
+			# 默认尝试根据角色ID构建路径
+			return "res://textures/icons/%s技能图标.png" % character_id
+
+## 根据角色ID获取大招图标路径
+func _get_burst_icon_path(character_id: String) -> String:
+	match character_id:
+		"kamisato_ayaka":
+			return "res://textures/icons/ayaka大招图标.png"
+		_:
+			# 默认尝试根据角色ID构建路径
+			return "res://textures/icons/%s大招图标.png" % character_id
+
+## 更新相机目标（玩家创建后调用）
+func _update_camera_target() -> void:
+	if not player:
+		return
+	
+	# 查找场景中的相机
+	var camera = get_node_or_null("Camera2D") as Camera2D
+	if camera and camera.has_method("_update_target"):
+		camera._update_target()
+		print("已通知相机更新目标")
 
 ## 设置自定义鼠标准星
 func _apply_crosshair_cursor() -> void:

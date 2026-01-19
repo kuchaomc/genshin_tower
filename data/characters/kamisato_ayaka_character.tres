@@ -7,3 +7,4 @@ script = ExtResource("1_char_data")
 id = "kamisato_ayaka"
 display_name = "神里绫华"
 description = "使用剑进行近战攻击的角色（Kamisato Ayaka），拥有两段攻击：位移挥剑和原地剑花"
+scene_path = "res://scenes/characters/kamisato_ayaka.tscn"
