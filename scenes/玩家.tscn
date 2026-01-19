@@ -51,10 +51,7 @@ animations = [{
 radius = 2.9027624
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_sword"]
-size = Vector2(22, 96)
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_skill"]
-radius = 150.0
+size = Vector2(36, 98)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_4yhug"]
 atlas = ExtResource("5_skill")
@@ -113,9 +110,14 @@ animations = [{
 "speed": 8.0
 }]
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_skill"]
+radius = 150.0
+
 [node name="player" type="CharacterBody2D" node_paths=PackedStringArray("sword_tip", "sword_area", "skill_area", "skill_effect", "animator")]
 script = ExtResource("1_sword_char")
 sword_tip = NodePath("SwordArea/SwordTip")
+phase1_trail_width = 4.0
+phase1_trail_start_color = Color(1, 0.87200505, 0.6465043, 0.9019608)
 sword_area = NodePath("SwordArea")
 skill_area = NodePath("SkillArea")
 skill_effect = NodePath("SkillEffect")
@@ -135,21 +137,28 @@ scale = Vector2(8.640002, 8.640002)
 shape = SubResource("CircleShape2D_g2els")
 
 [node name="SwordArea" type="Area2D" parent="."]
-position = Vector2(9, 6)
+position = Vector2(7, 12)
 monitoring = false
 monitorable = false
 
 [node name="Sprite2D" type="Sprite2D" parent="SwordArea"]
-position = Vector2(-19, -27)
+position = Vector2(-19, -35)
 texture = ExtResource("4_sword")
 offset = Vector2(20, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SwordArea"]
-position = Vector2(1, -38)
+position = Vector2(1, -47)
 shape = SubResource("RectangleShape2D_sword")
 
 [node name="SwordTip" type="Marker2D" parent="SwordArea"]
 position = Vector2(1, -86)
+
+[node name="SkillEffect" type="AnimatedSprite2D" parent="."]
+visible = false
+scale = Vector2(4.735, 4.735)
+sprite_frames = SubResource("SpriteFrames_skill")
+frame = 2
+frame_progress = 0.29577997
 
 [node name="SkillArea" type="Area2D" parent="."]
 visible = false
@@ -158,10 +167,3 @@ monitorable = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SkillArea"]
 shape = SubResource("CircleShape2D_skill")
-
-[node name="SkillEffect" type="AnimatedSprite2D" parent="."]
-visible = false
-scale = Vector2(4.735, 4.735)
-sprite_frames = SubResource("SpriteFrames_skill")
-frame = 2
-frame_progress = 0.29577997

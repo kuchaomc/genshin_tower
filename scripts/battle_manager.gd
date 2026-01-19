@@ -173,13 +173,28 @@ func spawn_enemy() -> void:
 			var enemy_data = enemy_types[randi() % enemy_types.size()]
 			enemy_instance.initialize(enemy_data)
 	
-	# 随机生成位置（屏幕范围内的随机位置）
-	var screen_size = get_viewport().get_visible_rect().size
-	var spawn_x = randf_range(100, screen_size.x - 100)
-	var spawn_y = randf_range(100, screen_size.y - 100)
+	# 在椭圆空气墙内部随机生成位置
+	var spawn_pos: Vector2
+	var boundary := get_node_or_null("EllipseBoundary") as EllipseBoundary
+	if boundary:
+		var center: Vector2 = boundary.global_position
+		var a: float = boundary.ellipse_radius_x
+		var b: float = boundary.ellipse_radius_y
+		
+		# 采样均匀分布在椭圆内部的随机点
+		var angle: float = randf() * TAU
+		var r: float = sqrt(randf())  # 保证在圆内均匀分布
+		var local: Vector2 = Vector2(cos(angle) * a * r, sin(angle) * b * r)
+		spawn_pos = center + local
+	else:
+		# 兜底：如果没有找到空气墙，就按屏幕范围随机生成
+		var screen_size = get_viewport().get_visible_rect().size
+		var spawn_x = randf_range(100, screen_size.x - 100)
+		var spawn_y = randf_range(100, screen_size.y - 100)
+		spawn_pos = Vector2(spawn_x, spawn_y)
 	
-	# 设置敌人位置
-	enemy_instance.position = Vector2(spawn_x, spawn_y)
+	# 设置敌人位置（使用全局坐标，保证与空气墙一致）
+	enemy_instance.global_position = spawn_pos
 	
 	# 添加到场景树中
 	add_child(enemy_instance)
