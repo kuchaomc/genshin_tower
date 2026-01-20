@@ -320,9 +320,11 @@ func get_all_artifacts() -> Dictionary:
 	return artifact_inventory.duplicate()
 
 ## 装备圣遗物到角色
+## 如果角色节点不存在，返回false但不报错（圣遗物已添加到库存，会在角色创建后自动装备）
 func equip_artifact_to_character(artifact: ArtifactData, slot: ArtifactSlot.SlotType) -> bool:
 	if not current_character_node:
-		push_error("RunManager: 当前没有角色节点，无法装备圣遗物")
+		# 角色节点不存在时，不报错，只返回false
+		# 圣遗物已添加到库存，会在角色节点创建后自动装备
 		return false
 	
 	if not current_character_node.has_method("equip_artifact"):
@@ -333,6 +335,29 @@ func equip_artifact_to_character(artifact: ArtifactData, slot: ArtifactSlot.Slot
 	if success:
 		print("装备圣遗物：%s 到 %s" % [artifact.name, ArtifactSlot.get_slot_name(slot)])
 	return success
+
+## 装备库存中的所有圣遗物到角色
+## 在角色节点创建后调用，自动装备库存中的圣遗物
+func equip_all_inventory_artifacts() -> void:
+	if not current_character_node:
+		return
+	
+	if not current_character_node.has_method("equip_artifact"):
+		return
+	
+	var artifact_manager = current_character_node.get_artifact_manager()
+	if not artifact_manager:
+		return
+	
+	# 遍历库存中的所有圣遗物
+	for slot in artifact_inventory:
+		var artifacts = artifact_inventory[slot]
+		if artifacts.size() > 0:
+			# 遍历该槽位的所有圣遗物，依次装备（这样可以触发升级）
+			for artifact in artifacts:
+				var success = current_character_node.equip_artifact(slot, artifact)
+				if success:
+					print("自动装备库存圣遗物：%s 到 %s" % [artifact.name, ArtifactSlot.get_slot_name(slot)])
 
 ## 从角色专属圣遗物套装中随机获取一个圣遗物
 ## 返回: ArtifactData 或 null

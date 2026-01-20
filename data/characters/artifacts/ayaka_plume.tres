@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_artifact")
-name = "霜华之羽"
-description = "神里绫华专属圣遗物·死之羽。如冰晶般剔透的羽毛，轻盈而坚韧。"
+name = "摧冰而行的执望"
+description = "神里绫华专属圣遗物·死之羽。摧冰而行的执望，如冰晶般剔透的羽毛。"
 stat_bonuses = {
-"attack": 30.0
+"attack": 100.0
 }

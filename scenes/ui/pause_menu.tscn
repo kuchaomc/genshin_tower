@@ -162,6 +162,25 @@ text = "攻击速度: 1.0x"
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 
+[node name="ArtifactsTitle" type="Label" parent="MainContainer/RightPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "圣遗物"
+horizontal_alignment = 1
+
+[node name="SpacerArtifacts" type="Control" parent="MainContainer/RightPanel"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="ArtifactsContainer" type="HBoxContainer" parent="MainContainer/RightPanel"]
+layout_mode = 2
+size_flags_horizontal = 4
+alignment = 1
+
+[node name="SpacerArtifacts2" type="Control" parent="MainContainer/RightPanel"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
 [node name="UpgradesTitle" type="Label" parent="MainContainer/RightPanel"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28

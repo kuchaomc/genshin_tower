@@ -66,6 +66,8 @@ func get_all_artifacts() -> Dictionary:
 	return result
 
 ## 获取所有属性加成的总和
+## 注意：此方法已被ArtifactManager.apply_stat_bonuses()替代
+## 保留此方法以保持兼容性，但不考虑等级加成
 func get_total_stat_bonuses() -> Dictionary:
 	var total_bonuses: Dictionary = {}
 	

@@ -757,33 +757,21 @@ func _apply_artifact_bonuses() -> void:
 	if not artifact_manager or not current_stats:
 		return
 	
-	var bonuses = artifact_manager.apply_stat_bonuses()
+	var bonuses: Dictionary = artifact_manager.apply_stat_bonuses()
 	if bonuses.is_empty():
 		return
 	
-	# 应用每个属性的加成
-	for stat_name in bonuses:
-		var bonus_value = bonuses[stat_name]
-		
-		# 检查属性是否存在
-		if not stat_name in current_stats:
-			push_warning("BaseCharacter: 圣遗物属性 '%s' 不存在于 CharacterStats 中" % stat_name)
-			continue
-		
-		var current_value = current_stats.get(stat_name)
-		var new_value = current_value + bonus_value
-		
-		# 特殊处理：防御和暴击率需要限制范围
-		if stat_name == "defense_percent" or stat_name == "crit_rate":
-			new_value = clamp(new_value, 0.0, 1.0)
-		
-		current_stats.set(stat_name, new_value)
+	# 统一交给 CharacterStats 处理，避免在角色脚本里维护“加成规则”
+	current_stats.apply_bonuses(bonuses)
 	
 	# 打印圣遗物加成信息（调试用）
 	if not bonuses.is_empty():
 		var bonus_summary = []
 		for stat_name in bonuses:
-			bonus_summary.append("%s: %+.1f" % [stat_name, bonuses[stat_name]])
+			if stat_name == "attack_percent":
+				bonus_summary.append("攻击力百分比: +%.1f%%" % (bonuses[stat_name] * 100.0))
+			else:
+				bonus_summary.append("%s: %+.1f" % [stat_name, bonuses[stat_name]])
 		print("圣遗物加成已应用：", ", ".join(bonus_summary))
 
 ## 获取圣遗物管理器

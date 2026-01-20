@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_artifact")
-name = "空之冰盏"
-description = "神里绫华专属圣遗物·空之杯。盛满纯净冰晶的容器，散发着凛冽的寒气。"
+name = "遍结寒霜的傲骨"
+description = "神里绫华专属圣遗物·空之杯。遍结寒霜的傲骨，盛满纯净冰晶的容器。"
 stat_bonuses = {
-"crit_rate": 0.08
+"attack_percent": 0.5
 }

@@ -10,8 +10,8 @@
 [resource]
 script = ExtResource("1_set")
 character_id = "kamisato_ayaka"
-set_name = "冰华套装"
-set_description = "神里绫华专属圣遗物套装，蕴含着强大的冰之力量。"
+set_name = "冰风迷途的勇士"
+set_description = "神里绫华专属圣遗物套装，历经风雪，破冰踏雪而行。"
 flower = ExtResource("2_flower")
 plume = ExtResource("3_plume")
 sands = ExtResource("4_sands")

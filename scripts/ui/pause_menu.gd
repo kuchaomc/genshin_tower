@@ -11,6 +11,7 @@ extends Control
 @onready var character_name_label: Label = $MainContainer/RightPanel/CharacterName
 @onready var stats_container: VBoxContainer = $MainContainer/RightPanel/StatsContainer
 @onready var upgrades_container: VBoxContainer = $MainContainer/RightPanel/UpgradesScrollContainer/UpgradesContainer
+@onready var artifacts_container: HBoxContainer = $MainContainer/RightPanel/ArtifactsContainer
 
 # 信号
 signal resume_game
@@ -118,6 +119,9 @@ func update_character_info() -> void:
 	
 	# 更新已选择升级
 	_update_upgrades_display()
+	
+	# 更新圣遗物显示
+	_update_artifacts_display()
 
 ## 获取角色立绘路径
 func _get_character_portrait_path(character_id: String) -> String:
@@ -277,6 +281,179 @@ func _update_upgrades_display() -> void:
 		spacer.custom_minimum_size = Vector2(0, 4)
 		upgrades_container.add_child(upgrade_item)
 		upgrades_container.add_child(spacer)
+
+## 更新圣遗物显示
+func _update_artifacts_display() -> void:
+	if not artifacts_container:
+		return
+	
+	# 清空现有显示
+	for child in artifacts_container.get_children():
+		child.queue_free()
+	
+	# 如果没有角色节点，显示空槽位
+	if not RunManager or not RunManager.current_character_node:
+		_create_empty_artifact_slots()
+		return
+	
+	var artifact_manager = RunManager.current_character_node.get_artifact_manager()
+	if not artifact_manager:
+		_create_empty_artifact_slots()
+		return
+	
+	# 为每个槽位创建显示
+	for slot in ArtifactSlot.get_all_slots():
+		var artifact = artifact_manager.get_artifact(slot)
+		var level = artifact_manager.get_artifact_level(slot) if artifact else -1
+		_create_artifact_slot_display(slot, artifact, level)
+
+## 创建空槽位显示
+func _create_empty_artifact_slots() -> void:
+	for slot in ArtifactSlot.get_all_slots():
+		_create_artifact_slot_display(slot, null, -1)
+
+## 创建圣遗物槽位显示
+func _create_artifact_slot_display(slot: ArtifactSlot.SlotType, artifact: ArtifactData, level: int) -> void:
+	# 创建槽位容器
+	var slot_container = VBoxContainer.new()
+	slot_container.custom_minimum_size = Vector2(80, 100)
+	slot_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	
+	# 创建图标按钮（用于显示和工具提示）
+	var icon_button = TextureButton.new()
+	icon_button.custom_minimum_size = Vector2(64, 64)
+	icon_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	
+	# 设置图标
+	var icon_path = ""
+	if artifact:
+		# 已装备：显示圣遗物图标
+		icon_path = _get_artifact_icon_path(artifact.name)
+	else:
+		# 未装备：显示槽位图标
+		icon_path = _get_slot_icon_path(slot)
+	
+	if icon_path:
+		var icon = load(icon_path)
+		if icon:
+			icon_button.texture_normal = icon
+	
+	# 设置工具提示
+	var tooltip_text = _create_artifact_tooltip(slot, artifact, level)
+	icon_button.tooltip_text = tooltip_text
+	
+	# 鼠标悬停时改变光标
+	icon_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	
+	slot_container.add_child(icon_button)
+	
+	# 添加等级指示（如果已装备）
+	if artifact and level >= 0:
+		var level_label = Label.new()
+		var effect_percent = 50 if level == 0 else 100
+		level_label.text = "Lv.%d (%d%%)" % [level, effect_percent]
+		level_label.add_theme_font_size_override("font_size", 12)
+		level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if level == 0:
+			level_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.5))
+		else:
+			level_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
+		slot_container.add_child(level_label)
+	
+	artifacts_container.add_child(slot_container)
+
+## 创建圣遗物工具提示文本
+func _create_artifact_tooltip(slot: ArtifactSlot.SlotType, artifact: ArtifactData, level: int) -> String:
+	var tooltip_lines: Array[String] = []
+	
+	if artifact:
+		# 已装备的圣遗物
+		tooltip_lines.append(artifact.name)
+		tooltip_lines.append("槽位: %s" % ArtifactSlot.get_slot_name(slot))
+		
+		var effect_multiplier = 0.5 if level == 0 else 1.0
+		var effect_percent = 50 if level == 0 else 100
+		tooltip_lines.append("等级: %d (效果: %d%%)" % [level, effect_percent])
+		tooltip_lines.append("")
+		tooltip_lines.append("属性加成:")
+		
+		var bonuses = artifact.get_all_stat_bonuses()
+		for stat_name in bonuses:
+			var base_value = bonuses[stat_name]
+			var actual_value = base_value * effect_multiplier
+			var stat_display_name = _get_stat_display_name(stat_name)
+			var formatted_value = _format_stat_value(stat_name, actual_value)
+			tooltip_lines.append("  %s: %s" % [stat_display_name, formatted_value])
+	else:
+		# 未装备的槽位
+		tooltip_lines.append(ArtifactSlot.get_slot_name(slot))
+		tooltip_lines.append("未装备")
+	
+	return "\n".join(tooltip_lines)
+
+## 获取圣遗物图标路径
+func _get_artifact_icon_path(artifact_name: String) -> String:
+	match artifact_name:
+		"历经风雪的思念":
+			return "res://textures/ui/历经风雪的思念.png"
+		"摧冰而行的执望":
+			return "res://textures/ui/摧冰而行的执望.png"
+		"冰雪故园的终期":
+			return "res://textures/ui/冰雪故园的终期.png"
+		"遍结寒霜的傲骨":
+			return "res://textures/ui/遍结寒霜的傲骨.png"
+		"破冰踏雪的回音":
+			return "res://textures/ui/破冰踏雪的回音.png"
+		_:
+			return ""
+
+## 获取槽位图标路径
+func _get_slot_icon_path(slot: ArtifactSlot.SlotType) -> String:
+	match slot:
+		ArtifactSlot.SlotType.FLOWER:
+			return "res://textures/ui/生之花.png"
+		ArtifactSlot.SlotType.PLUME:
+			return "res://textures/ui/死之羽.png"
+		ArtifactSlot.SlotType.SANDS:
+			return "res://textures/ui/时之沙.png"
+		ArtifactSlot.SlotType.GOBLET:
+			return "res://textures/ui/空之杯.png"
+		ArtifactSlot.SlotType.CIRCLET:
+			return "res://textures/ui/理之冠.png"
+		_:
+			return ""
+
+## 获取属性显示名称
+func _get_stat_display_name(stat_name: String) -> String:
+	match stat_name:
+		"max_health":
+			return "生命值"
+		"defense_percent":
+			return "减伤"
+		"attack":
+			return "攻击力"
+		"attack_percent":
+			return "攻击力百分比"
+		"attack_speed":
+			return "攻击速度"
+		"knockback_force":
+			return "击退"
+		"crit_rate":
+			return "暴击率"
+		"crit_damage":
+			return "暴击伤害"
+		"move_speed":
+			return "移动速度"
+		_:
+			return stat_name
+
+## 格式化属性值显示
+func _format_stat_value(stat_name: String, value: float) -> String:
+	# 百分比属性显示为百分比
+	if stat_name == "defense_percent" or stat_name == "crit_rate" or stat_name == "attack_percent":
+		return "%.1f%%" % (value * 100.0)
+	# 其他属性显示为数值
+	return "%.1f" % value
 
 ## 继续游戏按钮
 func _on_continue_pressed() -> void:

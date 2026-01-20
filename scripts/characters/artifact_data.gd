@@ -26,15 +26,18 @@ func get_all_stat_bonuses() -> Dictionary:
 	return stat_bonuses.duplicate()
 
 ## 获取属性加成摘要（用于显示）
-func get_bonus_summary() -> String:
+## level: 圣遗物等级（0=50%效果，1=100%效果）
+func get_bonus_summary(level: int = 1) -> String:
 	if stat_bonuses.is_empty():
 		return "无属性加成"
 	
+	var effect_multiplier = 0.5 if level == 0 else 1.0
 	var summary_parts: Array[String] = []
 	for stat_name in stat_bonuses:
-		var value = stat_bonuses[stat_name]
+		var base_value = stat_bonuses[stat_name]
+		var actual_value = base_value * effect_multiplier
 		var stat_display_name = _get_stat_display_name(stat_name)
-		summary_parts.append("%s: %s" % [stat_display_name, _format_stat_value(stat_name, value)])
+		summary_parts.append("%s: %s" % [stat_display_name, _format_stat_value(stat_name, actual_value)])
 	
 	return ", ".join(summary_parts)
 
@@ -47,6 +50,8 @@ func _get_stat_display_name(stat_name: String) -> String:
 			return "减伤"
 		"attack":
 			return "攻击力"
+		"attack_percent":
+			return "攻击力百分比"
 		"attack_speed":
 			return "攻击速度"
 		"knockback_force":
@@ -63,7 +68,7 @@ func _get_stat_display_name(stat_name: String) -> String:
 ## 格式化属性值显示
 func _format_stat_value(stat_name: String, value: float) -> String:
 	# 百分比属性显示为百分比
-	if stat_name == "defense_percent" or stat_name == "crit_rate":
+	if stat_name == "defense_percent" or stat_name == "crit_rate" or stat_name == "attack_percent":
 		return "%.1f%%" % (value * 100.0)
 	# 其他属性显示为数值
 	return "%.1f" % value

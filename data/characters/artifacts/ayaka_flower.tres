@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_artifact")
-name = "冰华之蕊"
-description = "神里绫华专属圣遗物·生之花。蕴含着冰之力的花朵，永不凋零。"
+name = "历经风雪的思念"
+description = "神里绫华专属圣遗物·生之花。历经风雪的思念，永不凋零的花朵。"
 stat_bonuses = {
-"max_health": 500.0
+"max_health": 480.0
 }

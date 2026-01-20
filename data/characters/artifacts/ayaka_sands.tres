@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_artifact")
-name = "时之冰沙"
-description = "神里绫华专属圣遗物·时之沙。时间在冰晶中缓缓流淌，永不停歇。"
+name = "冰雪故园的终期"
+description = "神里绫华专属圣遗物·时之沙。冰雪故园的终期，时间在冰晶中缓缓流淌。"
 stat_bonuses = {
-"attack_speed": 0.15
+"attack_percent": 0.5
 }

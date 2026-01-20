@@ -213,6 +213,8 @@ func initialize_player() -> void:
 	if RunManager:
 		RunManager.set_health(player.current_health, player.max_health)
 		RunManager.set_character_node(player)
+		# 自动装备库存中的所有圣遗物
+		RunManager.equip_all_inventory_artifacts()
 	
 	# 通知相机更新目标（如果相机存在）
 	_update_camera_target()
