@@ -7,6 +7,19 @@ var log_directory: String = ""
 var use_exe_directory: bool = false
 var initialization_log: PackedStringArray = []
 
+# 运行时日志缓冲区
+var runtime_log_buffer: Array[Dictionary] = []
+const MAX_LOG_BUFFER_SIZE: int = 1000  # 最多保存最近 1000 条日志
+var log_enabled: bool = true  # 是否启用日志记录
+
+# 日志级别
+enum LogLevel {
+	DEBUG,
+	INFO,
+	WARNING,
+	ERROR
+}
+
 func _ready() -> void:
 	initialization_log.append("[调试日志] 开始初始化...")
 	
@@ -56,6 +69,65 @@ func _process(_delta: float) -> void:
 	# 监听 Y 键
 	if Input.is_action_just_pressed("y"):
 		save_debug_log()
+
+# ============================================================================
+# 运行时日志记录函数
+# ============================================================================
+
+func log_debug(message: String, context: String = "") -> void:
+	"""记录调试信息"""
+	_add_log_entry(LogLevel.DEBUG, message, context)
+	print("[DEBUG] " + (context + ": " if context else "") + message)
+
+func log_info(message: String, context: String = "") -> void:
+	"""记录一般信息"""
+	_add_log_entry(LogLevel.INFO, message, context)
+	print("[INFO] " + (context + ": " if context else "") + message)
+
+func log_warning(message: String, context: String = "") -> void:
+	"""记录警告信息"""
+	_add_log_entry(LogLevel.WARNING, message, context)
+	push_warning("[WARNING] " + (context + ": " if context else "") + message)
+
+func log_error(message: String, context: String = "") -> void:
+	"""记录错误信息"""
+	_add_log_entry(LogLevel.ERROR, message, context)
+	push_error("[ERROR] " + (context + ": " if context else "") + message)
+
+func _add_log_entry(level: LogLevel, message: String, context: String) -> void:
+	"""添加日志条目到缓冲区"""
+	if not log_enabled:
+		return
+	
+	var datetime = Time.get_datetime_dict_from_system()
+	var timestamp = "%02d:%02d:%02d" % [datetime.hour, datetime.minute, datetime.second]
+	
+	var log_entry = {
+		"timestamp": timestamp,
+		"level": LogLevel.keys()[level],
+		"context": context,
+		"message": message,
+		"frame": Engine.get_process_frames()
+	}
+	
+	runtime_log_buffer.append(log_entry)
+	
+	# 如果超过最大缓冲区大小，删除最旧的日志
+	if runtime_log_buffer.size() > MAX_LOG_BUFFER_SIZE:
+		runtime_log_buffer.pop_front()
+
+func clear_log_buffer() -> void:
+	"""清空日志缓冲区"""
+	runtime_log_buffer.clear()
+
+func get_log_buffer() -> Array[Dictionary]:
+	"""获取日志缓冲区（用于外部访问）"""
+	return runtime_log_buffer.duplicate()
+
+func set_log_enabled(enabled: bool) -> void:
+	"""启用或禁用日志记录"""
+	log_enabled = enabled
+	print("[调试日志] 日志记录已" + ("启用" if enabled else "禁用"))
 
 func _try_create_directory(dir_path: String) -> bool:
 	"""尝试创建目录并测试写入权限"""
@@ -293,10 +365,41 @@ func _collect_debug_info() -> String:
 			info.append("  %s: %s" % [action, "按下" if Input.is_action_pressed(action) else "未按下"])
 	info.append("")
 	
-	# 最近的错误/警告
+	# 运行时日志输出
 	info.append("-".repeat(80))
-	info.append("调试输出")
+	info.append("运行时日志输出")
 	info.append("-".repeat(80))
+	if runtime_log_buffer.is_empty():
+		info.append("(无运行时日志)")
+		info.append("")
+		info.append("提示: 在代码中使用 DebugLogger.log_info()、log_warning() 等函数")
+		info.append("      可以记录运行时日志，并在此处显示")
+	else:
+		info.append("共 %d 条日志记录 (最近 %d 条):" % [runtime_log_buffer.size(), MAX_LOG_BUFFER_SIZE])
+		info.append("")
+		
+		# 按时间顺序显示日志
+		for log_entry in runtime_log_buffer:
+			var level_prefix = ""
+			match log_entry.level:
+				"DEBUG":
+					level_prefix = "[DEBUG]  "
+				"INFO":
+					level_prefix = "[INFO]   "
+				"WARNING":
+					level_prefix = "[WARN]   "
+				"ERROR":
+					level_prefix = "[ERROR]  "
+			
+			var context_str = (" [" + log_entry.context + "]") if log_entry.context else ""
+			var frame_str = " (帧#%d)" % log_entry.frame
+			info.append("%s %s%s%s: %s" % [
+				log_entry.timestamp,
+				level_prefix,
+				context_str,
+				frame_str,
+				log_entry.message
+			])
 	info.append("")
 	
 	# 结束
