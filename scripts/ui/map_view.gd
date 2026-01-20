@@ -433,8 +433,7 @@ func _on_node_selected(node: MapNodeData) -> void:
 		MapNodeData.NodeType.SHOP:
 			enter_shop()
 		MapNodeData.NodeType.REST:
-			# enter_rest()  # 占位符：休息处场景，暂不跳转
-			pass
+			enter_rest()
 		MapNodeData.NodeType.EVENT:
 			enter_event()
 		MapNodeData.NodeType.BOSS:
