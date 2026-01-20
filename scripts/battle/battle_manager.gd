@@ -458,10 +458,14 @@ func spawn_enemy() -> void:
 	if enemy_instance.has_method("initialize"):
 		# 随机选择一个敌人类型
 		var enemy_types = DataManager.get_enemies_by_type("normal")
+		print("获取敌人类型列表，数量：", enemy_types.size())
 		
 		if not enemy_types.is_empty():
 			var enemy_data = enemy_types[randi() % enemy_types.size()]
+			print("初始化敌人，类型：", enemy_data.display_name, "，drop_gold：", enemy_data.drop_gold)
 			enemy_instance.initialize(enemy_data)
+		else:
+			print("警告：没有找到敌人类型数据，敌人可能无法正常掉落摩拉")
 	
 	# 应用楼层属性缩放
 	var current_floor = RunManager.current_floor if RunManager else 1
