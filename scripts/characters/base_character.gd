@@ -666,6 +666,13 @@ func take_damage(damage_amount: float, knockback_direction: Vector2 = Vector2.ZE
 	emit_signal("health_changed", current_health, max_health)
 	print("角色受到伤害: ", actual_damage, "点（原始: ", damage_amount, "），剩余血量: ", current_health, "/", max_health)
 	
+	# 播放受伤屏幕效果
+	if PostProcessManager:
+		# 根据伤害占最大血量的比例调整效果强度（最低0.3，最高0.6）
+		var damage_ratio = clamp(actual_damage / max_health, 0.0, 0.3)
+		var effect_intensity = 0.3 + damage_ratio
+		PostProcessManager.play_hurt_effect(effect_intensity, 1.0)
+	
 	# 应用击退效果
 	if knockback_direction != Vector2.ZERO:
 		apply_knockback(knockback_direction, knockback_force_value)

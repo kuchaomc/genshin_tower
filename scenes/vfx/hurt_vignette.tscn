@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3 uid="uid://hurt_vignette_001"]
+
+[ext_resource type="Shader" path="res://shaders/hurt_vignette.gdshader" id="1_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hurt"]
+shader = ExtResource("1_shader")
+shader_parameter/intensity = 0.0
+shader_parameter/vignette_color = Color(0.8, 0.0, 0.0, 1)
+shader_parameter/vignette_radius = 0.35
+shader_parameter/vignette_softness = 0.5
+shader_parameter/darkening = 0.3
+
+[node name="HurtVignette" type="CanvasLayer"]
+layer = 100
+
+[node name="ColorRect" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_hurt")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

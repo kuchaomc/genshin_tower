@@ -185,9 +185,14 @@ func show_artifact_selection() -> void:
 	_pending_bgm_track = _get_bgm_track_for_state(GameState.TREASURE)
 	change_scene_to(SCENE_ARTIFACT_SELECTION)
 
-## 游戏结束
+## 游戏结束（玩家死亡）
 func game_over() -> void:
 	current_state = GameState.GAME_OVER
+	
+	# 保存失败记录到 RunManager
+	if RunManager:
+		RunManager.end_run(false)
+	
 	# 延迟后显示结算
 	await get_tree().create_timer(2.0).timeout
 	show_result(false)

@@ -61,6 +61,9 @@ var damage_dealt: float = 0.0
 var damage_taken: float = 0.0
 var start_time: float = 0.0
 
+# 防止重复结算标志
+var _run_ended: bool = false
+
 ## 开始新的一局游戏
 func start_new_run(character: CharacterData) -> void:
 	current_character = character
@@ -83,6 +86,7 @@ func start_new_run(character: CharacterData) -> void:
 	damage_dealt = 0.0
 	damage_taken = 0.0
 	start_time = Time.get_ticks_msec() / 1000.0
+	_run_ended = false  # 重置结算标志
 	
 	# 清除已触发的事件记录
 	if EventRegistry:
@@ -94,6 +98,12 @@ func start_new_run(character: CharacterData) -> void:
 
 ## 结束当前局
 func end_run(victory: bool = false) -> void:
+	# 防止重复结算
+	if _run_ended:
+		print("警告：end_run() 被重复调用，已忽略")
+		return
+	_run_ended = true
+	
 	var run_time = (Time.get_ticks_msec() / 1000.0) - start_time
 	
 	var run_record = {

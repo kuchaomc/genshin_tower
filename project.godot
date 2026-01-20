@@ -30,6 +30,7 @@ EventRegistry="*res://scripts/events/event_registry.gd"
 EventBus="*res://scripts/core/event_bus.gd"
 TransitionManager="*res://scripts/ui/transition_manager.gd"
 DamageNumberManager="*res://scripts/autoload/damage_number_manager.gd"
+PostProcessManager="*res://scripts/autoload/post_process_manager.gd"
 
 [display]
 
