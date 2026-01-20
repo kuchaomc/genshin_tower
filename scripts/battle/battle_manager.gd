@@ -48,6 +48,9 @@ var floor_notification: Control
 var floor_notification_label: Label
 var floor_notification_timer: Timer
 
+# 敌人注册表：避免 get_nodes_in_group("enemies") 全树扫描
+var _active_enemies: Array[Node] = []
+
 func _ready() -> void:
 	# 获取UI组件
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
@@ -238,7 +241,11 @@ func connect_player_signals() -> void:
 		if skill_ui and RunManager and RunManager.current_character:
 			var skill_icon_path = _get_skill_icon_path(RunManager.current_character.id)
 			if skill_icon_path:
-				var skill_icon = load(skill_icon_path)
+				var skill_icon: Texture2D = null
+				if DataManager and DataManager.has_method("get_texture"):
+					skill_icon = DataManager.get_texture(skill_icon_path)
+				else:
+					skill_icon = load(skill_icon_path) as Texture2D
 				if skill_icon:
 					skill_ui.set_skill_icon(skill_icon)
 		
@@ -246,7 +253,11 @@ func connect_player_signals() -> void:
 		if burst_ui and RunManager and RunManager.current_character:
 			var burst_icon_path = _get_burst_icon_path(RunManager.current_character.id)
 			if burst_icon_path:
-				var burst_icon = load(burst_icon_path)
+				var burst_icon: Texture2D = null
+				if DataManager and DataManager.has_method("get_texture"):
+					burst_icon = DataManager.get_texture(burst_icon_path)
+				else:
+					burst_icon = load(burst_icon_path) as Texture2D
 				if burst_icon:
 					burst_ui.set_skill_icon(burst_icon)
 
@@ -302,6 +313,7 @@ func spawn_enemy() -> void:
 	
 	# 添加到场景树中
 	add_child(enemy_instance)
+	_register_enemy(enemy_instance)
 	_apply_hitbox_visibility_to_enemy(enemy_instance)
 	
 	print("生成新敌人，位置：", enemy_instance.position)
@@ -349,10 +361,11 @@ func battle_victory() -> void:
 
 ## 清除场上所有敌人
 func clear_all_enemies() -> void:
-	var enemies = get_tree().get_nodes_in_group("enemies")
+	var enemies := _active_enemies.duplicate()
 	for enemy in enemies:
 		if is_instance_valid(enemy):
 			enemy.queue_free()
+	_active_enemies.clear()
 	print("已清除场上所有敌人，共 ", enemies.size(), " 个")
 
 ## 游戏结束方法（玩家死亡）
@@ -419,8 +432,27 @@ func _on_debug_toggle_pressed() -> void:
 ## 更新所有相关碰撞/攻击判定的可见性
 func _update_all_hitbox_visibility() -> void:
 	_apply_hitbox_visibility_to_player()
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		_apply_hitbox_visibility_to_enemy(enemy)
+	for enemy in _active_enemies:
+		if is_instance_valid(enemy):
+			_apply_hitbox_visibility_to_enemy(enemy)
+
+## 注册敌人（用于清场/指示器/调试显示）
+func _register_enemy(enemy: Node) -> void:
+	if not enemy:
+		return
+	if enemy not in _active_enemies:
+		_active_enemies.append(enemy)
+	# 敌人退出树时自动移除
+	if enemy is Node:
+		if not enemy.tree_exited.is_connected(_on_enemy_tree_exited):
+			enemy.tree_exited.connect(_on_enemy_tree_exited.bind(enemy))
+
+func _on_enemy_tree_exited(enemy: Node) -> void:
+	_active_enemies.erase(enemy)
+
+## 对外提供当前活跃敌人列表（只读副本）
+func get_active_enemies() -> Array:
+	return _active_enemies.duplicate()
 
 func _apply_hitbox_visibility_to_player() -> void:
 	if not player:

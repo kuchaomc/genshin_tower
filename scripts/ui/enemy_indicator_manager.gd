@@ -91,7 +91,12 @@ func _find_camera_recursive(node: Node) -> Camera2D:
 ## 更新所有指示器
 func _update_indicators() -> void:
 	# 获取所有敌人
-	var enemies = get_tree().get_nodes_in_group("enemies")
+	var enemies: Array = []
+	var battle_manager = get_tree().get_first_node_in_group("battle_manager")
+	if battle_manager and battle_manager.has_method("get_active_enemies"):
+		enemies = battle_manager.get_active_enemies()
+	else:
+		enemies = get_tree().get_nodes_in_group("enemies")
 	var current_enemies: Dictionary = {}
 	
 	# 收集当前所有有效的敌人

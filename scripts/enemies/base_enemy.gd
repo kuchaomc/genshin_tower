@@ -65,6 +65,9 @@ func _apply_stats_to_enemy() -> void:
 	current_health = max_health
 
 func _ready() -> void:
+	# 统一敌人分组：供 UI/战斗逻辑识别（兼容旧逻辑）
+	add_to_group("enemies")
+	
 	# 碰撞层约定：第1层=墙(Walls)，第2层=敌人(Enemies)
 	# 敌人本体放到“敌人层”，避免和墙层混用，方便玩家在闪避时只碰墙
 	collision_layer = 2
@@ -102,7 +105,11 @@ func _ready() -> void:
 ## 创建警告图标
 func _create_warning_sprite() -> void:
 	warning_sprite = Sprite2D.new()
-	var warning_texture = load("res://textures/effects/warning.png")
+	var warning_texture: Texture2D = null
+	if DataManager and DataManager.has_method("get_texture"):
+		warning_texture = DataManager.get_texture("res://textures/effects/warning.png")
+	else:
+		warning_texture = load("res://textures/effects/warning.png") as Texture2D
 	if warning_texture:
 		warning_sprite.texture = warning_texture
 		warning_sprite.z_index = 10

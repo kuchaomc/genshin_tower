@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3 uid="uid://map_node_view_scene"]
+
+[ext_resource type="Script" path="res://scripts/map/map_node_view.gd" id="1_map_node_view"]
+
+[node name="MapNodeView" type="Node2D"]
+script = ExtResource("1_map_node_view")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+alignment = 1
+
+[node name="Button" type="Button" parent="VBoxContainer"]
+custom_minimum_size = Vector2(64, 64)
+
+[node name="Icon" type="TextureRect" parent="VBoxContainer/Button"]
+custom_minimum_size = Vector2(64, 64)
+expand_mode = 2
+stretch_mode = 5
+
+[node name="TypeLabel" type="Label" parent="VBoxContainer"]
+text = "节点"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+

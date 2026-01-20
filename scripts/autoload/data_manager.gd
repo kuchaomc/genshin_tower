@@ -14,6 +14,10 @@ var characters: Dictionary = {}
 var enemies: Dictionary = {}
 var map_config: Dictionary = {}
 
+## 资源缓存（避免重复 load 引发卡顿/GC）
+## key: res:// 路径，value: 已加载 Resource（PackedScene/Texture2D/Script/Resource 等）
+var _resource_cache: Dictionary = {}
+
 func _ready() -> void:
 	load_all_data()
 
@@ -151,3 +155,37 @@ func get_enemies_by_type(type: String) -> Array:
 ## 获取地图配置
 func get_map_config() -> Dictionary:
 	return map_config
+
+# ==============================
+# Resource Cache API（对外统一入口）
+# ==============================
+
+## 统一资源加载（带缓存）
+## - 返回值可能为 null（加载失败）
+func load_cached(path: String) -> Resource:
+	if path.is_empty():
+		return null
+	if _resource_cache.has(path):
+		return _resource_cache[path] as Resource
+	var res := load(path)
+	if res:
+		_resource_cache[path] = res
+	return res as Resource
+
+## 获取 PackedScene（带缓存）
+func get_packed_scene(path: String) -> PackedScene:
+	var res := load_cached(path)
+	if res is PackedScene:
+		return res as PackedScene
+	return null
+
+## 获取 Texture2D（带缓存）
+func get_texture(path: String) -> Texture2D:
+	var res := load_cached(path)
+	if res is Texture2D:
+		return res as Texture2D
+	return null
+
+## 清空资源缓存（调试/热重载用）
+func clear_resource_cache() -> void:
+	_resource_cache.clear()

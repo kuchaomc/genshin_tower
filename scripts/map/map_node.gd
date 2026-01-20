@@ -97,7 +97,11 @@ func update_node_icon() -> void:
 		NodeType.BOSS:
 			icon_path = "res://textures/ui/BOSS.png"
 	
-	var texture = load(icon_path)
+	var texture: Texture2D = null
+	if DataManager and DataManager.has_method("get_texture"):
+		texture = DataManager.get_texture(icon_path)
+	else:
+		texture = load(icon_path) as Texture2D
 	if texture:
 		node_icon.texture = texture
 	else:

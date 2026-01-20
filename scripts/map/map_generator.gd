@@ -20,11 +20,8 @@ const MAX_NODES_PER_FLOOR: int = 5
 const MIN_CONNECTIONS: int = 1
 const MAX_CONNECTIONS: int = 3
 
-# 地图节点场景
-const MAP_NODE_SCENE = preload("res://scenes/map/map_node.tscn")
-
 # 生成的地图数据
-var map_nodes: Dictionary = {}  # node_id -> MapNode
+var map_nodes: Dictionary = {}  # node_id -> MapNodeData
 var floor_nodes: Array = []  # 每层的节点数组，索引0是第1层（最底层）
 
 # 连接数据：connections[floor_idx] = Array of connections
@@ -86,17 +83,17 @@ func _create_all_nodes(nodes_per_floor: Array, config: Dictionary) -> void:
 		var floor_node_list: Array = []
 		
 		for node_idx in range(node_count):
-			var node_type: MapNode.NodeType
+			var node_type: MapNodeData.NodeType
 			
 			if floor_num == TOTAL_FLOORS:
 				# 最后一阶是BOSS
-				node_type = MapNode.NodeType.BOSS
+				node_type = MapNodeData.NodeType.BOSS
 			elif floor_num == TOTAL_FLOORS - 1:
 				# 倒数第二阶是休息
-				node_type = MapNode.NodeType.REST
+				node_type = MapNodeData.NodeType.REST
 			elif floor_num == 1:
 				# 第一阶通常是战斗
-				node_type = MapNode.NodeType.ENEMY
+				node_type = MapNodeData.NodeType.ENEMY
 			else:
 				# 根据权重随机选择类型
 				node_type = _select_node_type(floor_num, node_types_config)
@@ -109,10 +106,10 @@ func _create_all_nodes(nodes_per_floor: Array, config: Dictionary) -> void:
 		floor_nodes.append(floor_node_list)
 
 ## 创建单个节点
-func _create_node(node_id: String, node_type: MapNode.NodeType, floor: int, position: int) -> MapNode:
-	var node = MapNode.new()
+func _create_node(node_id: String, node_type: MapNodeData.NodeType, floor: int, position: int) -> MapNodeData:
+	var node := MapNodeData.new()
 	if not node:
-		print("错误：无法创建MapNode")
+		print("错误：无法创建MapNodeData")
 		return null
 	
 	node.node_id = node_id
@@ -134,7 +131,7 @@ func _get_default_node_types_config() -> Dictionary:
 	}
 
 ## 选择节点类型
-func _select_node_type(floor_num: int, node_types_config: Dictionary) -> MapNode.NodeType:
+func _select_node_type(floor_num: int, node_types_config: Dictionary) -> MapNodeData.NodeType:
 	var weights: Array = []
 	var types: Array = []
 	
@@ -152,7 +149,7 @@ func _select_node_type(floor_num: int, node_types_config: Dictionary) -> MapNode
 		total_weight += w
 	
 	if total_weight <= 0:
-		return MapNode.NodeType.ENEMY
+		return MapNodeData.NodeType.ENEMY
 	
 	var random_value = randi() % total_weight
 	var current_weight: int = 0
@@ -162,25 +159,25 @@ func _select_node_type(floor_num: int, node_types_config: Dictionary) -> MapNode
 		if random_value < current_weight:
 			return _type_name_to_enum(types[i])
 	
-	return MapNode.NodeType.ENEMY
+	return MapNodeData.NodeType.ENEMY
 
 ## 类型名称转枚举
-func _type_name_to_enum(type_name: String) -> MapNode.NodeType:
+func _type_name_to_enum(type_name: String) -> MapNodeData.NodeType:
 	match type_name:
 		"enemy":
-			return MapNode.NodeType.ENEMY
+			return MapNodeData.NodeType.ENEMY
 		"treasure":
-			return MapNode.NodeType.TREASURE
+			return MapNodeData.NodeType.TREASURE
 		"shop":
-			return MapNode.NodeType.SHOP
+			return MapNodeData.NodeType.SHOP
 		"rest":
-			return MapNode.NodeType.REST
+			return MapNodeData.NodeType.REST
 		"event":
-			return MapNode.NodeType.EVENT
+			return MapNodeData.NodeType.EVENT
 		"boss":
-			return MapNode.NodeType.BOSS
+			return MapNodeData.NodeType.BOSS
 		_:
-			return MapNode.NodeType.ENEMY
+			return MapNodeData.NodeType.ENEMY
 
 ## 步骤3：生成连接（核心算法）
 ## 自下而上生成，从终点（最后一层）开始向前生成连接
@@ -627,7 +624,7 @@ func get_start_nodes() -> Array:
 	return floor_nodes[0]
 
 ## 获取地图节点
-func get_map_node(node_id: String) -> MapNode:
+func get_map_node(node_id: String) -> MapNodeData:
 	return map_nodes.get(node_id)
 
 ## 获取当前楼层的节点

@@ -46,10 +46,21 @@ func _ready() -> void:
 
 ## 切换场景
 func change_scene_to(scene_path: String) -> void:
-	var scene = load(scene_path) as PackedScene
+	# 优先通过 DataManager 的缓存加载，减少反复 load 造成的卡顿
+	var scene: PackedScene = null
+	if DataManager and DataManager.has_method("get_packed_scene"):
+		scene = DataManager.get_packed_scene(scene_path)
+	else:
+		scene = load(scene_path) as PackedScene
+	
 	if scene:
 		get_tree().change_scene_to_packed(scene)
 		emit_signal("scene_changed", scene_path)
+		# 兼容：如果 EventBus 存在，同步广播
+		if Engine.has_singleton("EventBus") or has_node("/root/EventBus"):
+			var bus = get_node_or_null("/root/EventBus")
+			if bus and bus.has_signal("scene_changed"):
+				bus.emit_signal("scene_changed", scene_path)
 		print("切换到场景：", scene_path)
 	else:
 		print("错误：无法加载场景 ", scene_path)
