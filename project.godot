@@ -28,6 +28,7 @@ RunManager="*res://scripts/autoload/run_manager.gd"
 UpgradeRegistry="*res://scripts/upgrades/upgrade_registry.gd"
 EventBus="*res://scripts/core/event_bus.gd"
 TransitionManager="*res://scripts/ui/transition_manager.gd"
+DamageNumberManager="*res://scripts/autoload/damage_number_manager.gd"
 
 [display]
 

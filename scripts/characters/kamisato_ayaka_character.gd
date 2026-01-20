@@ -818,7 +818,11 @@ func use_burst() -> void:
 	burst_instance.direction = direction
 	burst_instance.speed = burst_speed
 	
-	# 使用统一伤害计算系统计算大招伤害（大招伤害通过攻击力提升）
+	# 设置角色引用和伤害倍率（用于deal_damage_to）
+	burst_instance.owner_character = self
+	burst_instance.damage_multiplier = burst_damage_multiplier
+	
+	# 预计算伤害用于显示（可选，用于调试）
 	if current_stats:
 		var damage_result = current_stats.calculate_damage(burst_damage_multiplier, 0.0, false, false)
 		burst_instance.damage = damage_result[0]

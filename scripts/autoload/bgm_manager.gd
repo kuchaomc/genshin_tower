@@ -3,6 +3,7 @@ extends Node
 ## 全局BGM管理器（AutoLoad）
 ## - 统一控制主菜单/地图/战斗BGM
 ## - 切换曲目时保存播放进度，回切时继续播放
+## - 播放音效（如命中音效等）
 const TRACK_MAIN_MENU: StringName = &"main_menu"
 const TRACK_MAP: StringName = &"map"
 const TRACK_BATTLE: StringName = &"battle"
@@ -17,6 +18,9 @@ const TRACK_PATHS: Dictionary = {
 	TRACK_MAP: "res://voice/挪德卡莱 Nod-Krai.mp3",
 	TRACK_BATTLE: "res://voice/切心的渴求 A Thirst That Cuts.mp3",
 }
+
+# 音效路径
+const SOUND_HIT: String = "res://voice/击中.WAV"
 
 var _player: AudioStreamPlayer
 var _positions: Dictionary = {} # StringName -> float
@@ -124,3 +128,38 @@ func _on_player_finished() -> void:
 	_positions[_current_track] = 0.0
 	_player.volume_db = VOLUME_DB_NORMAL
 	_player.play(0.0)
+
+## 播放音效
+## sound_path: 音效文件路径
+## volume_db: 音量（分贝），默认0.0
+func play_sound(sound_path: String, volume_db: float = 0.0) -> void:
+	if sound_path.is_empty():
+		return
+	
+	var stream := load(sound_path) as AudioStream
+	if not stream:
+		push_warning("BGMManager: 无法加载音效：%s" % sound_path)
+		return
+	
+	# 创建临时音效播放器
+	var sound_player = AudioStreamPlayer.new()
+	sound_player.stream = stream
+	sound_player.volume_db = volume_db
+	sound_player.bus = "Master"
+	add_child(sound_player)
+	
+	# 播放音效
+	sound_player.play()
+	
+	# 播放完成后自动删除播放器
+	if not sound_player.finished.is_connected(_on_sound_finished):
+		sound_player.finished.connect(_on_sound_finished.bind(sound_player))
+
+## 音效播放完成回调
+func _on_sound_finished(player: AudioStreamPlayer) -> void:
+	if player and is_instance_valid(player):
+		player.queue_free()
+
+## 播放命中音效
+func play_hit_sound() -> void:
+	play_sound(SOUND_HIT)

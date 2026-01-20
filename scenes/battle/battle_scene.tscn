@@ -102,7 +102,7 @@ offset_bottom = 22.0
 theme_override_styles/background = SubResource("StyleBoxFlat_HPBackground")
 theme_override_styles/fill = SubResource("StyleBoxFlat_HPFill")
 value = 100.0
-fill_mode = 1
+fill_mode = 0
 show_percentage = false
 
 [node name="Label" type="Label" parent="CanvasLayer/PlayerHPBar"]

@@ -550,6 +550,7 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 		final_damage *= (1.0 + damage_upgrade * 0.1)  # 每级 +10% 伤害
 	
 	# 对目标造成伤害
+	var damage_dealt: bool = false
 	if target.has_method("take_damage"):
 		var knockback_dir = Vector2.ZERO
 		if target is Node2D:
@@ -561,12 +562,23 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 			if apply_stun and _can_call_with_params(target, "take_damage", 3):
 				var knockback_force_value = knockback_dir * current_stats.knockback_force if apply_knockback else Vector2.ZERO
 				target.take_damage(final_damage, knockback_force_value, apply_stun)
+				damage_dealt = true
 			# 检查是否支持击退参数（2个参数：damage, knockback）
 			elif apply_knockback and _can_call_with_params(target, "take_damage", 2):
 				target.take_damage(final_damage, knockback_dir * current_stats.knockback_force)
+				damage_dealt = true
 			# 只传递伤害
 			else:
 				target.take_damage(final_damage)
+				damage_dealt = true
+	
+	# 如果成功造成伤害，播放命中音效
+	if damage_dealt and BGMManager:
+		BGMManager.play_hit_sound()
+	
+	# 显示伤害飘字（在目标位置）
+	if damage_dealt and DamageNumberManager and target is Node2D:
+		DamageNumberManager.show_damage(target.global_position, final_damage, is_crit)
 	
 	# 记录伤害统计
 	if RunManager:
@@ -643,6 +655,10 @@ func take_damage(damage_amount: float, knockback_direction: Vector2 = Vector2.ZE
 	current_health -= actual_damage
 	current_health = max(0, current_health)
 	
+	# 显示伤害飘字（在角色位置）
+	if DamageNumberManager:
+		DamageNumberManager.show_damage(global_position, actual_damage, false)
+	
 	# 更新RunManager
 	if RunManager:
 		RunManager.take_damage(actual_damage)
@@ -678,6 +694,10 @@ func heal(heal_amount: float) -> void:
 	
 	current_health += heal_amount
 	current_health = min(current_health, max_health)
+	
+	# 显示治疗飘字
+	if DamageNumberManager:
+		DamageNumberManager.show_heal(global_position, heal_amount)
 	
 	# 更新RunManager
 	if RunManager:

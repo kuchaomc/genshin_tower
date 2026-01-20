@@ -9,6 +9,10 @@ class_name BurstProjectile
 var direction: Vector2 = Vector2.RIGHT
 ## 是否暴击（用于显示暴击伤害效果）
 var is_crit: bool = false
+## 伤害倍率（用于deal_damage_to）
+var damage_multiplier: float = 4.0
+## 创建投射物的角色引用（用于调用deal_damage_to）
+var owner_character: Node = null
 
 # 已命中的敌人列表（避免重复伤害）
 var hit_enemies: Array[Node2D] = []
@@ -58,19 +62,41 @@ func _handle_enemy_collision(enemy: Node2D) -> void:
 	
 	hit_enemies.append(enemy)
 	
-	# 对敌人造成伤害
-	if enemy.has_method("take_damage"):
-		var knockback_dir = direction.normalized()
-		enemy.take_damage(damage, knockback_dir * 150.0)  # 击退力度
+	# 对敌人造成伤害（使用deal_damage_to统一处理）
+	if owner_character and owner_character.has_method("deal_damage_to"):
+		var damage_result = owner_character.deal_damage_to(
+			enemy, 
+			damage_multiplier, 
+			false,  # force_crit: 不强制暴击，让系统自然计算
+			false,  # force_no_crit: 不强制非暴击
+			true,   # apply_knockback: 应用击退
+			false   # apply_stun: 不应用僵直
+		)
+		var final_damage = damage_result[0]
+		var actual_is_crit = damage_result[1]
 		
-		# 记录伤害
-		if RunManager:
-			RunManager.record_damage_dealt(damage)
-		
-		if is_crit:
-			print("大招 暴击！命中敌人，造成伤害: ", damage)
+		if actual_is_crit:
+			print("大招 暴击！命中敌人，造成伤害: ", final_damage)
 		else:
-			print("大招命中敌人，造成伤害: ", damage)
+			print("大招命中敌人，造成伤害: ", final_damage)
+	else:
+		# 如果没有角色引用，回退到直接调用take_damage（兼容性处理）
+		if enemy.has_method("take_damage"):
+			var knockback_dir = direction.normalized()
+			enemy.take_damage(damage, knockback_dir * 150.0)
+			
+			# 播放命中音效
+			if BGMManager:
+				BGMManager.play_hit_sound()
+			
+			# 记录伤害
+			if RunManager:
+				RunManager.record_damage_dealt(damage)
+			
+			if is_crit:
+				print("大招 暴击！命中敌人，造成伤害: ", damage)
+			else:
+				print("大招命中敌人，造成伤害: ", damage)
 	
 	# 命中敌人后不删除投射物，继续前进（可以穿透多个敌人）
 
