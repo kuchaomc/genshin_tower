@@ -53,7 +53,7 @@ radius = 1.5046294
 height = 6.249999
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_sword"]
-size = Vector2(36, 98)
+size = Vector2(34, 92)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_4yhug"]
 atlas = ExtResource("5_skill")
@@ -115,39 +115,39 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_skill"]
 radius = 150.0
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_kqtwu"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_qnopy"]
 atlas = ExtResource("6_charged")
 region = Rect2(0, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_6eyoc"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_ry7tq"]
 atlas = ExtResource("6_charged")
 region = Rect2(64, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_eojnx"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_0gc31"]
 atlas = ExtResource("6_charged")
 region = Rect2(128, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_qgnko"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_0ul41"]
 atlas = ExtResource("6_charged")
 region = Rect2(192, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_7vyk4"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_aksmu"]
 atlas = ExtResource("6_charged")
 region = Rect2(256, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_2l4js"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_ye7f4"]
 atlas = ExtResource("6_charged")
 region = Rect2(320, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_jk2m4"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_10ish"]
 atlas = ExtResource("6_charged")
 region = Rect2(384, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_xhtjm"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_5kr1x"]
 atlas = ExtResource("6_charged")
 region = Rect2(448, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_k4v7y"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_6ys0h"]
 atlas = ExtResource("6_charged")
 region = Rect2(512, 0, 64, 64)
 
@@ -155,31 +155,31 @@ region = Rect2(512, 0, 64, 64)
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_kqtwu")
+"texture": SubResource("AtlasTexture_qnopy")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_6eyoc")
+"texture": SubResource("AtlasTexture_ry7tq")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_eojnx")
+"texture": SubResource("AtlasTexture_0gc31")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_qgnko")
+"texture": SubResource("AtlasTexture_0ul41")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_7vyk4")
+"texture": SubResource("AtlasTexture_aksmu")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_2l4js")
+"texture": SubResource("AtlasTexture_ye7f4")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_jk2m4")
+"texture": SubResource("AtlasTexture_10ish")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_xhtjm")
+"texture": SubResource("AtlasTexture_5kr1x")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_k4v7y")
+"texture": SubResource("AtlasTexture_6ys0h")
 }],
 "loop": false,
 "name": &"default",
@@ -195,6 +195,7 @@ sword_tip = NodePath("SwordArea/SwordTip")
 phase1_trail_width = 4.0
 phase1_trail_start_color = Color(1, 0.87200505, 0.6465043, 0.9019608)
 sword_area = NodePath("SwordArea")
+sword_pivot_offset = Vector2(0, 17)
 charged_effect = NodePath("ChargedEffect")
 charged_area = NodePath("ChargedArea")
 skill_area = NodePath("SkillArea")
@@ -215,21 +216,19 @@ scale = Vector2(8.640002, 8.640002)
 shape = SubResource("CapsuleShape2D_qt451")
 
 [node name="SwordArea" type="Area2D" parent="."]
-position = Vector2(7, 12)
 monitoring = false
 monitorable = false
 
 [node name="Sprite2D" type="Sprite2D" parent="SwordArea"]
-position = Vector2(-19, -35)
+position = Vector2(0, -37)
 texture = ExtResource("4_sword")
-offset = Vector2(20, 0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="SwordArea"]
-position = Vector2(1, -47)
+position = Vector2(1, -13)
 shape = SubResource("RectangleShape2D_sword")
 
 [node name="SwordTip" type="Marker2D" parent="SwordArea"]
-position = Vector2(1, -86)
+position = Vector2(-1, -59)
 
 [node name="SkillEffect" type="AnimatedSprite2D" parent="."]
 visible = false

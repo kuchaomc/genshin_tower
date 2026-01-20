@@ -26,6 +26,7 @@ var game_over_timer: Timer
 # 战斗胜利条件
 var enemies_required_to_kill: int = 5  # 需要击杀的敌人数量（初始值=5，每往上走一个节点层就+5）
 var enemies_killed_in_battle: int = 0  # 当前战斗中已击杀的敌人数量
+var is_battle_victory: bool = false  # 标记是否通过击杀敌人获得胜利（而非玩家死亡）
 
 # 玩家血量UI引用
 var player_hp_bar: ProgressBar
@@ -360,6 +361,7 @@ func battle_victory() -> void:
 		return
 	
 	current_state = GameState.GAME_OVER
+	is_battle_victory = true  # 标记为真正的战斗胜利
 	
 	# 停止敌人生成计时器
 	if enemy_spawn_timer:
@@ -402,10 +404,10 @@ func game_over() -> void:
 
 ## 游戏结束计时器回调
 func _on_game_over_timer_timeout() -> void:
-	# 判断是胜利还是失败
-	var is_victory = enemies_killed_in_battle >= enemies_required_to_kill
-	
-	if is_victory:
+	# 使用明确的胜利标志判断是胜利还是失败
+	# 只有通过击杀足够数量的敌人正常结束战斗才算胜利
+	# 玩家死亡则无论击杀数多少都算失败
+	if is_battle_victory:
 		# 战斗胜利，显示升级选择界面
 		if GameManager:
 			GameManager.show_upgrade_selection()

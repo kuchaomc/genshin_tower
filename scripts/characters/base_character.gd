@@ -3,11 +3,19 @@ class_name BaseCharacter
 
 ## 角色基类
 ## 包含所有角色的通用逻辑（移动、血量、基础攻击等）
-## 使用状态机管理角色状态
+## 使用简单的状态标志管理角色行为
 ## 统一伤害计算公式：最终伤害 = 攻击力 × 攻击倍率 × 暴击倍率 × (1 - 目标减伤比例)
 
-# ========== 状态机 ==========
-var state_machine: StateMachine = null
+# ========== 状态标志 ==========
+enum CharacterState {
+	IDLE,
+	MOVING,
+	ATTACKING,
+	DODGING,
+	KNOCKBACK,
+	DEAD
+}
+var current_state: CharacterState = CharacterState.IDLE
 
 # ========== 角色数据 ==========
 var character_data: CharacterData = null
@@ -41,6 +49,8 @@ var _hurt_speed_timer: Timer
 
 var _dodge_next_ready_ms: int = 0
 var _last_nonzero_move_dir: Vector2 = Vector2.RIGHT
+var _dodge_direction: Vector2 = Vector2.ZERO
+var _dodge_elapsed: float = 0.0
 
 var _hurt_invincible: bool = false
 var _dodge_invincible: bool = false
@@ -64,6 +74,14 @@ signal damage_dealt(damage: float, is_crit: bool, target: Node)
 @export var move_speed: float = 100.0
 @export var animator: AnimatedSprite2D
 @export var knockback_force: float = 150.0  # 对敌人造成击退的力度，可在角色数据中配置
+
+# ========== 攻击按键追踪 ==========
+## 鼠标左键按下的时间戳（毫秒）
+var _attack_button_press_time: int = 0
+## 鼠标左键是否正在按下
+var _attack_button_pressed: bool = false
+## 重击触发阈值（秒）
+@export var charged_attack_threshold: float = 1.0
 
 # ========== 碰撞箱引用 ==========
 var collision_shape: CollisionShape2D
@@ -193,39 +211,6 @@ func _ready() -> void:
 	
 	# 初始化碰撞掩码：默认与墙+敌人发生碰撞
 	collision_mask = _NORMAL_COLLISION_MASK
-	
-	# 初始化状态机
-	_setup_state_machine()
-
-## 设置状态机（子类可以重写以添加自定义状态）
-func _setup_state_machine() -> void:
-	# 创建状态机节点
-	state_machine = StateMachine.new()
-	state_machine.name = "StateMachine"
-	add_child(state_machine)
-	
-	# 创建并添加基础状态
-	_add_player_states()
-	
-	# 初始化状态机
-	state_machine.setup(self)
-	state_machine.set_initial_state("Idle")
-
-## 添加玩家状态（子类可以重写以添加自定义状态）
-func _add_player_states() -> void:
-	var idle_state = PlayerIdleState.new()
-	var move_state = PlayerMoveState.new()
-	var attack_state = PlayerAttackState.new()
-	var dodge_state = PlayerDodgeState.new()
-	var knockback_state = PlayerKnockbackState.new()
-	var dead_state = PlayerDeadState.new()
-	
-	state_machine.add_child(idle_state)
-	state_machine.add_child(move_state)
-	state_machine.add_child(attack_state)
-	state_machine.add_child(dodge_state)
-	state_machine.add_child(knockback_state)
-	state_machine.add_child(dead_state)
 
 func _physics_process(delta: float) -> void:
 	if is_game_over:
@@ -234,15 +219,240 @@ func _physics_process(delta: float) -> void:
 	# 更新击退计时器
 	_update_knockback(delta)
 	
-	# 状态机更新
-	if state_machine:
-		state_machine.physics_update(delta)
+	# 处理状态逻辑
+	_process_state_logic(delta)
 	
 	# 处理动画
 	handle_animation()
 	
 	# 执行移动
 	move_and_slide()
+
+## 处理状态逻辑（主要控制循环）
+func _process_state_logic(delta: float) -> void:
+	# 检查状态转换（优先级从高到低）
+	if current_state != CharacterState.DEAD and is_game_over:
+		_change_state(CharacterState.DEAD)
+	elif current_state != CharacterState.DEAD and current_state != CharacterState.KNOCKBACK and is_knockback_active:
+		_change_state(CharacterState.KNOCKBACK)
+	
+	# 根据当前状态执行逻辑
+	match current_state:
+		CharacterState.IDLE:
+			_process_idle_state()
+		CharacterState.MOVING:
+			_process_move_state()
+		CharacterState.ATTACKING:
+			_process_attack_state()
+		CharacterState.DODGING:
+			_process_dodge_state(delta)
+		CharacterState.KNOCKBACK:
+			_process_knockback_state()
+		CharacterState.DEAD:
+			_process_dead_state()
+
+## 空闲状态逻辑
+func _process_idle_state() -> void:
+	velocity = Vector2.ZERO
+	
+	# 处理攻击按键追踪
+	_process_attack_input()
+	
+	# 检查状态转换
+	if _is_dodge_pressed() and _is_dodge_ready():
+		_start_dodge()
+	elif _get_input_direction() != Vector2.ZERO:
+		_change_state(CharacterState.MOVING)
+
+## 移动状态逻辑
+func _process_move_state() -> void:
+	var input_dir = _get_input_direction()
+	velocity = input_dir * move_speed
+	
+	# 记录最后非零移动方向
+	if input_dir != Vector2.ZERO:
+		_last_nonzero_move_dir = input_dir.normalized()
+	
+	# 处理攻击按键追踪
+	_process_attack_input()
+	
+	# 检查状态转换
+	if _is_dodge_pressed() and _is_dodge_ready():
+		_start_dodge()
+	elif input_dir == Vector2.ZERO:
+		_change_state(CharacterState.IDLE)
+
+## 攻击状态逻辑（子类重写）
+func _process_attack_state() -> void:
+	velocity = Vector2.ZERO
+	# 子类实现具体攻击逻辑
+
+## 闪避状态逻辑
+func _process_dodge_state(delta: float) -> void:
+	_dodge_elapsed += delta
+	
+	var t: float = 0.0
+	if dodge_duration > 0.0:
+		t = clamp(_dodge_elapsed / dodge_duration, 0.0, 1.0)
+	
+	# 计算基础速度
+	var base_speed: float = base_move_speed
+	if dodge_duration > 0.0:
+		base_speed = dodge_distance / dodge_duration
+	
+	# 速度曲线：初始很快，逐渐回落
+	var start_speed: float = base_speed * dodge_speed_multiplier
+	var end_speed: float = base_speed * 0.8
+	var ease_out: float = 1.0 - pow(1.0 - t, 2.0)
+	var speed: float = lerp(start_speed, end_speed, ease_out)
+	
+	velocity = _dodge_direction * speed
+	
+	# 检查闪避是否完成
+	if t >= 1.0:
+		_end_dodge()
+
+## 击退状态逻辑
+func _process_knockback_state() -> void:
+	velocity = knockback_velocity
+	
+	# 击退结束检查在 _update_knockback 中处理
+
+## 死亡状态逻辑
+func _process_dead_state() -> void:
+	velocity = Vector2.ZERO
+
+## 改变状态
+func _change_state(new_state: CharacterState) -> void:
+	if current_state == new_state:
+		return
+	
+	# 退出旧状态
+	_exit_state(current_state)
+	
+	# 进入新状态
+	current_state = new_state
+	_enter_state(new_state)
+
+## 进入状态
+func _enter_state(state: CharacterState) -> void:
+	match state:
+		CharacterState.IDLE:
+			if animator:
+				animator.play("idle")
+		CharacterState.MOVING:
+			if animator:
+				animator.play("run")
+		CharacterState.ATTACKING:
+			velocity = Vector2.ZERO
+			perform_attack()
+		CharacterState.DODGING:
+			_dodge_elapsed = 0.0
+			_dodge_next_ready_ms = Time.get_ticks_msec() + int(dodge_cooldown * 1000.0)
+			
+			# 计算闪避方向（朝鼠标方向）
+			var mouse_pos = get_global_mouse_position()
+			var dir = mouse_pos - global_position
+			if dir == Vector2.ZERO:
+				dir = _last_nonzero_move_dir
+			_dodge_direction = dir.normalized()
+			
+			# 设置闪避无敌
+			_set_dodge_invincible(true)
+			
+			# 修改碰撞层（可穿过敌人）
+			collision_mask = _DODGE_COLLISION_MASK
+			collision_layer = _DODGE_PLAYER_COLLISION_LAYER
+		CharacterState.KNOCKBACK:
+			pass  # 击退逻辑已在 apply_knockback 中设置
+		CharacterState.DEAD:
+			velocity = Vector2.ZERO
+			_set_collision_enabled(false)
+
+## 退出状态
+func _exit_state(state: CharacterState) -> void:
+	match state:
+		CharacterState.DODGING:
+			# 取消闪避无敌
+			_set_dodge_invincible(false)
+			
+			# 恢复正常碰撞
+			collision_mask = _NORMAL_COLLISION_MASK
+			collision_layer = _PLAYER_COLLISION_LAYER
+		CharacterState.ATTACKING:
+			_cleanup_attack()
+
+## 开始闪避
+func _start_dodge() -> void:
+	_change_state(CharacterState.DODGING)
+
+## 结束闪避
+func _end_dodge() -> void:
+	var input_dir = _get_input_direction()
+	if input_dir != Vector2.ZERO:
+		_change_state(CharacterState.MOVING)
+	else:
+		_change_state(CharacterState.IDLE)
+
+## 开始攻击
+func _start_attack() -> void:
+	_change_state(CharacterState.ATTACKING)
+
+## 清理攻击状态（子类可重写）
+func _cleanup_attack() -> void:
+	pass
+
+## 获取输入方向
+func _get_input_direction() -> Vector2:
+	var input_dir = Vector2.ZERO
+	input_dir.x = Input.get_action_strength("right") - Input.get_action_strength("left")
+	input_dir.y = Input.get_action_strength("down") - Input.get_action_strength("up")
+	return input_dir.normalized()
+
+## 处理攻击输入逻辑（新系统：按住1秒触发重击）
+func _process_attack_input() -> void:
+	var is_pressing = Input.is_action_pressed("mouse1")
+	
+	# 检测按键按下
+	if is_pressing and not _attack_button_pressed:
+		_attack_button_pressed = true
+		_attack_button_press_time = Time.get_ticks_msec()
+	
+	# 检测按键释放
+	elif not is_pressing and _attack_button_pressed:
+		_attack_button_pressed = false
+		var hold_duration = (Time.get_ticks_msec() - _attack_button_press_time) / 1000.0
+		
+		# 根据按住时间判断触发普攻还是重击
+		if hold_duration < charged_attack_threshold:
+			# 按住时间小于阈值，触发普攻
+			_start_normal_attack()
+		else:
+			# 按住时间超过阈值，触发重击
+			_start_charged_attack()
+
+## 开始普攻（子类可重写）
+func _start_normal_attack() -> void:
+	_change_state(CharacterState.ATTACKING)
+
+## 开始重击（子类可重写）
+func _start_charged_attack() -> void:
+	# 默认行为：与普攻相同
+	_change_state(CharacterState.ATTACKING)
+
+## 获取当前按住攻击键的时间（秒）
+func get_attack_hold_duration() -> float:
+	if _attack_button_pressed:
+		return (Time.get_ticks_msec() - _attack_button_press_time) / 1000.0
+	return 0.0
+
+## 检查是否达到重击阈值
+func is_charged_attack_ready() -> bool:
+	return _attack_button_pressed and get_attack_hold_duration() >= charged_attack_threshold
+
+## 检查是否按下闪避键
+func _is_dodge_pressed() -> bool:
+	return Input.is_action_just_pressed("mouse2")
 
 ## 处理动画（子类可重写）
 func handle_animation() -> void:
@@ -262,12 +472,14 @@ func handle_animation() -> void:
 func perform_attack() -> void:
 	pass
 
-## 攻击完成时调用（通知状态机）
+## 攻击完成时调用
 func finish_attack() -> void:
-	if state_machine and state_machine.is_in_state("Attack"):
-		var attack_state = state_machine.states.get("Attack") as PlayerAttackState
-		if attack_state:
-			attack_state.finish_attack()
+	if current_state == CharacterState.ATTACKING:
+		var input_dir = _get_input_direction()
+		if input_dir != Vector2.ZERO:
+			_change_state(CharacterState.MOVING)
+		else:
+			_change_state(CharacterState.IDLE)
 
 ## 检查闪避是否就绪
 func _is_dodge_ready() -> bool:
@@ -479,8 +691,7 @@ func on_death() -> void:
 	emit_signal("character_died")
 	
 	# 切换到死亡状态
-	if state_machine:
-		state_machine.force_change_state("Dead")
+	_change_state(CharacterState.DEAD)
 	
 	# 通知游戏管理器
 	if GameManager:
@@ -526,8 +737,8 @@ func apply_knockback(direction: Vector2, distance: float) -> void:
 	_knockback_end_ms = Time.get_ticks_msec() + int(dur * 1000.0)
 	
 	# 切换到击退状态
-	if state_machine and not state_machine.is_in_state("Dead"):
-		state_machine.force_change_state("Knockback")
+	if current_state != CharacterState.DEAD:
+		_change_state(CharacterState.KNOCKBACK)
 
 ## 更新击退效果
 func _update_knockback(_delta: float) -> void:
@@ -540,6 +751,14 @@ func _update_knockback(_delta: float) -> void:
 func _end_knockback() -> void:
 	is_knockback_active = false
 	knockback_velocity = Vector2.ZERO
+	
+	# 返回到移动或空闲状态
+	if current_state == CharacterState.KNOCKBACK:
+		var input_dir = _get_input_direction()
+		if input_dir != Vector2.ZERO:
+			_change_state(CharacterState.MOVING)
+		else:
+			_change_state(CharacterState.IDLE)
 
 ## 设置碰撞箱启用/禁用
 func _set_collision_enabled(enabled: bool) -> void:
@@ -731,28 +950,36 @@ func get_energy_gain_multiplier() -> float:
 
 ## 获取当前状态名称
 func get_current_state() -> String:
-	if state_machine:
-		return state_machine.get_current_state_name()
+	match current_state:
+		CharacterState.IDLE:
+			return "Idle"
+		CharacterState.MOVING:
+			return "Move"
+		CharacterState.ATTACKING:
+			return "Attack"
+		CharacterState.DODGING:
+			return "Dodge"
+		CharacterState.KNOCKBACK:
+			return "Knockback"
+		CharacterState.DEAD:
+			return "Dead"
 	return ""
 
 ## 检查是否处于指定状态
 func is_in_state(state_name: String) -> bool:
-	if state_machine:
-		return state_machine.is_in_state(state_name)
-	return false
+	return get_current_state() == state_name
 
 ## 检查是否正在攻击
 func is_attacking() -> bool:
-	return is_in_state("Attack")
+	return current_state == CharacterState.ATTACKING
 
 ## 检查是否正在闪避
 func is_dodging() -> bool:
-	return is_in_state("Dodge")
+	return current_state == CharacterState.DODGING
 
 ## 检查是否可以移动
 func can_move() -> bool:
-	var current = get_current_state()
-	return current == "Idle" or current == "Move"
+	return current_state == CharacterState.IDLE or current_state == CharacterState.MOVING
 
 ## 检查是否可以闪避
 func can_dodge() -> bool:

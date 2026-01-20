@@ -26,9 +26,11 @@ var _phase1_trail: SwordTrail
 # ========== 攻击属性 ==========
 ## 剑的碰撞检测区域
 @export var sword_area: Area2D
+## 剑的枢轴偏移位置（相对于角色中心，用于正确的旋转中心）
+@export var sword_pivot_offset: Vector2 = Vector2(15, -5)
 ## 普攻伤害倍率（基于攻击力计算）
 @export var normal_attack_multiplier: float = 1.0
-## 第二段攻击伤害倍率
+## 第二段攻击伤害倍率（已弃用，使用 charged_attack_multiplier）
 @export var phase2_attack_multiplier: float = 0.8
 ## 挥剑动画持续时间（秒）
 @export var swing_duration: float = 0.3
@@ -44,6 +46,11 @@ var _phase1_trail: SwordTrail
 @export var sword_damage: float = 25.0
 
 # ========== 攻击状态 ==========
+## 攻击阶段：0=未攻击, 1=第一段, 2=第二段
+var attack_phase: int = 0
+## 第二段伤害当前命中次数
+var phase2_current_hit: int = 0
+
 var swing_tween: Tween
 var position_tween: Tween
 var target_position: Vector2
@@ -65,6 +72,12 @@ var _charged_effect_hide_timer: float = -1.0  # 隐藏动画的倒计时（秒�
 @export var charged_hit_count: int = 3
 ## 每次伤害间隔时间（秒）
 @export var charged_hit_interval: float = 0.15
+## 重击伤害倍率（每次75%攻击力）
+@export var charged_attack_multiplier: float = 0.75
+## 武器颤抖幅度（蓄力时）
+@export var weapon_shake_amplitude: float = 3.0
+## 武器颤抖频率（Hz）
+@export var weapon_shake_frequency: float = 15.0
 
 # ========== E技能属性 ==========
 ## E技能范围伤害检测区域
@@ -116,6 +129,9 @@ func _ready() -> void:
 		sword_area = get_node_or_null("SwordArea") as Area2D
 	
 	if sword_area:
+		# 设置剑的枢轴偏移位置
+		sword_area.position = sword_pivot_offset
+		
 		# 约定：第2层=敌人(Enemies)。剑的 Area2D 只需要检测敌人层即可。
 		sword_area.collision_mask = 2
 		sword_area.area_entered.connect(_on_sword_area_entered)
@@ -168,22 +184,6 @@ func _ready() -> void:
 	if charged_effect:
 		charged_effect.visible = false
 
-## 重写状态机设置，使用神里绫华专属的攻击状态
-func _add_player_states() -> void:
-	var idle_state = PlayerIdleState.new()
-	var move_state = PlayerMoveState.new()
-	var attack_state = AyakaAttackState.new()  # 使用专属攻击状态
-	var dodge_state = PlayerDodgeState.new()
-	var knockback_state = PlayerKnockbackState.new()
-	var dead_state = PlayerDeadState.new()
-	
-	state_machine.add_child(idle_state)
-	state_machine.add_child(move_state)
-	state_machine.add_child(attack_state)
-	state_machine.add_child(dodge_state)
-	state_machine.add_child(knockback_state)
-	state_machine.add_child(dead_state)
-
 func _physics_process(delta: float) -> void:
 	if not is_game_over:
 		# 处理E键技能输入
@@ -201,6 +201,9 @@ func _physics_process(delta: float) -> void:
 		# 更新重击动画状态
 		_update_charged_effect()
 		
+		# 更新重击蓄力提示
+		_update_charged_charge_indicator()
+		
 		# 只在攻击状态下更新剑相关逻辑
 		if is_attacking():
 			# 攻击时强制检查覆盖，减少漏判
@@ -212,24 +215,50 @@ func _physics_process(delta: float) -> void:
 	
 	super._physics_process(delta)
 
+## 重写攻击状态处理（神里绫华的双段攻击）
+func _process_attack_state() -> void:
+	velocity = Vector2.ZERO
+	# 攻击逻辑由 Tween 动画和回调函数处理
+
 ## 更新剑的朝向（朝向鼠标）
 func update_sword_direction() -> void:
 	if not sword_area or is_attacking():
 		return
 	
+	# 使用剑的全局位置作为旋转中心
 	var sword_pivot_global = sword_area.global_position
 	var mouse_position = get_global_mouse_position()
 	var direction = (mouse_position - sword_pivot_global).normalized()
 	sword_area.rotation = direction.angle() + PI / 2
 
+## 重写基类的普攻触发方法
+func _start_normal_attack() -> void:
+	attack_phase = 1
+	phase2_current_hit = 0
+	_change_state(CharacterState.ATTACKING)
+
+## 重写基类的重击触发方法
+func _start_charged_attack() -> void:
+	attack_phase = 2
+	phase2_current_hit = 0
+	_change_state(CharacterState.ATTACKING)
+
 ## 执行攻击（由状态机调用）
 func perform_attack() -> void:
-	# 攻击逻辑现在由 AyakaAttackState 控制
-	# 这个方法只是为了兼容基类
-	pass
+	# 根据攻击阶段执行不同的攻击逻辑
+	if attack_phase == 1:
+		_execute_phase1_attack()
+	elif attack_phase == 2:
+		_execute_phase2_attack()
+	else:
+		# 默认执行普攻
+		attack_phase = 1
+		phase2_current_hit = 0
+		_execute_phase1_attack()
 
-## 执行第一阶段攻击（由攻击状态调用）
+## 执行第一阶段攻击
 func _execute_phase1_attack() -> void:
+	attack_phase = 1
 	if not sword_area:
 		finish_attack()
 		return
@@ -273,18 +302,14 @@ func _on_phase1_swing_finished() -> void:
 	if sword_area:
 		sword_area.monitoring = false
 	
-	# 通知攻击状态第一阶段完成
-	var attack_state = _get_attack_state()
-	if attack_state:
-		attack_state.on_phase1_finished()
+	# 普攻完成，直接结束攻击状态
+	attack_phase = 0
+	finish_attack()
 
-## 执行第二阶段攻击（由攻击状态调用）
+## 执行第二阶段攻击
 func _execute_phase2_attack() -> void:
-	var attack_state = _get_attack_state()
-	if not attack_state:
-		return
-	
-	attack_state.phase2_current_hit = 0
+	attack_phase = 2
+	phase2_current_hit = 0
 	
 	# 获取准星位置（鼠标位置）
 	var mouse_position = get_global_mouse_position()
@@ -325,11 +350,10 @@ func _execute_phase2_attack() -> void:
 
 ## 触发第二段多次伤害序列
 func _trigger_phase2_damage_sequence() -> void:
-	var attack_state = _get_attack_state()
-	if not attack_state or attack_state.attack_phase != 2:
+	if attack_phase != 2:
 		return
 	
-	if attack_state.phase2_current_hit >= charged_hit_count:
+	if phase2_current_hit >= charged_hit_count:
 		return
 	
 	# 清空本次伤害的已命中敌人列表
@@ -348,10 +372,10 @@ func _trigger_phase2_damage_sequence() -> void:
 		var timer = get_tree().create_timer(0.1)
 		timer.timeout.connect(_on_charged_damage_finished)
 	
-	attack_state.phase2_current_hit += 1
+	phase2_current_hit += 1
 	
 	# 如果还有剩余伤害次数，继续触发
-	if attack_state.phase2_current_hit < charged_hit_count and attack_state.attack_phase == 2:
+	if phase2_current_hit < charged_hit_count and attack_phase == 2:
 		var timer = get_tree().create_timer(charged_hit_interval)
 		timer.timeout.connect(_trigger_phase2_damage_sequence)
 	else:
@@ -382,13 +406,14 @@ func _on_phase2_finished() -> void:
 	hit_enemies_phase1.clear()
 	hit_enemies_phase2.clear()
 	
-	# 通知攻击状态第二阶段完成
-	var attack_state = _get_attack_state()
-	if attack_state:
-		attack_state.on_phase2_finished()
+	# 攻击完成
+	attack_phase = 0
+	finish_attack()
 
-## 清理攻击状态（由攻击状态退出时调用）
+## 清理攻击状态
 func _cleanup_attack() -> void:
+	attack_phase = 0
+	phase2_current_hit = 0
 	_stop_phase1_trail()
 	if sword_area:
 		sword_area.monitoring = false
@@ -406,12 +431,6 @@ func _cleanup_attack() -> void:
 	
 	hit_enemies_phase1.clear()
 	hit_enemies_phase2.clear()
-
-## 获取攻击状态
-func _get_attack_state() -> AyakaAttackState:
-	if state_machine and state_machine.states.has("Attack"):
-		return state_machine.states["Attack"] as AyakaAttackState
-	return null
 
 func _start_phase1_trail() -> void:
 	if not phase1_trail_enabled:
@@ -441,6 +460,35 @@ func _stop_phase1_trail(immediate: bool = false) -> void:
 		_phase1_trail.stop()
 	_phase1_trail = null
 
+## 更新重击蓄力提示（武器颤抖）
+func _update_charged_charge_indicator() -> void:
+	if not sword_area:
+		return
+	
+	# 如果游戏暂停，保持当前状态不变
+	if get_tree().paused:
+		return
+	
+	# 只在按住攻击键且未进入攻击状态时显示蓄力提示
+	if _attack_button_pressed and not is_attacking():
+		var hold_duration = get_attack_hold_duration()
+		
+		# 达到重击阈值时，让武器颤抖
+		if hold_duration >= charged_attack_threshold:
+			# 计算颤抖偏移（使用正弦波）
+			var time = Time.get_ticks_msec() / 1000.0
+			var shake_offset = sin(time * weapon_shake_frequency * TAU) * weapon_shake_amplitude
+			
+			# 应用颤抖偏移到武器的位置（基于枢轴偏移）
+			sword_area.position = sword_pivot_offset + Vector2(shake_offset, shake_offset * 0.5)
+		else:
+			# 未达到阈值，恢复武器位置
+			sword_area.position = sword_pivot_offset
+	else:
+		# 未按住攻击键，恢复武器位置
+		if not is_attacking():
+			sword_area.position = sword_pivot_offset
+
 ## 更新重击动画状态（每帧调用）
 func _update_charged_effect() -> void:
 	if not charged_effect:
@@ -450,8 +498,7 @@ func _update_charged_effect() -> void:
 	if get_tree().paused:
 		return
 	
-	var attack_state = _get_attack_state()
-	var in_phase2 = attack_state and attack_state.attack_phase == 2
+	var in_phase2 = attack_phase == 2
 	
 	# 根据攻击状态和倒计时决定是否显示
 	var should_show = _charged_effect_should_visible and in_phase2
@@ -466,10 +513,11 @@ func _update_charged_effect() -> void:
 	if should_show:
 		if not charged_effect.visible:
 			charged_effect.visible = true
+			charged_effect.modulate.a = 1.0  # 完全不透明
 		if not charged_effect.is_playing():
 			charged_effect.play("default")
 	else:
-		if charged_effect.visible:
+		if charged_effect.visible and not _attack_button_pressed:
 			charged_effect.visible = false
 			charged_effect.stop()
 		_charged_effect_should_visible = false
@@ -490,17 +538,13 @@ func _handle_sword_hit(target: Node2D) -> void:
 	if not target or not target.is_in_group("enemies"):
 		return
 	
-	var attack_state = _get_attack_state()
-	if not attack_state:
-		return
-	
 	var already_hit = false
-	if attack_state.attack_phase == 1:
+	if attack_phase == 1:
 		if target in hit_enemies_phase1:
 			already_hit = true
 		else:
 			hit_enemies_phase1.append(target)
-	elif attack_state.attack_phase == 2:
+	elif attack_phase == 2:
 		if target in hit_enemies_phase2:
 			already_hit = true
 		else:
@@ -548,15 +592,22 @@ func _handle_charged_hit(target: Node2D) -> void:
 	
 	# 造成伤害
 	if target.has_method("take_damage"):
-		# 使用统一伤害计算系统
-		var damage_result = deal_damage_to(target, phase2_attack_multiplier)
+		# 判断是否为最后一击
+		var is_final_hit = (phase2_current_hit >= charged_hit_count)
+		
+		# 前两次造成僵直，最后一次造成击退
+		var apply_knockback = is_final_hit
+		var apply_stun = not is_final_hit
+		
+		# 使用统一伤害计算系统（75%攻击力）
+		var damage_result = deal_damage_to(target, charged_attack_multiplier, false, false, apply_knockback, apply_stun)
 		var damage = damage_result[0]
 		var is_crit = damage_result[1]
 		
 		if is_crit:
-			print("重击 暴击！伤害: ", damage)
+			print("重击 暴击！伤害: ", damage, " (第", phase2_current_hit, "/", charged_hit_count, "击)")
 		else:
-			print("重击命中敌人，造成伤害: ", damage)
+			print("重击命中敌人，造成伤害: ", damage, " (第", phase2_current_hit, "/", charged_hit_count, "击)")
 		
 		# 重击命中敌人时充能大招（应用充能效率加成）
 		var actual_energy = energy_per_hit * get_energy_gain_multiplier()
