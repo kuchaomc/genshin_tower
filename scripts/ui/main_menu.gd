@@ -36,7 +36,7 @@ func _on_start_button_pressed() -> void:
 	if GameManager:
 		GameManager.go_to_character_select()
 	else:
-		# 如果没有GameManager，直接进入游戏场景（向后兼容）
+		# 如果没有GameManager，直接进入游戏场景
 		get_tree().change_scene_to_packed(game_scene)
 
 # 游戏说明按钮回调

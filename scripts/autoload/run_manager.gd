@@ -32,7 +32,7 @@ var visited_nodes: Array[String] = []  # 已访问的地图节点ID
 var _stat_bonuses: Dictionary = {}
 
 # ========== 通用升级属性 ==========
-## 所有角色都拥有的通用属性升级列表（用于向后兼容）
+## 所有角色都拥有的通用属性升级列表
 const COMMON_UPGRADE_STATS: Array[Dictionary] = [
 	{"property": "max_health", "target_stat": UpgradeData.TargetStat.MAX_HEALTH},
 	{"property": "attack", "target_stat": UpgradeData.TargetStat.ATTACK},
@@ -166,11 +166,10 @@ func set_character_node(character: Node) -> void:
 func _recalculate_stat_bonuses() -> void:
 	_stat_bonuses.clear()
 	
-	# 如果没有 UpgradeRegistry，使用旧系统
-	if not _has_upgrade_registry():
-		return
-	
 	var registry = _get_upgrade_registry()
+	if registry == null:
+		push_error("RunManager: UpgradeRegistry 未找到，无法计算升级加成")
+		return
 	
 	for upgrade_id in upgrades:
 		var level = upgrades[upgrade_id]
@@ -224,7 +223,7 @@ func apply_upgrades_to_character(character: Node) -> void:
 		emit_signal("upgrades_applied")
 		return
 	
-	# 如果角色没有专用方法，尝试直接应用到 current_stats（向后兼容）
+	# 如果角色没有专用方法，尝试直接应用到 current_stats
 	if not character.has_method("get_base_stats") or not character.has_method("get_current_stats"):
 		return
 	
@@ -239,7 +238,7 @@ func apply_upgrades_to_character(character: Node) -> void:
 	
 	emit_signal("upgrades_applied")
 
-## 应用通用属性升级到角色（向后兼容方法）
+## 应用通用属性升级到角色
 func _apply_common_stats_to_character(character: Node, current_stats: Resource, base_stats: Resource) -> void:
 	for stat_config in COMMON_UPGRADE_STATS:
 		var property_name = stat_config.get("property")

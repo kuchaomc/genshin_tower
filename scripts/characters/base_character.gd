@@ -3,7 +3,11 @@ class_name BaseCharacter
 
 ## 角色基类
 ## 包含所有角色的通用逻辑（移动、血量、基础攻击等）
+## 使用状态机管理角色状态
 ## 统一伤害计算公式：最终伤害 = 攻击力 × 攻击倍率 × 暴击倍率 × (1 - 目标减伤比例)
+
+# ========== 状态机 ==========
+var state_machine: StateMachine = null
 
 # ========== 角色数据 ==========
 var character_data: CharacterData = null
@@ -18,7 +22,7 @@ var current_stats: CharacterStats = null
 var current_health: float = 100.0
 var max_health: float = 100.0
 @export var invincibility_duration: float = 1.0
-var is_invincible: bool = false # 兼容字段：由“受伤无敌/闪避无敌”合并而来
+var is_invincible: bool = false # 无敌状态：由"受伤无敌/闪避无敌"合并而来
 var base_move_speed: float = 100.0
 @export var hurt_speed_boost_multiplier: float = 1.1  # 受伤后移动速度倍率（略微提升）
 @export var hurt_speed_boost_duration: float = 2.0   # 提升持续时间（秒）
@@ -31,9 +35,6 @@ var _hurt_speed_timer: Timer
 @export var dodge_speed_multiplier: float = 3.0 # 闪避初始速度倍率（基于基础速度）
 @export var dodge_alpha: float = 0.7            # 闪避时透明度（视觉反馈）
 
-var _is_dodging: bool = false
-var _dodge_elapsed: float = 0.0
-var _dodge_dir: Vector2 = Vector2.ZERO
 var _dodge_next_ready_ms: int = 0
 var _last_nonzero_move_dir: Vector2 = Vector2.RIGHT
 
@@ -47,7 +48,7 @@ var _dodge_invincible: bool = false
 const _NORMAL_COLLISION_MASK: int = 3
 const _DODGE_COLLISION_MASK: int = 1
 const _PLAYER_COLLISION_LAYER: int = 4
-const _DODGE_PLAYER_COLLISION_LAYER: int = 8 # 闪避专用层：让敌人不再“顶开/挡住”玩家
+const _DODGE_PLAYER_COLLISION_LAYER: int = 8 # 闪避专用层：让敌人不再"顶开/挡住"玩家
 
 # 血量变化信号
 signal health_changed(current: float, maximum: float)
@@ -67,6 +68,8 @@ var collision_shape: CollisionShape2D
 @export var knockback_resistance: float = 0.5  # 击退抗性（0-1，1表示完全抵抗）
 var knockback_velocity: Vector2 = Vector2.ZERO
 var is_knockback_active: bool = false
+@export var knockback_duration: float = 0.12  # 击退持续时间（秒）
+var _knockback_end_ms: int = 0
 
 # ========== 状态 ==========
 var is_game_over: bool = false
@@ -153,53 +156,61 @@ func _ready() -> void:
 	current_health = max_health
 	emit_signal("health_changed", current_health, max_health)
 	
-	# 将玩家本体放到“玩家层”，避免与墙层/敌人层混用
+	# 将玩家本体放到"玩家层"，避免与墙层/敌人层混用
 	collision_layer = _PLAYER_COLLISION_LAYER
 	
 	# 初始化碰撞掩码：默认与墙+敌人发生碰撞
 	collision_mask = _NORMAL_COLLISION_MASK
+	
+	# 初始化状态机
+	_setup_state_machine()
+
+## 设置状态机（子类可以重写以添加自定义状态）
+func _setup_state_machine() -> void:
+	# 创建状态机节点
+	state_machine = StateMachine.new()
+	state_machine.name = "StateMachine"
+	add_child(state_machine)
+	
+	# 创建并添加基础状态
+	_add_player_states()
+	
+	# 初始化状态机
+	state_machine.setup(self)
+	state_machine.set_initial_state("Idle")
+
+## 添加玩家状态（子类可以重写以添加自定义状态）
+func _add_player_states() -> void:
+	var idle_state = PlayerIdleState.new()
+	var move_state = PlayerMoveState.new()
+	var attack_state = PlayerAttackState.new()
+	var dodge_state = PlayerDodgeState.new()
+	var knockback_state = PlayerKnockbackState.new()
+	var dead_state = PlayerDeadState.new()
+	
+	state_machine.add_child(idle_state)
+	state_machine.add_child(move_state)
+	state_machine.add_child(attack_state)
+	state_machine.add_child(dodge_state)
+	state_machine.add_child(knockback_state)
+	state_machine.add_child(dead_state)
 
 func _physics_process(delta: float) -> void:
 	if is_game_over:
 		return
 	
-	# 闪避输入/更新（放在移动前，确保覆盖本帧速度）
-	handle_dodge_input()
-	_update_dodge(delta)
-	
-	# 处理击退效果
+	# 更新击退计时器
 	_update_knockback(delta)
 	
-	# 处理移动
-	handle_movement()
+	# 状态机更新
+	if state_machine:
+		state_machine.physics_update(delta)
 	
 	# 处理动画
 	handle_animation()
 	
 	# 执行移动
 	move_and_slide()
-
-## 处理移动（子类可重写）
-func handle_movement() -> void:
-	# 闪避时由闪避逻辑直接控制速度
-	if _is_dodging:
-		return
-	
-	# 击退时优先应用击退速度
-	if is_knockback_active:
-		velocity = knockback_velocity
-		return
-	
-	if can_move():
-		velocity = Input.get_vector("left", "right", "up", "down") * move_speed
-		if velocity != Vector2.ZERO:
-			_last_nonzero_move_dir = velocity.normalized()
-	else:
-		velocity = Vector2.ZERO
-
-## 是否可以移动（子类可重写，例如攻击时不能移动）
-func can_move() -> bool:
-	return true
 
 ## 处理动画（子类可重写）
 func handle_animation() -> void:
@@ -213,20 +224,47 @@ func handle_animation() -> void:
 	else:
 		animator.flip_h = false
 	
-	# 根据速度播放动画
-	if velocity == Vector2.ZERO:
-		animator.play("idle")
-	else:
-		animator.play("run")
-
-## 处理攻击输入（子类实现）
-func handle_attack_input() -> void:
-	if Input.is_action_just_pressed("mouse1"):
-		perform_attack()
+	# 动画由状态控制，这里不再播放
 
 ## 执行攻击（子类必须实现）
 func perform_attack() -> void:
 	pass
+
+## 攻击完成时调用（通知状态机）
+func finish_attack() -> void:
+	if state_machine and state_machine.is_in_state("Attack"):
+		var attack_state = state_machine.states.get("Attack") as PlayerAttackState
+		if attack_state:
+			attack_state.finish_attack()
+
+## 检查闪避是否就绪
+func _is_dodge_ready() -> bool:
+	return Time.get_ticks_msec() >= _dodge_next_ready_ms
+
+## 设置闪避无敌状态
+func _set_dodge_invincible(active: bool) -> void:
+	_dodge_invincible = active
+	_refresh_invincible_state()
+
+## 设置受伤无敌状态
+func _set_hurt_invincible(active: bool) -> void:
+	_hurt_invincible = active
+	_refresh_invincible_state()
+
+func _is_currently_invincible() -> bool:
+	return _hurt_invincible or _dodge_invincible
+
+func _refresh_invincible_state() -> void:
+	is_invincible = _is_currently_invincible()
+	if not animator:
+		return
+	# 优先展示受伤无敌的更强提示，其次是闪避无敌
+	if _hurt_invincible:
+		animator.modulate.a = 0.5
+	elif _dodge_invincible:
+		animator.modulate.a = dodge_alpha
+	else:
+		animator.modulate.a = 1.0
 
 # ========== 统一伤害计算系统 ==========
 
@@ -235,7 +273,7 @@ func perform_attack() -> void:
 ## damage_multiplier: 伤害倍率（普攻 1.0，技能可能 1.5、2.0 等）
 ## force_crit: 强制暴击
 ## force_no_crit: 强制不暴击
-## apply_knockback: 是否应用击退效果（默认 true，保持向后兼容）
+## apply_knockback: 是否应用击退效果（默认 true）
 ## apply_stun: 是否应用僵直效果（默认 false）
 ## 返回值: [实际造成的伤害, 是否暴击]
 func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bool = false, force_no_crit: bool = false, apply_knockback: bool = true, apply_stun: bool = false) -> Array:
@@ -267,8 +305,8 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 		if target.has_method("take_damage"):
 			# 检查是否支持僵直参数（3个参数：damage, knockback, apply_stun）
 			if apply_stun and _can_call_with_params(target, "take_damage", 3):
-				var knockback_force = knockback_dir * current_stats.knockback_force if apply_knockback else Vector2.ZERO
-				target.take_damage(final_damage, knockback_force, apply_stun)
+				var knockback_force_value = knockback_dir * current_stats.knockback_force if apply_knockback else Vector2.ZERO
+				target.take_damage(final_damage, knockback_force_value, apply_stun)
 			# 检查是否支持击退参数（2个参数：damage, knockback）
 			elif apply_knockback and _can_call_with_params(target, "take_damage", 2):
 				target.take_damage(final_damage, knockback_dir * current_stats.knockback_force)
@@ -332,7 +370,7 @@ func get_knockback_force() -> float:
 
 ## 受到伤害（应用自身减伤）
 ## knockback_direction: 击退方向（可选，如果提供则应用击退效果）
-## knockback_force: 击退力度（可选，默认值）
+## knockback_force_value: 击退力度（可选，默认值）
 func take_damage(damage_amount: float, knockback_direction: Vector2 = Vector2.ZERO, knockback_force_value: float = 100.0) -> void:
 	if is_game_over or _is_currently_invincible():
 		return
@@ -373,101 +411,6 @@ func start_invincibility() -> void:
 func end_invincibility() -> void:
 	_set_hurt_invincible(false)
 
-## 处理闪避输入（右键）
-func handle_dodge_input() -> void:
-	if is_game_over:
-		return
-	# 子类可通过重写 can_dodge 控制可否闪避（例如攻击中禁止）
-	if Input.is_action_just_pressed("mouse2") and can_dodge():
-		_try_start_dodge()
-
-## 是否可以闪避（子类可重写）
-func can_dodge() -> bool:
-	return (not _is_dodging) and _is_dodge_ready()
-
-func _is_dodge_ready() -> bool:
-	return Time.get_ticks_msec() >= _dodge_next_ready_ms
-
-func _try_start_dodge() -> void:
-	if _is_dodging or not _is_dodge_ready():
-		return
-	start_dodge()
-
-## 开始闪避（向鼠标方向）
-func start_dodge() -> void:
-	_is_dodging = true
-	_dodge_elapsed = 0.0
-	_dodge_next_ready_ms = Time.get_ticks_msec() + int(dodge_cooldown * 1000.0)
-	
-	var mouse_pos: Vector2 = get_global_mouse_position()
-	var dir: Vector2 = mouse_pos - global_position
-	if dir == Vector2.ZERO:
-		dir = _last_nonzero_move_dir
-	_dodge_dir = dir.normalized()
-	
-	_set_dodge_invincible(true)
-	# 重要：闪避无敌不应关闭碰撞（否则会穿出空气墙/边界）
-	# 伤害免疫由 _dodge_invincible 控制，碰撞仍保持开启以便被墙体阻挡
-	# 同时：闪避期间可选择“穿过敌人”，只保留与墙的碰撞
-	collision_mask = _DODGE_COLLISION_MASK
-	# 注意：物理碰撞过滤对“移动的敌人”是单向的（敌人 mask 包含玩家层即可顶开玩家）
-	# 为确保闪避能真正穿怪，这里把玩家临时切到一个“闪避层”，敌人 mask(5) 不包含该层
-	collision_layer = _DODGE_PLAYER_COLLISION_LAYER
-
-func _update_dodge(delta: float) -> void:
-	if not _is_dodging:
-		return
-	
-	_dodge_elapsed += delta
-	var t: float = 0.0
-	if dodge_duration > 0.0:
-		t = clamp(_dodge_elapsed / dodge_duration, 0.0, 1.0)
-	
-	# 基础速度取决于“目标闪避距离 / 持续时间”
-	var base_speed: float = base_move_speed
-	if dodge_duration > 0.0:
-		base_speed = dodge_distance / dodge_duration
-	
-	# 速度曲线：初始很快，逐渐回落（平滑）
-	# 保证平均速度仍约等于 base_speed，从而距离可控
-	var start_speed: float = base_speed * dodge_speed_multiplier
-	var end_speed: float = base_speed * 0.8
-	var ease_out: float = 1.0 - pow(1.0 - t, 2.0)
-	var speed: float = lerp(start_speed, end_speed, ease_out)
-	velocity = _dodge_dir * speed
-	
-	if t >= 1.0:
-		_is_dodging = false
-		_set_dodge_invincible(false)
-		# 碰撞在闪避期间始终保持开启，无需恢复
-		# 恢复正常碰撞：墙+敌人
-		collision_mask = _NORMAL_COLLISION_MASK
-		# 恢复玩家层
-		collision_layer = _PLAYER_COLLISION_LAYER
-
-func _is_currently_invincible() -> bool:
-	return _hurt_invincible or _dodge_invincible
-
-func _set_hurt_invincible(active: bool) -> void:
-	_hurt_invincible = active
-	_refresh_invincible_state()
-
-func _set_dodge_invincible(active: bool) -> void:
-	_dodge_invincible = active
-	_refresh_invincible_state()
-
-func _refresh_invincible_state() -> void:
-	is_invincible = _is_currently_invincible()
-	if not animator:
-		return
-	# 优先展示受伤无敌的更强提示，其次是闪避无敌
-	if _hurt_invincible:
-		animator.modulate.a = 0.5
-	elif _dodge_invincible:
-		animator.modulate.a = dodge_alpha
-	else:
-		animator.modulate.a = 1.0
-
 ## 回复血量
 func heal(heal_amount: float) -> void:
 	if is_game_over:
@@ -497,6 +440,10 @@ func on_death() -> void:
 	is_game_over = true
 	emit_signal("character_died")
 	
+	# 切换到死亡状态
+	if state_machine:
+		state_machine.force_change_state("Dead")
+	
 	# 通知游戏管理器
 	if GameManager:
 		GameManager.game_over()
@@ -524,10 +471,7 @@ func apply_hurt_speed_boost() -> void:
 func _reset_hurt_speed_boost() -> void:
 	move_speed = base_move_speed
 
-@export var knockback_duration: float = 0.12  # 击退持续时间（秒）
-var _knockback_end_ms: int = 0
-
-## 应用击退效果（按“击退距离”计算）
+## 应用击退效果（按"击退距离"计算）
 ## distance: 本次希望推开的距离（像素）
 func apply_knockback(direction: Vector2, distance: float) -> void:
 	if direction == Vector2.ZERO or distance <= 0.0:
@@ -542,9 +486,13 @@ func apply_knockback(direction: Vector2, distance: float) -> void:
 	knockback_velocity = knockback_dir * (effective_distance / dur)
 	is_knockback_active = true
 	_knockback_end_ms = Time.get_ticks_msec() + int(dur * 1000.0)
+	
+	# 切换到击退状态
+	if state_machine and not state_machine.is_in_state("Dead"):
+		state_machine.force_change_state("Knockback")
 
 ## 更新击退效果
-func _update_knockback(delta: float) -> void:
+func _update_knockback(_delta: float) -> void:
 	if not is_knockback_active:
 		return
 	if Time.get_ticks_msec() >= _knockback_end_ms:
@@ -645,7 +593,7 @@ func _apply_common_upgrades(run_manager: Node) -> void:
 ## 应用非通用属性升级（由子类重写实现）
 ## 子类可以重写此方法来实现角色专属的升级逻辑
 ## 例如：技能伤害、大招充能、特殊效果等
-func _apply_custom_upgrades(run_manager: Node) -> void:
+func _apply_custom_upgrades(_run_manager: Node) -> void:
 	pass  # 默认不处理，由子类重写
 
 ## 应用单个属性升级
@@ -737,3 +685,34 @@ func get_skill_radius_multiplier() -> float:
 ## 获取充能效率倍率（通用升级）
 func get_energy_gain_multiplier() -> float:
 	return energy_gain_multiplier
+
+# ========== 状态查询方法（供外部使用） ==========
+
+## 获取当前状态名称
+func get_current_state() -> String:
+	if state_machine:
+		return state_machine.get_current_state_name()
+	return ""
+
+## 检查是否处于指定状态
+func is_in_state(state_name: String) -> bool:
+	if state_machine:
+		return state_machine.is_in_state(state_name)
+	return false
+
+## 检查是否正在攻击
+func is_attacking() -> bool:
+	return is_in_state("Attack")
+
+## 检查是否正在闪避
+func is_dodging() -> bool:
+	return is_in_state("Dodge")
+
+## 检查是否可以移动
+func can_move() -> bool:
+	var current = get_current_state()
+	return current == "Idle" or current == "Move"
+
+## 检查是否可以闪避
+func can_dodge() -> bool:
+	return can_move() and _is_dodge_ready()

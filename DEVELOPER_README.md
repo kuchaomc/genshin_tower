@@ -154,7 +154,6 @@ genshin_game/
 ├── project.godot              # Godot 项目配置
 ├── README.md                  # 用户文档
 ├── DEVELOPER_README.md        # 开发者文档（本文档）
-├── REFACTORING_README.md      # 重构说明
 ├── DEBUG_TIPS.md              # 调试提示
 └── CONTRIBUTING.md            # 贡献指南
 ```

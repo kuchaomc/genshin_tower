@@ -1,8 +1,7 @@
 extends Node
 
-## 轻量事件总线（用于逐步替代跨模块直接互调）
-## 说明：现阶段以“兼容方式”引入——旧代码仍可直接调用 GameManager/RunManager。
-## 后续重构可以改为：场景脚本 emit 事件 → App/GameManager 统一响应。
+## 轻量事件总线（用于跨模块通信）
+## 场景脚本通过 emit 事件与 GameManager/RunManager 通信
 
 signal scene_change_requested(scene_path: String)
 signal scene_changed(scene_path: String)

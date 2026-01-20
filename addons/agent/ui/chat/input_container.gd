@@ -11,7 +11,6 @@ extends MarginContainer
 @onready var use_thinking: CheckButton = %UseThinking
 @onready var stop_button: Button = %StopButton
 @onready var model_button: OptionButton = %ModelButton
-@onready var custom_dropdown: CustomDropdown = %CustomDropdown
 @onready var config_model_button: Button = %ConfigModelButton
 @onready var config_model_tip: VBoxContainer = %ConfigModelTip
 @onready var input_box: VBoxContainer = %InputBox

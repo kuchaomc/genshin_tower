@@ -65,7 +65,7 @@ func _apply_stats_to_enemy() -> void:
 	current_health = max_health
 
 func _ready() -> void:
-	# 统一敌人分组：供 UI/战斗逻辑识别（兼容旧逻辑）
+	# 统一敌人分组：供 UI/战斗逻辑识别
 	add_to_group("enemies")
 	
 	# 碰撞层约定：第1层=墙(Walls)，第2层=敌人(Enemies)

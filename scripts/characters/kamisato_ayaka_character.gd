@@ -40,12 +40,10 @@ var _phase1_trail: SwordTrail
 @export var swing_angle: float = PI * 1.2  # 约216度
 ## 第二段攻击伤害次数
 @export var phase2_hit_count: int = 3
-## 兼容旧版：固定伤害值（当属性系统不可用时使用）
+## 固定伤害值（备用，当属性系统不可用时使用）
 @export var sword_damage: float = 25.0
 
 # ========== 攻击状态 ==========
-var attack_state: int = 0  # 0=无攻击, 1=第一段, 2=第二段
-var phase2_current_hit: int = 0
 var swing_tween: Tween
 var position_tween: Tween
 var target_position: Vector2
@@ -81,7 +79,7 @@ var _charged_effect_hide_timer: float = -1.0  # 隐藏动画的倒计时（秒�
 @export var skill_cooldown: float = 10.0
 var skill_next_ready_ms: int = 0  # 技能下次可用时间（毫秒）
 var skill_hit_enemies: Array[Node2D] = []  # 本次技能已命中的敌人
-## 兼容旧版：固定伤害值
+## 固定伤害值（备用，当属性系统不可用时使用）
 @export var skill_damage: float = 50.0
 
 # 技能冷却时间变化信号（用于UI更新）
@@ -99,11 +97,16 @@ signal skill_cooldown_changed(remaining_time: float, cooldown_time: float)
 var burst_current_energy: float = 0.0  # 当前充能值
 ## 每次命中敌人获得的充能值
 @export var energy_per_hit: float = 10.0
-## 兼容旧版：固定伤害值
+## 固定伤害值（备用，当属性系统不可用时使用）
 @export var burst_damage: float = 100.0
 
 # 大招充能进度变化信号（用于UI更新）
 signal burst_energy_changed(current_energy: float, max_energy: float)
+
+# E键按下状态追踪
+var _last_e_pressed: bool = false
+# Q键按下状态追踪
+var _last_q_pressed: bool = false
 
 func _ready() -> void:
 	super._ready()
@@ -165,11 +168,24 @@ func _ready() -> void:
 	if charged_effect:
 		charged_effect.visible = false
 
+## 重写状态机设置，使用神里绫华专属的攻击状态
+func _add_player_states() -> void:
+	var idle_state = PlayerIdleState.new()
+	var move_state = PlayerMoveState.new()
+	var attack_state = AyakaAttackState.new()  # 使用专属攻击状态
+	var dodge_state = PlayerDodgeState.new()
+	var knockback_state = PlayerKnockbackState.new()
+	var dead_state = PlayerDeadState.new()
+	
+	state_machine.add_child(idle_state)
+	state_machine.add_child(move_state)
+	state_machine.add_child(attack_state)
+	state_machine.add_child(dodge_state)
+	state_machine.add_child(knockback_state)
+	state_machine.add_child(dead_state)
+
 func _physics_process(delta: float) -> void:
 	if not is_game_over:
-		# 处理攻击输入
-		handle_attack_input()
-		
 		# 处理E键技能输入
 		handle_skill_input()
 		
@@ -185,33 +201,20 @@ func _physics_process(delta: float) -> void:
 		# 更新重击动画状态
 		_update_charged_effect()
 		
-		# 攻击时强制检查覆盖，减少漏判
-		if attack_state == 1 and sword_area and sword_area.monitoring:
-			_force_check_sword_overlaps()
-		
-		# 只在非攻击状态下更新剑的朝向
-		if attack_state == 0:
+		# 只在攻击状态下更新剑相关逻辑
+		if is_attacking():
+			# 攻击时强制检查覆盖，减少漏判
+			if sword_area and sword_area.monitoring:
+				_force_check_sword_overlaps()
+		else:
+			# 只在非攻击状态下更新剑的朝向
 			update_sword_direction()
 	
 	super._physics_process(delta)
 
-func handle_movement() -> void:
-	# 攻击状态下阻止移动
-	if attack_state == 0:
-		super.handle_movement()
-	else:
-		velocity = Vector2.ZERO
-
-func can_move() -> bool:
-	return attack_state == 0
-
-func can_dodge() -> bool:
-	# 攻击期间禁止闪避，避免与攻击状态/判定冲突；需要的话以后可放开
-	return attack_state == 0 and super.can_dodge()
-
 ## 更新剑的朝向（朝向鼠标）
 func update_sword_direction() -> void:
-	if not sword_area or attack_state != 0:
+	if not sword_area or is_attacking():
 		return
 	
 	var sword_pivot_global = sword_area.global_position
@@ -219,16 +222,19 @@ func update_sword_direction() -> void:
 	var direction = (mouse_position - sword_pivot_global).normalized()
 	sword_area.rotation = direction.angle() + PI / 2
 
-## 执行攻击
+## 执行攻击（由状态机调用）
 func perform_attack() -> void:
-	if not sword_area or attack_state != 0:
+	# 攻击逻辑现在由 AyakaAttackState 控制
+	# 这个方法只是为了兼容基类
+	pass
+
+## 执行第一阶段攻击（由攻击状态调用）
+func _execute_phase1_attack() -> void:
+	if not sword_area:
+		finish_attack()
 		return
 	
 	var mouse_position = get_global_mouse_position()
-	var mouse_direction = mouse_position - global_position
-	if mouse_direction == Vector2.ZERO:
-		mouse_direction = Vector2.RIGHT  # 鼠标重合时使用默认方向，避免零向量
-	var input_direction = mouse_direction.normalized()
 	
 	target_position = global_position  # 取消位移，保持原地攻击
 	original_position = global_position
@@ -236,11 +242,10 @@ func perform_attack() -> void:
 	hit_enemies_phase1.clear()
 	hit_enemies_phase2.clear()
 	
-	attack_state = 1
-	start_phase1_attack(mouse_position)
+	_start_phase1_swing(mouse_position)
 
 ## 第一段攻击：向鼠标方向位移并挥剑
-func start_phase1_attack(mouse_target: Vector2) -> void:
+func _start_phase1_swing(mouse_target: Vector2) -> void:
 	sword_area.monitoring = true
 	sword_area.monitorable = true
 	_start_phase1_trail()
@@ -260,47 +265,26 @@ func start_phase1_attack(mouse_target: Vector2) -> void:
 	swing_tween.set_ease(Tween.EASE_OUT)
 	swing_tween.set_trans(Tween.TRANS_BACK)
 	swing_tween.tween_property(sword_area, "rotation", base_angle + swing_angle / 2, swing_duration)
-	swing_tween.tween_callback(finish_phase1)
+	swing_tween.tween_callback(_on_phase1_swing_finished)
 
-## 完成第一段攻击
-func finish_phase1() -> void:
+## 第一阶段挥剑动画完成
+func _on_phase1_swing_finished() -> void:
 	_stop_phase1_trail()
 	if sword_area:
 		sword_area.monitoring = false
 	
-	if Input.is_action_pressed("mouse1"):
-		attack_state = 2
-		start_phase2_attack()
-	else:
-		finish_attack()
+	# 通知攻击状态第一阶段完成
+	var attack_state = _get_attack_state()
+	if attack_state:
+		attack_state.on_phase1_finished()
 
-## 结束攻击
-func finish_attack() -> void:
-	_stop_phase1_trail()
-	if sword_area:
-		sword_area.monitoring = false
-	
-	# 如果重击动画正在显示，标记为应该隐藏
-	# 实际隐藏会在_update_charged_effect()中处理
-	if attack_state == 2:
-		_charged_effect_should_visible = false
-		_charged_effect_hide_timer = -1.0
-		# 如果游戏未暂停，立即隐藏
-		if not get_tree().paused and charged_effect:
-			charged_effect.visible = false
-			charged_effect.stop()
-	
-	attack_state = 0
-	
-	hit_enemies_phase1.clear()
-	hit_enemies_phase2.clear()
-
-## 第二段攻击：剑收刀，同时在准星位置生成剑花
-func start_phase2_attack() -> void:
-	if attack_state != 2:
+## 执行第二阶段攻击（由攻击状态调用）
+func _execute_phase2_attack() -> void:
+	var attack_state = _get_attack_state()
+	if not attack_state:
 		return
 	
-	phase2_current_hit = 0
+	attack_state.phase2_current_hit = 0
 	
 	# 获取准星位置（鼠标位置）
 	var mouse_position = get_global_mouse_position()
@@ -329,10 +313,7 @@ func start_phase2_attack() -> void:
 		charged_effect.global_position = mouse_position
 		if charged_effect.sprite_frames:
 			charged_effect.play("default")
-			# 不再依赖动画完成信号，而是使用基于时间的隐藏逻辑
-			# 动画会循环播放，直到攻击状态改变
 		else:
-			# 如果没有sprite_frames，设置隐藏倒计时
 			_charged_effect_hide_timer = 0.7
 	
 	# 设置重击伤害区域位置
@@ -340,11 +321,15 @@ func start_phase2_attack() -> void:
 		charged_area.global_position = mouse_position
 	
 	# 开始伤害序列
-	trigger_phase2_damage_sequence()
+	_trigger_phase2_damage_sequence()
 
 ## 触发第二段多次伤害序列
-func trigger_phase2_damage_sequence() -> void:
-	if attack_state != 2 or phase2_current_hit >= charged_hit_count:
+func _trigger_phase2_damage_sequence() -> void:
+	var attack_state = _get_attack_state()
+	if not attack_state or attack_state.attack_phase != 2:
+		return
+	
+	if attack_state.phase2_current_hit >= charged_hit_count:
 		return
 	
 	# 清空本次伤害的已命中敌人列表
@@ -363,34 +348,113 @@ func trigger_phase2_damage_sequence() -> void:
 		var timer = get_tree().create_timer(0.1)
 		timer.timeout.connect(_on_charged_damage_finished)
 	
-	phase2_current_hit += 1
+	attack_state.phase2_current_hit += 1
 	
 	# 如果还有剩余伤害次数，继续触发
-	if phase2_current_hit < charged_hit_count and attack_state == 2:
+	if attack_state.phase2_current_hit < charged_hit_count and attack_state.attack_phase == 2:
 		var timer = get_tree().create_timer(charged_hit_interval)
-		timer.timeout.connect(trigger_phase2_damage_sequence)
+		timer.timeout.connect(_trigger_phase2_damage_sequence)
 	else:
 		# 所有伤害完成，等待特效播放完成后结束
 		var finish_timer = get_tree().create_timer(0.5)
-		finish_timer.timeout.connect(finish_phase2)
+		finish_timer.timeout.connect(_on_phase2_finished)
 
 ## 重击伤害检测完成
 func _on_charged_damage_finished() -> void:
 	if charged_area:
 		charged_area.monitoring = false
 
+## 第二阶段完成
+func _on_phase2_finished() -> void:
+	if charged_area:
+		charged_area.monitoring = false
+	
+	# 标记重击动画应该隐藏
+	_charged_effect_should_visible = false
+	_charged_effect_hide_timer = -1.0
+	
+	# 如果游戏未暂停，立即隐藏动画
+	if not get_tree().paused:
+		if charged_effect:
+			charged_effect.visible = false
+			charged_effect.stop()
+	
+	hit_enemies_phase1.clear()
+	hit_enemies_phase2.clear()
+	
+	# 通知攻击状态第二阶段完成
+	var attack_state = _get_attack_state()
+	if attack_state:
+		attack_state.on_phase2_finished()
+
+## 清理攻击状态（由攻击状态退出时调用）
+func _cleanup_attack() -> void:
+	_stop_phase1_trail()
+	if sword_area:
+		sword_area.monitoring = false
+	if charged_area:
+		charged_area.monitoring = false
+	
+	# 标记重击动画应该隐藏
+	_charged_effect_should_visible = false
+	_charged_effect_hide_timer = -1.0
+	
+	# 如果游戏未暂停，立即隐藏动画
+	if not get_tree().paused and charged_effect:
+		charged_effect.visible = false
+		charged_effect.stop()
+	
+	hit_enemies_phase1.clear()
+	hit_enemies_phase2.clear()
+
+## 获取攻击状态
+func _get_attack_state() -> AyakaAttackState:
+	if state_machine and state_machine.states.has("Attack"):
+		return state_machine.states["Attack"] as AyakaAttackState
+	return null
+
+func _start_phase1_trail() -> void:
+	if not phase1_trail_enabled:
+		return
+	if not is_instance_valid(sword_tip):
+		return
+	# 如果上一条还没销毁，先清理
+	_stop_phase1_trail(true)
+	_phase1_trail = SwordTrail.new()
+	_phase1_trail.width = phase1_trail_width
+	_phase1_trail.max_points = phase1_trail_max_points
+	_phase1_trail.min_distance = phase1_trail_min_distance
+	_phase1_trail.fade_time = phase1_trail_fade_time
+	_phase1_trail.start_color = phase1_trail_start_color
+	_phase1_trail.end_color = phase1_trail_end_color
+	_phase1_trail.z = 60
+	get_parent().add_child(_phase1_trail)
+	_phase1_trail.setup(sword_tip)
+
+func _stop_phase1_trail(immediate: bool = false) -> void:
+	if not is_instance_valid(_phase1_trail):
+		_phase1_trail = null
+		return
+	if immediate:
+		_phase1_trail.queue_free()
+	else:
+		_phase1_trail.stop()
+	_phase1_trail = null
+
 ## 更新重击动画状态（每帧调用）
 func _update_charged_effect() -> void:
 	if not charged_effect:
 		return
 	
-	# 如果游戏暂停，保持当前状态不变（不执行任何操作）
-	# 这样动画会保持当前帧和可见状态
+	# 如果游戏暂停，保持当前状态不变
 	if get_tree().paused:
 		return
 	
+	var attack_state = _get_attack_state()
+	var in_phase2 = attack_state and attack_state.attack_phase == 2
+	
 	# 根据攻击状态和倒计时决定是否显示
-	var should_show = _charged_effect_should_visible and attack_state == 2
+	var should_show = _charged_effect_should_visible and in_phase2
 	
 	# 如果有隐藏倒计时，更新它
 	if _charged_effect_hide_timer > 0:
@@ -400,13 +464,11 @@ func _update_charged_effect() -> void:
 	
 	# 更新可见性
 	if should_show:
-		# 应该显示：确保可见并播放
 		if not charged_effect.visible:
 			charged_effect.visible = true
 		if not charged_effect.is_playing():
 			charged_effect.play("default")
 	else:
-		# 应该隐藏：隐藏并停止
 		if charged_effect.visible:
 			charged_effect.visible = false
 			charged_effect.stop()
@@ -416,6 +478,56 @@ func _update_charged_effect() -> void:
 ## 获取重击特效（供暂停菜单使用）
 func get_charged_effect() -> AnimatedSprite2D:
 	return charged_effect
+
+## 剑碰撞到敌人时的回调
+func _on_sword_area_entered(area: Area2D) -> void:
+	_handle_sword_hit(area)
+
+func _on_sword_body_entered(body: Node2D) -> void:
+	_handle_sword_hit(body)
+
+func _handle_sword_hit(target: Node2D) -> void:
+	if not target or not target.is_in_group("enemies"):
+		return
+	
+	var attack_state = _get_attack_state()
+	if not attack_state:
+		return
+	
+	var already_hit = false
+	if attack_state.attack_phase == 1:
+		if target in hit_enemies_phase1:
+			already_hit = true
+		else:
+			hit_enemies_phase1.append(target)
+	elif attack_state.attack_phase == 2:
+		if target in hit_enemies_phase2:
+			already_hit = true
+		else:
+			hit_enemies_phase2.append(target)
+	
+	if not already_hit and target.has_method("take_damage"):
+		# 使用统一伤害计算系统
+		# 普通攻击不击退，而是使敌人僵直
+		var damage_result = deal_damage_to(target, normal_attack_multiplier, false, false, false, true)
+		var damage = damage_result[0]
+		var is_crit = damage_result[1]
+		
+		if is_crit:
+			print("普攻 暴击！伤害: ", damage)
+		
+		# 普攻命中敌人时充能大招（应用充能效率加成）
+		var actual_energy = energy_per_hit * get_energy_gain_multiplier()
+		_add_burst_energy(actual_energy)
+
+## 主动检查覆盖，避免物理帧遗漏
+func _force_check_sword_overlaps() -> void:
+	if not sword_area:
+		return
+	for area in sword_area.get_overlapping_areas():
+		_on_sword_area_entered(area)
+	for body in sword_area.get_overlapping_bodies():
+		_on_sword_body_entered(body)
 
 ## 重击区域碰撞回调
 func _on_charged_area_entered(area: Area2D) -> void:
@@ -468,110 +580,14 @@ func _force_check_charged_overlaps() -> void:
 			# 在范围内，触发碰撞
 			_on_charged_body_entered(enemy_body)
 
-## 完成第二段攻击
-func finish_phase2() -> void:
-	if charged_area:
-		charged_area.monitoring = false
-	
-	# 标记重击动画应该隐藏
-	_charged_effect_should_visible = false
-	_charged_effect_hide_timer = -1.0
-	
-	# 如果游戏未暂停，立即隐藏动画
-	# 如果游戏已暂停，动画会在恢复时通过_update_charged_effect()隐藏
-	if not get_tree().paused:
-		if charged_effect:
-			charged_effect.visible = false
-			charged_effect.stop()
-	
-	attack_state = 0
-	
-	hit_enemies_phase1.clear()
-	hit_enemies_phase2.clear()
-
-func _start_phase1_trail() -> void:
-	if not phase1_trail_enabled:
-		return
-	if not is_instance_valid(sword_tip):
-		return
-	# 如果上一条还没销毁，先清理
-	_stop_phase1_trail(true)
-	_phase1_trail = SwordTrail.new()
-	_phase1_trail.width = phase1_trail_width
-	_phase1_trail.max_points = phase1_trail_max_points
-	_phase1_trail.min_distance = phase1_trail_min_distance
-	_phase1_trail.fade_time = phase1_trail_fade_time
-	_phase1_trail.start_color = phase1_trail_start_color
-	_phase1_trail.end_color = phase1_trail_end_color
-	_phase1_trail.z = 60
-	get_parent().add_child(_phase1_trail)
-	_phase1_trail.setup(sword_tip)
-
-func _stop_phase1_trail(immediate: bool = false) -> void:
-	if not is_instance_valid(_phase1_trail):
-		_phase1_trail = null
-		return
-	if immediate:
-		_phase1_trail.queue_free()
-	else:
-		_phase1_trail.stop()
-	_phase1_trail = null
-
-## 剑碰撞到敌人时的回调
-func _on_sword_area_entered(area: Area2D) -> void:
-	_handle_sword_hit(area)
-
-func _on_sword_body_entered(body: Node2D) -> void:
-	_handle_sword_hit(body)
-
-func _handle_sword_hit(target: Node2D) -> void:
-	if not target or not target.is_in_group("enemies"):
-		return
-	var already_hit = false
-	if attack_state == 1:
-		if target in hit_enemies_phase1:
-			already_hit = true
-		else:
-			hit_enemies_phase1.append(target)
-	elif attack_state == 2:
-		if target in hit_enemies_phase2:
-			already_hit = true
-		else:
-			hit_enemies_phase2.append(target)
-	
-	if not already_hit and target.has_method("take_damage"):
-		# 使用统一伤害计算系统
-		# 普通攻击不击退，而是使敌人僵直
-		var damage_result = deal_damage_to(target, normal_attack_multiplier, false, false, false, true)
-		var damage = damage_result[0]
-		var is_crit = damage_result[1]
-		
-		if is_crit:
-			print("普攻 暴击！伤害: ", damage)
-		
-		# 普攻命中敌人时充能大招（应用充能效率加成）
-		var actual_energy = energy_per_hit * get_energy_gain_multiplier()
-		_add_burst_energy(actual_energy)
-
-## 主动检查覆盖，避免物理帧遗漏
-func _force_check_sword_overlaps() -> void:
-	if not sword_area:
-		return
-	for area in sword_area.get_overlapping_areas():
-		_on_sword_area_entered(area)
-	for body in sword_area.get_overlapping_bodies():
-		_on_sword_body_entered(body)
-
 # ========== E技能相关方法 ==========
 
 ## 处理E键技能输入
-var _last_e_pressed: bool = false
-
 func handle_skill_input() -> void:
 	# 检测E键按下（使用is_physical_key_pressed并检查状态变化）
 	var e_pressed = Input.is_physical_key_pressed(KEY_E)
 	if (Input.is_action_just_pressed("ui_select") or (e_pressed and not _last_e_pressed)):
-		if _is_skill_ready():
+		if _is_skill_ready() and can_move():
 			use_skill()
 	_last_e_pressed = e_pressed
 
@@ -706,13 +722,11 @@ func _update_skill_cooldown_display() -> void:
 # ========== 大招（Q技能）相关方法 ==========
 
 ## 处理Q键大招输入
-var _last_q_pressed: bool = false
-
 func handle_burst_input() -> void:
 	# 检测Q键按下
 	var q_pressed = Input.is_physical_key_pressed(KEY_Q)
 	if q_pressed and not _last_q_pressed:
-		if _is_burst_ready():
+		if _is_burst_ready() and can_move():
 			use_burst()
 	_last_q_pressed = q_pressed
 
@@ -763,9 +777,9 @@ func use_burst() -> void:
 		burst_instance.is_crit = false
 	
 	# 添加到场景树（添加到当前节点的父节点或根节点）
-	var parent = get_parent()
-	if parent:
-		parent.add_child(burst_instance)
+	var parent_node = get_parent()
+	if parent_node:
+		parent_node.add_child(burst_instance)
 	else:
 		get_tree().root.add_child(burst_instance)
 	

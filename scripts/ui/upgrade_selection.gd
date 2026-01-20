@@ -14,43 +14,9 @@ var available_upgrades: Array = []
 # 升级选项数量
 @export var upgrade_count: int = 3
 
-# 是否使用旧版升级系统（兼容模式）
-var _use_legacy_system: bool = false
-
-# 旧版升级数据（兼容）
-const LEGACY_UPGRADES = {
-	"damage": {
-		"name": "伤害提升",
-		"description": "增加10%攻击伤害",
-		"max_level": 5
-	},
-	"health": {
-		"name": "生命提升",
-		"description": "增加20点最大生命值",
-		"max_level": 5
-	},
-	"speed": {
-		"name": "速度提升",
-		"description": "增加10%移动速度",
-		"max_level": 5
-	},
-	"attack_speed": {
-		"name": "攻击速度",
-		"description": "增加10%攻击速度",
-		"max_level": 5
-	}
-}
-
 func _ready() -> void:
-	# 检查是否有新的升级系统
-	_use_legacy_system = not _has_upgrade_registry()
-	
 	generate_upgrade_options()
 	display_upgrades()
-
-## 检查是否有 UpgradeRegistry
-func _has_upgrade_registry() -> bool:
-	return has_node("/root/UpgradeRegistry")
 
 ## 获取 UpgradeRegistry
 func _get_upgrade_registry() -> Node:
@@ -62,17 +28,9 @@ func _get_upgrade_registry() -> Node:
 func generate_upgrade_options() -> void:
 	available_upgrades.clear()
 	
-	if _use_legacy_system:
-		_generate_legacy_options()
-	else:
-		_generate_new_options()
-
-## 生成新版升级选项
-func _generate_new_options() -> void:
 	var registry = _get_upgrade_registry()
 	if registry == null:
-		_use_legacy_system = true
-		_generate_legacy_options()
+		push_error("UpgradeSelection: UpgradeRegistry 未找到，无法生成升级选项")
 		return
 	
 	# 获取当前角色ID和楼层
@@ -96,33 +54,8 @@ func _generate_new_options() -> void:
 	
 	available_upgrades = picked
 	
-	# 如果没有可用升级，尝试使用旧系统
 	if available_upgrades.size() == 0:
-		print("UpgradeSelection: 没有可用的新版升级，尝试使用旧版系统")
-		_use_legacy_system = true
-		_generate_legacy_options()
-
-## 生成旧版升级选项（兼容）
-func _generate_legacy_options() -> void:
-	var upgrade_ids = LEGACY_UPGRADES.keys()
-	upgrade_ids.shuffle()
-	
-	# 选择3个升级
-	for i in range(min(upgrade_count, upgrade_ids.size())):
-		var upgrade_id = upgrade_ids[i]
-		var upgrade_data = LEGACY_UPGRADES[upgrade_id].duplicate()
-		upgrade_data["id"] = upgrade_id
-		
-		# 检查当前等级
-		if RunManager:
-			var current_level = RunManager.get_upgrade_level(upgrade_id)
-			upgrade_data["current_level"] = current_level
-			
-			# 如果已达到最大等级，跳过
-			if current_level >= upgrade_data["max_level"]:
-				continue
-		
-		available_upgrades.append(upgrade_data)
+		push_warning("UpgradeSelection: 没有可用的升级选项")
 
 ## 显示升级选项
 func display_upgrades() -> void:
@@ -135,10 +68,7 @@ func display_upgrades() -> void:
 	
 	# 为每个升级创建按钮
 	for upgrade in available_upgrades:
-		if _use_legacy_system:
-			_create_legacy_upgrade_button(upgrade)
-		else:
-			_create_upgrade_button(upgrade)
+		_create_upgrade_button(upgrade)
 
 ## 创建新版升级按钮
 func _create_upgrade_button(upgrade: UpgradeData) -> void:
@@ -205,29 +135,6 @@ func _create_upgrade_button(upgrade: UpgradeData) -> void:
 		tags_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 		tags_label.add_theme_font_size_override("font_size", 12)
 		vbox.add_child(tags_label)
-	
-	upgrade_container.add_child(button)
-
-## 创建旧版升级按钮（兼容）
-func _create_legacy_upgrade_button(upgrade: Dictionary) -> void:
-	var button = Button.new()
-	button.custom_minimum_size = Vector2(400, 100)
-	button.pressed.connect(_on_upgrade_selected.bind(upgrade["id"]))
-	
-	var vbox = VBoxContainer.new()
-	button.add_child(vbox)
-	
-	var name_label = Label.new()
-	name_label.text = upgrade["name"]
-	if upgrade.has("current_level"):
-		name_label.text += " (Lv.%d)" % upgrade["current_level"]
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	vbox.add_child(name_label)
-	
-	var desc_label = Label.new()
-	desc_label.text = upgrade["description"]
-	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	vbox.add_child(desc_label)
 	
 	upgrade_container.add_child(button)
 
