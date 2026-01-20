@@ -56,11 +56,6 @@ func change_scene_to(scene_path: String) -> void:
 	if scene:
 		get_tree().change_scene_to_packed(scene)
 		emit_signal("scene_changed", scene_path)
-		# 兼容：如果 EventBus 存在，同步广播
-		if Engine.has_singleton("EventBus") or has_node("/root/EventBus"):
-			var bus = get_node_or_null("/root/EventBus")
-			if bus and bus.has_signal("scene_changed"):
-				bus.emit_signal("scene_changed", scene_path)
 		print("切换到场景：", scene_path)
 	else:
 		print("错误：无法加载场景 ", scene_path)

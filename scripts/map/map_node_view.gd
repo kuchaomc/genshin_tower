@@ -81,6 +81,7 @@ func _refresh_text_and_icon() -> void:
 		icon.texture = null
 		icon.visible = false
 
+## 获取节点基础颜色（公共方法，供外部调用）
 func _get_base_color() -> Color:
 	if not data:
 		return Color.WHITE

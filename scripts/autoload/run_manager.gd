@@ -278,52 +278,6 @@ func _get_upgrade_registry() -> Node:
 		return get_node("/root/UpgradeRegistry")
 	return null
 
-# ========== 升级兼容层（支持旧版升级ID） ==========
-
-## 获取伤害加成倍率（兼容旧版 "damage" 升级）
-func get_damage_multiplier() -> float:
-	# 新系统
-	var attack_percent = get_stat_percent_bonus(UpgradeData.TargetStat.ATTACK)
-	if attack_percent != 0.0:
-		return 1.0 + attack_percent
-	
-	# 旧系统兼容
-	var damage_level = get_upgrade_level("damage")
-	return 1.0 + damage_level * 0.1
-
-## 获取生命加成值（兼容旧版 "health" 升级）
-func get_health_bonus() -> float:
-	# 新系统
-	var health_flat = get_stat_flat_bonus(UpgradeData.TargetStat.MAX_HEALTH)
-	if health_flat != 0.0:
-		return health_flat
-	
-	# 旧系统兼容
-	var health_level = get_upgrade_level("health")
-	return health_level * 20.0
-
-## 获取速度加成倍率（兼容旧版 "speed" 升级）
-func get_speed_multiplier() -> float:
-	# 新系统
-	var speed_percent = get_stat_percent_bonus(UpgradeData.TargetStat.MOVE_SPEED)
-	if speed_percent != 0.0:
-		return 1.0 + speed_percent
-	
-	# 旧系统兼容
-	var speed_level = get_upgrade_level("speed")
-	return 1.0 + speed_level * 0.1
-
-## 获取攻击速度加成倍率（兼容旧版 "attack_speed" 升级）
-func get_attack_speed_multiplier() -> float:
-	# 新系统
-	var as_percent = get_stat_percent_bonus(UpgradeData.TargetStat.ATTACK_SPEED)
-	if as_percent != 0.0:
-		return 1.0 + as_percent
-	
-	# 旧系统兼容
-	var as_level = get_upgrade_level("attack_speed")
-	return 1.0 + as_level * 0.1
-
 ## 记录击杀敌人
 func record_enemy_kill() -> void:
 	enemies_killed += 1

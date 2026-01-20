@@ -548,23 +548,10 @@ func _update_node_visual_state(node_instance: MapNodeView, is_selectable: bool) 
 
 ## 获取节点基础颜色（辅助函数）
 func _get_node_base_color(node_instance: MapNodeView) -> Color:
-	if not node_instance or not node_instance.data:
+	if not node_instance:
 		return Color.WHITE
-	match node_instance.data.node_type:
-		MapNodeData.NodeType.ENEMY:
-			return Color(1.0, 0.8, 0.8, 1.0)
-		MapNodeData.NodeType.TREASURE:
-			return Color(1.0, 0.9, 0.6, 1.0)
-		MapNodeData.NodeType.SHOP:
-			return Color(0.8, 0.8, 1.0, 1.0)
-		MapNodeData.NodeType.REST:
-			return Color(0.8, 1.0, 0.8, 1.0)
-		MapNodeData.NodeType.EVENT:
-			return Color(1.0, 1.0, 0.8, 1.0)
-		MapNodeData.NodeType.BOSS:
-			return Color(1.0, 0.4, 0.4, 1.0)
-		_:
-			return Color.WHITE
+	# 使用 MapNodeView 自己的方法获取基础颜色
+	return node_instance._get_base_color()
 
 func _acquire_node_view() -> MapNodeView:
 	if not _node_view_pool.is_empty():
