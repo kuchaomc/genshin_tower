@@ -12,9 +12,9 @@ position = Vector2(960, 880)
 
 [node name="Background" type="ColorRect" parent="MapContainer"]
 z_index = -10
-offset_left = -500.0
+offset_left = -1275.0
 offset_top = -3000.0
-offset_right = 2500.0
+offset_right = 3299.0
 offset_bottom = 1200.0
 color = Color(0.7607843, 0.69803923, 0.5019608, 1)
 

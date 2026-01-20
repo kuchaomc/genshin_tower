@@ -46,6 +46,9 @@ var min_zoom: float = 0.5
 var max_zoom: float = 2.0
 var zoom_step: float = 0.1
 
+# 相机边界限制（基于背景图范围）
+var camera_bounds: Rect2 = Rect2(-500, -3000, 3000, 4200)  # x, y, width, height
+
 func _ready() -> void:
 	# 检查必要的单例是否存在
 	if not DataManager:
@@ -89,6 +92,7 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and is_dragging:
 		var delta = event.position - drag_start_pos
 		camera.position = camera_start_pos - delta
+		_clamp_camera_position()
 
 ## 缩放相机
 func _zoom_camera(delta: float, mouse_screen_pos: Vector2) -> void:
@@ -115,6 +119,7 @@ func _zoom_camera(delta: float, mouse_screen_pos: Vector2) -> void:
 	
 	# 调整相机位置，使鼠标指向的世界坐标保持不变
 	camera.position += mouse_world_before - mouse_world_after
+	_clamp_camera_position()
 
 ## 生成并显示地图
 func generate_and_display_map() -> void:
@@ -149,6 +154,37 @@ func _setup_camera() -> void:
 		camera.position = Vector2(viewport_size.x / 2.0, viewport_size.y - 200)
 		# 设置初始缩放
 		camera.zoom = Vector2(zoom_level, zoom_level)
+		_clamp_camera_position()
+
+## 限制相机位置，确保不超出背景图边界
+func _clamp_camera_position() -> void:
+	if not camera:
+		return
+	
+	var viewport_size = get_viewport().get_visible_rect().size
+	# 计算当前缩放下，相机可视区域的半尺寸
+	var half_view_size = viewport_size / (2.0 * camera.zoom.x)
+	
+	# 计算相机位置的有效范围
+	# 相机位置是屏幕中心对应的世界坐标
+	# 为了不让可视区域超出背景，相机位置需要限制在：
+	# min = 背景左上角 + 半视野
+	# max = 背景右下角 - 半视野
+	var min_x = camera_bounds.position.x + half_view_size.x
+	var max_x = camera_bounds.position.x + camera_bounds.size.x - half_view_size.x
+	var min_y = camera_bounds.position.y + half_view_size.y
+	var max_y = camera_bounds.position.y + camera_bounds.size.y - half_view_size.y
+	
+	# 如果视野比背景还大，则将相机居中
+	if min_x > max_x:
+		camera.position.x = camera_bounds.position.x + camera_bounds.size.x / 2.0
+	else:
+		camera.position.x = clampf(camera.position.x, min_x, max_x)
+	
+	if min_y > max_y:
+		camera.position.y = camera_bounds.position.y + camera_bounds.size.y / 2.0
+	else:
+		camera.position.y = clampf(camera.position.y, min_y, max_y)
 
 ## 显示地图
 func display_map() -> void:
@@ -405,6 +441,13 @@ func _scroll_to_floor(floor_num: int) -> void:
 	
 	var viewport_size = get_viewport().get_visible_rect().size
 	var target_y = viewport_size.y - map_bottom_margin - ((floor_num - 1) * node_spacing_y)
+	
+	# 限制目标Y坐标在有效范围内
+	var half_view_height = viewport_size.y / (2.0 * camera.zoom.x)
+	var min_y = camera_bounds.position.y + half_view_height
+	var max_y = camera_bounds.position.y + camera_bounds.size.y - half_view_height
+	if min_y <= max_y:
+		target_y = clampf(target_y, min_y, max_y)
 	
 	# 创建缓动动画
 	var tween = create_tween()
