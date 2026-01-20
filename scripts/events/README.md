@@ -155,7 +155,7 @@ choices = [
 - `GOLD`: 摩拉奖励
 - `HEALTH`: 生命值奖励（恢复）
 - `UPGRADE`: 升级奖励（可以是具体ID或"random"）
-- `ARTIFACT`: 圣遗物奖励（待实现）
+- `ARTIFACT`: 圣遗物奖励（从角色专属套装中随机抽取）
 - `MULTIPLE`: 多种奖励组合（字典格式）
 
 ## 标签系统

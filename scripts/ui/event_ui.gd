@@ -115,17 +115,44 @@ func _show_reward_event() -> void:
 		return
 	
 	var reward_label = Label.new()
-	reward_label.text = _get_reward_text(current_event.reward_type, current_event.reward_value)
-	reward_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
 	reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	content_container.add_child(reward_label)
 	
-	# 自动应用奖励
-	var confirm_button = Button.new()
-	confirm_button.text = "获得奖励"
-	confirm_button.custom_minimum_size = Vector2(200, 50)
-	confirm_button.pressed.connect(_on_reward_confirmed)
-	content_container.add_child(confirm_button)
+	# 如果是圣遗物奖励，预先抽取并显示具体信息
+	if current_event.reward_type == EventData.RewardType.ARTIFACT:
+		var artifact_result = RunManager.get_random_artifact_with_slot_from_character_set() if RunManager else {}
+		if artifact_result.is_empty():
+			reward_label.text = "获得圣遗物！（但没有可用的圣遗物套装）"
+			reward_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
+			content_container.add_child(reward_label)
+			var confirm_button = Button.new()
+			confirm_button.text = "确认"
+			confirm_button.custom_minimum_size = Vector2(200, 50)
+			confirm_button.pressed.connect(_complete_event)
+			content_container.add_child(confirm_button)
+		else:
+			var artifact: ArtifactData = artifact_result.artifact
+			var slot: ArtifactSlot.SlotType = artifact_result.slot
+			var slot_name = ArtifactSlot.get_slot_name(slot)
+			reward_label.text = "获得圣遗物！\n%s（%s）\n%s" % [artifact.name, slot_name, artifact.get_bonus_summary(0)]
+			reward_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
+			content_container.add_child(reward_label)
+			var confirm_button = Button.new()
+			confirm_button.text = "获得奖励"
+			confirm_button.custom_minimum_size = Vector2(200, 50)
+			# 直接使用已抽取的圣遗物
+			confirm_button.pressed.connect(func(): _give_specific_artifact(artifact, slot); _complete_event())
+			content_container.add_child(confirm_button)
+	else:
+		reward_label.text = _get_reward_text(current_event.reward_type, current_event.reward_value)
+		reward_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
+		content_container.add_child(reward_label)
+		
+		# 自动应用奖励
+		var confirm_button = Button.new()
+		confirm_button.text = "获得奖励"
+		confirm_button.custom_minimum_size = Vector2(200, 50)
+		confirm_button.pressed.connect(_on_reward_confirmed)
+		content_container.add_child(confirm_button)
 
 ## 显示选择事件
 func _show_choice_event() -> void:
@@ -270,14 +297,30 @@ func _show_fate_dice_event() -> void:
 	
 	if random < 0.1:
 		# 10%概率：获得圣遗物
-		result_label.text = "获得圣遗物！"
-		result_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
-		var confirm_button = Button.new()
-		confirm_button.text = "获得奖励"
-		confirm_button.custom_minimum_size = Vector2(200, 50)
-		confirm_button.pressed.connect(func(): _apply_reward(EventData.RewardType.ARTIFACT, 1, current_event); _complete_event())
-		content_container.add_child(result_label)
-		content_container.add_child(confirm_button)
+		# 先抽取圣遗物以显示具体名称
+		var artifact_result = RunManager.get_random_artifact_with_slot_from_character_set() if RunManager else {}
+		if artifact_result.is_empty():
+			result_label.text = "获得圣遗物！（但没有可用的圣遗物套装）"
+			result_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
+			var confirm_button = Button.new()
+			confirm_button.text = "确认"
+			confirm_button.custom_minimum_size = Vector2(200, 50)
+			confirm_button.pressed.connect(_complete_event)
+			content_container.add_child(result_label)
+			content_container.add_child(confirm_button)
+		else:
+			var artifact: ArtifactData = artifact_result.artifact
+			var slot: ArtifactSlot.SlotType = artifact_result.slot
+			var slot_name = ArtifactSlot.get_slot_name(slot)
+			result_label.text = "获得圣遗物！\n%s（%s）\n%s" % [artifact.name, slot_name, artifact.get_bonus_summary(0)]
+			result_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
+			var confirm_button = Button.new()
+			confirm_button.text = "获得奖励"
+			confirm_button.custom_minimum_size = Vector2(200, 50)
+			# 直接使用已抽取的圣遗物，而不是再随机一次
+			confirm_button.pressed.connect(func(): _give_specific_artifact(artifact, slot); _complete_event())
+			content_container.add_child(result_label)
+			content_container.add_child(confirm_button)
 	elif random < 0.3:
 		# 20%概率：触发战斗
 		result_label.text = "触发了战斗！"
@@ -360,6 +403,17 @@ func _on_choice_selected(choice_index: int) -> void:
 			_mark_event_triggered()
 			if GameManager:
 				GameManager.start_battle()
+			return
+		
+		# 检查是否包含圣遗物奖励，如果是则显示获得的圣遗物信息
+		var has_artifact_reward = false
+		if reward_type == EventData.RewardType.ARTIFACT:
+			has_artifact_reward = true
+		elif reward_type == EventData.RewardType.MULTIPLE and reward_value is Dictionary:
+			has_artifact_reward = reward_value.has("artifact")
+		
+		if has_artifact_reward:
+			_show_artifact_reward_result(reward_type, reward_value)
 			return
 		
 		_apply_reward(reward_type, reward_value, current_event)
@@ -474,15 +528,26 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 					_give_random_upgrade()
 		
 		EventData.RewardType.ARTIFACT:
-			# 圣遗物奖励（暂时给摩拉作为占位符，后续可以扩展）
+			# 圣遗物奖励：从角色专属圣遗物套装中随机抽取
+			var artifact_count_to_give = 1
 			if actual_value is int:
-				# 给多个圣遗物，暂时转换为摩拉奖励
-				var gold_equivalent = actual_value * 100
-				RunManager.add_gold(gold_equivalent)
-				print("获得圣遗物（暂时转换为", gold_equivalent, "摩拉）")
-			else:
-				RunManager.add_gold(100)
-				print("获得圣遗物（暂时转换为100摩拉）")
+				artifact_count_to_give = actual_value
+			
+			for i in range(artifact_count_to_give):
+				var result = RunManager.get_random_artifact_with_slot_from_character_set()
+				if result.is_empty():
+					print("无法获取圣遗物：角色没有专属圣遗物套装")
+					continue
+				
+				var artifact: ArtifactData = result.artifact
+				var slot: ArtifactSlot.SlotType = result.slot
+				var slot_name = ArtifactSlot.get_slot_name(slot)
+				
+				# 添加到库存并装备
+				RunManager.add_artifact_to_inventory(artifact, slot)
+				RunManager.equip_artifact_to_character(artifact, slot)
+				
+				print("获得圣遗物：%s（%s）" % [artifact.name, slot_name])
 		
 		EventData.RewardType.MULTIPLE:
 			if actual_value is Dictionary:
@@ -514,14 +579,26 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 							for i in range(value):
 								_give_random_upgrade()
 					elif key == "artifact":
-						# 圣遗物奖励（暂时转换为摩拉）
+						# 圣遗物奖励：从角色专属圣遗物套装中随机抽取
+						var artifact_num = 1
 						if value is int:
-							var gold_equivalent = value * 100
-							RunManager.add_gold(gold_equivalent)
-							print("获得", value, "个圣遗物（暂时转换为", gold_equivalent, "摩拉）")
-						else:
-							RunManager.add_gold(100)
-							print("获得圣遗物（暂时转换为100摩拉）")
+							artifact_num = value
+						
+						for j in range(artifact_num):
+							var result = RunManager.get_random_artifact_with_slot_from_character_set()
+							if result.is_empty():
+								print("无法获取圣遗物：角色没有专属圣遗物套装")
+								continue
+							
+							var artifact: ArtifactData = result.artifact
+							var slot: ArtifactSlot.SlotType = result.slot
+							var slot_name = ArtifactSlot.get_slot_name(slot)
+							
+							# 添加到库存并装备
+							RunManager.add_artifact_to_inventory(artifact, slot)
+							RunManager.equip_artifact_to_character(artifact, slot)
+							
+							print("获得圣遗物：%s（%s）" % [artifact.name, slot_name])
 	
 	emit_signal("reward_given", reward_type, actual_value)
 
@@ -591,6 +668,114 @@ func _give_random_upgrade_max_level() -> void:
 		if levels_to_add > 0:
 			RunManager.add_upgrade(upgrade.id, levels_to_add)
 			print("随机获得升级并满级：", upgrade.display_name, " 等级：", max_level)
+
+## 给予指定的圣遗物（用于已预先抽取的情况）
+func _give_specific_artifact(artifact: ArtifactData, slot: ArtifactSlot.SlotType) -> void:
+	if not RunManager or not artifact:
+		return
+	
+	var slot_name = ArtifactSlot.get_slot_name(slot)
+	
+	# 添加到库存并装备
+	RunManager.add_artifact_to_inventory(artifact, slot)
+	RunManager.equip_artifact_to_character(artifact, slot)
+	
+	print("获得圣遗物：%s（%s）" % [artifact.name, slot_name])
+
+## 显示圣遗物奖励结果（用于选择事件中的圣遗物奖励）
+func _show_artifact_reward_result(reward_type: EventData.RewardType, reward_value: Variant) -> void:
+	# 清空选择按钮
+	if choice_container:
+		for child in choice_container.get_children():
+			child.queue_free()
+	
+	# 清空内容容器
+	_clear_content()
+	
+	# 抽取圣遗物
+	var artifact_result = RunManager.get_random_artifact_with_slot_from_character_set() if RunManager else {}
+	
+	var result_label = Label.new()
+	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	
+	if artifact_result.is_empty():
+		result_label.text = "获得圣遗物！（但没有可用的圣遗物套装）"
+		result_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
+		content_container.add_child(result_label)
+		
+		# 如果有其他奖励（MULTIPLE类型），也要应用
+		if reward_type == EventData.RewardType.MULTIPLE and reward_value is Dictionary:
+			_apply_non_artifact_rewards(reward_value)
+		
+		var confirm_button = Button.new()
+		confirm_button.text = "确认"
+		confirm_button.custom_minimum_size = Vector2(200, 50)
+		confirm_button.pressed.connect(_complete_event)
+		content_container.add_child(confirm_button)
+	else:
+		var artifact: ArtifactData = artifact_result.artifact
+		var slot: ArtifactSlot.SlotType = artifact_result.slot
+		var slot_name = ArtifactSlot.get_slot_name(slot)
+		
+		# 构建显示文本
+		var display_text = "获得圣遗物！\n%s（%s）\n%s" % [artifact.name, slot_name, artifact.get_bonus_summary(0)]
+		
+		# 如果是MULTIPLE类型且有其他奖励，添加到显示
+		if reward_type == EventData.RewardType.MULTIPLE and reward_value is Dictionary:
+			var other_rewards: Array[String] = []
+			for key in reward_value:
+				if key != "artifact":
+					var value = reward_value[key]
+					if key == "gold":
+						other_rewards.append("摩拉 +%d" % int(value))
+					elif key == "health":
+						if value < 0:
+							other_rewards.append("生命值 %d" % int(value))
+						else:
+							other_rewards.append("生命值 +%d" % int(value))
+			if other_rewards.size() > 0:
+				display_text += "\n\n其他奖励：" + ", ".join(other_rewards)
+		
+		result_label.text = display_text
+		result_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
+		content_container.add_child(result_label)
+		
+		var confirm_button = Button.new()
+		confirm_button.text = "获得奖励"
+		confirm_button.custom_minimum_size = Vector2(200, 50)
+		# 点击后给予圣遗物和其他奖励
+		confirm_button.pressed.connect(func():
+			_give_specific_artifact(artifact, slot)
+			if reward_type == EventData.RewardType.MULTIPLE and reward_value is Dictionary:
+				_apply_non_artifact_rewards(reward_value)
+			_complete_event()
+		)
+		content_container.add_child(confirm_button)
+
+## 应用非圣遗物奖励（用于MULTIPLE类型中排除圣遗物后的其他奖励）
+func _apply_non_artifact_rewards(reward_dict: Dictionary) -> void:
+	if not RunManager:
+		return
+	
+	for key in reward_dict:
+		if key == "artifact":
+			continue  # 跳过圣遗物，已单独处理
+		
+		var value = reward_dict[key]
+		if key == "gold":
+			RunManager.add_gold(int(value))
+			print("获得摩拉：", value)
+		elif key == "health":
+			if value is float and value < 0:
+				RunManager.take_damage(abs(value))
+			else:
+				RunManager.heal(float(value))
+		elif key == "upgrade":
+			if value is String:
+				RunManager.add_upgrade(value, 1)
+			elif value is int:
+				for i in range(value):
+					_give_random_upgrade()
 
 ## 获取奖励文本
 func _get_reward_text(reward_type: EventData.RewardType, reward_value: Variant) -> String:

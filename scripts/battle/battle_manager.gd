@@ -142,7 +142,12 @@ func _initialize_timers() -> void:
 	enemy_spawn_timer = Timer.new()
 	var current_floor = RunManager.current_floor if RunManager else 1
 	enemy_spawn_timer.wait_time = _calculate_enemy_spawn_time(current_floor)
-	print("当前楼层：", current_floor, "，怪物生成间隔：", enemy_spawn_timer.wait_time, "秒")
+	var spawn_count = _calculate_enemy_spawn_count(current_floor)
+	var multipliers = _calculate_enemy_stat_multipliers(current_floor)
+	print("当前楼层：", current_floor)
+	print("  - 怪物生成间隔：", enemy_spawn_timer.wait_time, "秒")
+	print("  - 每波生成数量：", spawn_count, "个")
+	print("  - 血量倍率：x%.2f，攻击倍率：x%.2f" % [multipliers[0], multipliers[1]])
 	enemy_spawn_timer.timeout.connect(_on_enemy_spawn_timer_timeout)
 	add_child(enemy_spawn_timer)
 	enemy_spawn_timer.start()
@@ -153,15 +158,33 @@ func _initialize_timers() -> void:
 	game_over_timer.timeout.connect(_on_game_over_timer_timeout)
 	add_child(game_over_timer)
 
-## 计算敌人生成时间（根据楼层）
-func _calculate_enemy_spawn_time(current_floor: int) -> float:
-	const BASE_SPAWN_TIME = 3.0
-	const SPEED_INCREASE_PER_TWO_FLOORS = 0.5
-	const MIN_SPAWN_TIME = 0.5
+## 计算敌人生成时间（固定间隔）
+func _calculate_enemy_spawn_time(_current_floor: int) -> float:
+	# 固定生成间隔，通过增加每波敌人数量来提升难度
+	return 3.0
+
+## 计算每波生成的敌人数量（根据楼层）
+func _calculate_enemy_spawn_count(current_floor: int) -> int:
+	# 第1层生成1个，每2层增加1个，最多5个
+	const BASE_COUNT = 1
+	const INCREASE_PER_TWO_FLOORS = 1
+	const MAX_COUNT = 5
 	
 	var floors_up = int((current_floor - 1) / 2)  # 每两层算一次提升（向下取整）
-	var calculated_spawn_time = BASE_SPAWN_TIME - floors_up * SPEED_INCREASE_PER_TWO_FLOORS
-	return max(MIN_SPAWN_TIME, calculated_spawn_time)
+	var calculated_count = BASE_COUNT + floors_up * INCREASE_PER_TWO_FLOORS
+	return min(MAX_COUNT, calculated_count)
+
+## 计算敌人属性缩放倍率（根据楼层）
+## 返回 [血量倍率, 攻击力倍率]
+func _calculate_enemy_stat_multipliers(current_floor: int) -> Array:
+	# 基础倍率为1.0，每层增加一定比例
+	const HEALTH_INCREASE_PER_FLOOR = 0.15  # 每层血量增加15%
+	const ATTACK_INCREASE_PER_FLOOR = 0.10  # 每层攻击力增加10%
+	
+	var health_multiplier = 1.0 + (current_floor - 1) * HEALTH_INCREASE_PER_FLOOR
+	var attack_multiplier = 1.0 + (current_floor - 1) * ATTACK_INCREASE_PER_FLOOR
+	
+	return [health_multiplier, attack_multiplier]
 
 ## 连接信号
 func _connect_signals() -> void:
@@ -331,7 +354,11 @@ func connect_player_signals() -> void:
 ## 敌人生成计时器回调
 func _on_enemy_spawn_timer_timeout() -> void:
 	if current_state == GameState.PLAYING:
-		spawn_enemy()
+		var current_floor = RunManager.current_floor if RunManager else 1
+		var spawn_count = _calculate_enemy_spawn_count(current_floor)
+		for i in range(spawn_count):
+			spawn_enemy()
+		print("本波生成敌人数量：", spawn_count)
 
 ## 生成敌人函数
 func spawn_enemy() -> void:
@@ -350,6 +377,11 @@ func spawn_enemy() -> void:
 		if not enemy_types.is_empty():
 			var enemy_data = enemy_types[randi() % enemy_types.size()]
 			enemy_instance.initialize(enemy_data)
+	
+	# 应用楼层属性缩放
+	var current_floor = RunManager.current_floor if RunManager else 1
+	var multipliers = _calculate_enemy_stat_multipliers(current_floor)
+	_apply_floor_scaling_to_enemy(enemy_instance, multipliers[0], multipliers[1])
 	
 	# 在椭圆空气墙内部随机生成位置
 	var spawn_pos: Vector2
@@ -597,6 +629,31 @@ func _apply_hitbox_visibility_to_player() -> void:
 func _apply_hitbox_visibility_to_enemy(enemy_node: Node) -> void:
 	var enemy_shape = enemy_node.get_node_or_null("CollisionShape2D") as CollisionShape2D
 	_set_shape_visible(enemy_shape, debug_show_hitboxes, Color(1, 0, 0, 0.3))
+
+## 应用楼层属性缩放到敌人
+func _apply_floor_scaling_to_enemy(enemy_node: Node, health_multiplier: float, attack_multiplier: float) -> void:
+	if not enemy_node:
+		return
+	
+	# 检查敌人是否有current_stats属性
+	if "current_stats" in enemy_node and enemy_node.current_stats:
+		var stats = enemy_node.current_stats
+		# 缩放血量
+		stats.max_health *= health_multiplier
+		# 缩放攻击力
+		stats.attack *= attack_multiplier
+		# 移动速度保持不变
+		
+		# 同步更新敌人的实际血量
+		if "max_health" in enemy_node:
+			enemy_node.max_health = stats.max_health
+		if "current_health" in enemy_node:
+			enemy_node.current_health = stats.max_health
+		
+		print("敌人属性缩放：HP x%.2f -> %.0f, ATK x%.2f -> %.0f" % [
+			health_multiplier, stats.max_health,
+			attack_multiplier, stats.attack
+		])
 
 ## 技能冷却时间变化回调
 func _on_skill_cooldown_changed(remaining_time: float, cooldown_time: float) -> void:

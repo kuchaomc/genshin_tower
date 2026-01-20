@@ -406,6 +406,31 @@ func get_random_artifact_from_character_set() -> ArtifactData:
 	var random_slot = available_slots[randi() % available_slots.size()]
 	return current_character.artifact_set.get_artifact(random_slot)
 
+## 从角色专属圣遗物套装中随机获取一个圣遗物及其槽位
+## 返回: Dictionary { "artifact": ArtifactData, "slot": ArtifactSlot.SlotType } 或空字典
+func get_random_artifact_with_slot_from_character_set() -> Dictionary:
+	if not current_character or not current_character.artifact_set:
+		return {}
+	
+	# 获取所有可用的圣遗物槽位
+	var available_slots: Array[ArtifactSlot.SlotType] = []
+	for slot in ArtifactSlot.get_all_slots():
+		var artifact = current_character.artifact_set.get_artifact(slot)
+		if artifact:
+			available_slots.append(slot)
+	
+	if available_slots.is_empty():
+		return {}
+	
+	# 随机选择一个槽位
+	var random_slot = available_slots[randi() % available_slots.size()]
+	var artifact = current_character.artifact_set.get_artifact(random_slot)
+	
+	return {
+		"artifact": artifact,
+		"slot": random_slot
+	}
+
 ## 从角色专属圣遗物套装中获取指定槽位的圣遗物
 func get_artifact_from_character_set(slot: ArtifactSlot.SlotType) -> ArtifactData:
 	if not current_character or not current_character.artifact_set:
