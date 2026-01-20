@@ -36,7 +36,7 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 50
-text = "test v1.4"
+text = "杀原戮神尖塔 v2.0 测试版"
 horizontal_alignment = 1
 
 [node name="Button" type="Button" parent="CanvasLayer/VBoxContainer"]
@@ -85,7 +85,9 @@ WASD键 - 控制角色移动
 鼠标左键 - 攻击（长按可触发重击）
 鼠标右键/Shift - 闪避（向方向键方向，闪避期间无敌）
 e - 技能
-q - 大招"
+q - 大招
+注意！如果遇到了bug或其它卡死问题
+按下y键生成日志后再使用alt+f4退出游戏！"
 
 [node name="CloseButton" type="Button" parent="CanvasLayer/Panel"]
 layout_mode = 1
