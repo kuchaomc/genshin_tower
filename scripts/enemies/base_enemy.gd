@@ -73,9 +73,10 @@ func _ready() -> void:
 	collision_layer = 2
 	# 敌人需要：
 	# - 与墙碰撞（不穿出空气墙）=> +1
+	# - 与敌人碰撞（避免挤在一起）=> +2（敌人层）
 	# - 与玩家碰撞（用于接触伤害/阻挡）=> +4（玩家层）
-	# 合计：1 + 4 = 5
-	collision_mask = 5
+	# 合计：1 + 2 + 4 = 7
+	collision_mask = 7
 	
 	# 如果没有通过 initialize 初始化，创建默认属性
 	if current_stats == null:
@@ -361,12 +362,16 @@ func on_death() -> void:
 	if RunManager:
 		RunManager.record_enemy_kill()
 	
-	# 通知战斗管理器敌人被击杀
+	# 通知战斗管理器敌人被击杀（传递分值）
+	var score: int = 1  # 默认1分
+	if enemy_data:
+		score = enemy_data.score_value
+	
 	var battle_managers = get_tree().get_nodes_in_group("battle_manager")
 	if not battle_managers.is_empty():
 		var battle_manager = battle_managers[0] as BattleManager
 		if battle_manager and battle_manager.has_method("on_enemy_killed"):
-			battle_manager.on_enemy_killed()
+			battle_manager.on_enemy_killed(score)
 	
 	# 掉落摩拉
 	if enemy_data:

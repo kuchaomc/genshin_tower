@@ -24,14 +24,15 @@ var enemy_spawn_timer: Timer
 var game_over_timer: Timer
 
 # 战斗胜利条件
-var enemies_required_to_kill: int = 5  # 需要击杀的敌人数量（初始值=5，每往上走一个节点层就+5）
-var enemies_killed_in_battle: int = 0  # 当前战斗中已击杀的敌人数量
-var is_battle_victory: bool = false  # 标记是否通过击杀敌人获得胜利（而非玩家死亡）
+var required_score: int = 5  # 需要达到的分数（初始值=5，每往上走一个节点层就+5）
+var current_score: int = 0  # 当前得分（每击杀一个敌人+1分）
+var is_battle_victory: bool = false  # 标记是否通过得分获得胜利（而非玩家死亡）
 
 # 玩家血量UI引用
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
 # 敌人击杀计数器UI引用
+var enemy_kill_counter: Control
 var enemy_kill_counter_label: Label
 # 摩拉显示UI引用
 var gold_label: Label
@@ -64,7 +65,23 @@ func _ready() -> void:
 	_connect_signals()
 	_initialize_pause_menu()
 	_apply_crosshair_cursor()
-	show_floor_notification()
+	
+	# 播放转场淡入动画（如果TransitionManager存在）
+	# 同时在转场期间显示“正在进入第N层”提示（居中显示）
+	if TransitionManager:
+		# 确保转场层已准备好并先完全遮挡
+		TransitionManager.set_opaque()
+		# 等待一帧让场景与UI完成布局，然后显示楼层提示
+		await get_tree().process_frame
+		# 将楼层提示移动到转场层，确保显示在黑屏之上
+		_move_floor_notification_to_transition_layer()
+		show_floor_notification()
+		# 使用 2 秒淡入，楼层提示会随黑屏一同淡出
+		TransitionManager.fade_in_with_node(2.0, floor_notification)
+	else:
+		# 无转场管理器时，直接显示楼层提示
+		await get_tree().process_frame
+		show_floor_notification()
 	
 	print("战斗管理器已初始化")
 
@@ -72,6 +89,7 @@ func _ready() -> void:
 func _initialize_ui_components() -> void:
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
 	player_hp_label = get_node_or_null("CanvasLayer/PlayerHPBar/Label") as Label
+	enemy_kill_counter = get_node_or_null("CanvasLayer/EnemyKillCounter") as Control
 	enemy_kill_counter_label = get_node_or_null("CanvasLayer/EnemyKillCounter/Label") as Label
 	skill_ui = get_node_or_null("CanvasLayer/SkillUIContainer/SkillUI") as SkillUI
 	burst_ui = get_node_or_null("CanvasLayer/BurstUIContainer/BurstUI") as SkillUI
@@ -83,6 +101,17 @@ func _initialize_ui_components() -> void:
 	
 	floor_notification = get_node_or_null("CanvasLayer/FloorNotification") as Control
 	floor_notification_label = get_node_or_null("CanvasLayer/FloorNotification/Label") as Label
+	
+	# 初始化UI的初始状态（隐藏并设置动画起始值）
+	if enemy_kill_counter:
+		enemy_kill_counter.visible = false
+		enemy_kill_counter.modulate.a = 0.0
+		enemy_kill_counter.scale = Vector2(0.9, 0.9)
+	
+	if floor_notification:
+		floor_notification.visible = false
+		floor_notification.modulate.a = 0.0
+		floor_notification.scale = Vector2(0.9, 0.9)
 
 ## 初始化玩家
 func _initialize_player() -> void:
@@ -91,9 +120,9 @@ func _initialize_player() -> void:
 
 ## 初始化战斗条件
 func _initialize_battle_conditions() -> void:
-	enemies_killed_in_battle = 0
+	current_score = 0
 	var current_floor = RunManager.current_floor if RunManager else 1
-	enemies_required_to_kill = 5 + (current_floor - 1) * 5
+	required_score = 5 + (current_floor - 1) * 5
 	update_enemy_kill_counter_display()
 	_update_gold_display()
 
@@ -218,7 +247,17 @@ func initialize_player() -> void:
 		return
 	
 	player_instance.name = "player"
-	player_instance.position = Vector2(-653, -22)  # 默认位置
+	
+	# 获取摄像机位置，将角色放置在摄像机中心
+	var camera = get_node_or_null("Camera2D") as Camera2D
+	if camera:
+		# 使用摄像机的全局位置作为角色位置
+		player_instance.global_position = camera.global_position
+	else:
+		# 如果找不到摄像机，使用原点作为默认位置
+		player_instance.position = Vector2.ZERO
+		print("警告：未找到摄像机，角色将放置在原点")
+	
 	add_child(player_instance)
 	player = player_instance as BaseCharacter
 	
@@ -336,7 +375,7 @@ func spawn_enemy() -> void:
 ## 更新敌人击杀计数器显示
 func update_enemy_kill_counter_display() -> void:
 	if enemy_kill_counter_label:
-		var remaining = max(0, enemies_required_to_kill - enemies_killed_in_battle)
+		var remaining = max(0, required_score - current_score)
 		enemy_kill_counter_label.text = str(remaining)
 
 ## 更新摩拉显示
@@ -345,18 +384,19 @@ func _update_gold_display() -> void:
 		gold_label.text = str(RunManager.gold)
 
 ## 敌人被击杀回调（由敌人死亡时调用）
-func on_enemy_killed() -> void:
+## score: 该敌人的分值
+func on_enemy_killed(score: int = 1) -> void:
 	if current_state != GameState.PLAYING:
 		return
 	
-	enemies_killed_in_battle += 1
-	print("敌人被击杀！当前击杀数：", enemies_killed_in_battle, "/", enemies_required_to_kill)
+	current_score += score  # 累加敌人的分值
+	print("敌人被击杀！获得 ", score, " 分，当前得分：", current_score, "/", required_score)
 	
-	# 更新击杀计数器显示
+	# 更新得分显示
 	update_enemy_kill_counter_display()
 	
 	# 检查是否达到胜利条件
-	if enemies_killed_in_battle >= enemies_required_to_kill:
+	if current_score >= required_score:
 		battle_victory()
 
 ## 战斗胜利方法
@@ -374,7 +414,7 @@ func battle_victory() -> void:
 	# 立刻清除场上所有敌人
 	clear_all_enemies()
 	
-	print("战斗胜利！已击杀 ", enemies_killed_in_battle, " 个敌人。3秒后返回地图...")
+	print("战斗胜利！当前得分：", current_score, "。3秒后返回地图...")
 	
 	# 设置3秒后返回地图
 	game_over_timer.wait_time = 3.0
@@ -432,7 +472,7 @@ func update_player_hp_display(current: float, maximum: float) -> void:
 		player_hp_bar.max_value = maximum
 		player_hp_bar.value = current
 	if player_hp_label:
-		player_hp_label.text = "HP: " + str(int(current)) + "/" + str(int(maximum))
+		player_hp_label.text = str(int(current)) + "/" + str(int(maximum))
 
 ## 玩家死亡回调
 func _on_player_died() -> void:
@@ -611,6 +651,49 @@ func _apply_crosshair_cursor() -> void:
 func _restore_default_cursor() -> void:
 	Input.set_custom_mouse_cursor(null)
 
+## 将楼层提示移动到转场层（确保显示在黑屏之上）
+func _move_floor_notification_to_transition_layer() -> void:
+	if not floor_notification or not TransitionManager:
+		return
+	
+	# 确保转场层已创建
+	TransitionManager._ensure_transition_layer()
+	
+	# 直接访问 transition_layer 变量（GDScript 中没有真正的私有变量）
+	var transition_layer = TransitionManager.transition_layer
+	if not transition_layer:
+		return
+	
+	# 如果楼层提示已经在转场层中，只需要确保 z_index 正确
+	if floor_notification.get_parent() == transition_layer:
+		floor_notification.z_index = 1
+		return
+	
+	# 保存原始父节点路径（如果需要恢复）
+	if not floor_notification.has_meta("original_parent_path"):
+		var original_parent = floor_notification.get_parent()
+		if original_parent:
+			floor_notification.set_meta("original_parent_path", original_parent.get_path())
+	
+	# 获取全局位置和缩放
+	var global_pos = floor_notification.global_position
+	var scale = floor_notification.scale
+	
+	# 从原父节点移除
+	var original_parent = floor_notification.get_parent()
+	if original_parent:
+		original_parent.remove_child(floor_notification)
+	
+	# 添加到转场层
+	transition_layer.add_child(floor_notification)
+	
+	# 恢复全局位置和缩放
+	floor_notification.global_position = global_pos
+	floor_notification.scale = scale
+	
+	# 设置 z_index，确保在转场遮罩之上（遮罩的 z_index 默认是 0）
+	floor_notification.z_index = 1
+
 ## 显示层数提示
 func show_floor_notification() -> void:
 	if not floor_notification or not floor_notification_label:
@@ -621,28 +704,77 @@ func show_floor_notification() -> void:
 	
 	# 设置提示文本
 	floor_notification_label.text = "正在进入第%d层" % current_floor
-	
-	# 显示提示并设置为完全不透明
+
+	# 将提示框位置调整为屏幕中心
+	var viewport_size := get_viewport().get_visible_rect().size
+	# 先确保已经有正确的尺寸信息
+	await get_tree().process_frame
+	var notif_size: Vector2 = floor_notification.size
+	# 使提示框居于屏幕中心（基于自身尺寸做偏移）
+	floor_notification.position = viewport_size * 0.5 - notif_size * 0.5
+
+	# 与“还需得分”一起播放出现动画（得分UI不消失）
+	# 设置楼层提示初始状态：完全可见（在黑屏上显示）
 	floor_notification.visible = true
 	floor_notification.modulate.a = 1.0
+	floor_notification.scale = Vector2.ONE
 	
-	# 创建定时器，5秒后开始淡出
-	if floor_notification_timer:
-		floor_notification_timer.queue_free()
-	
-	floor_notification_timer = Timer.new()
-	floor_notification_timer.wait_time = 5.0
-	floor_notification_timer.one_shot = true
-	floor_notification_timer.timeout.connect(_on_floor_notification_timer_timeout)
-	add_child(floor_notification_timer)
-	floor_notification_timer.start()
+	# 楼层提示会随黑屏一同淡出，不需要单独的淡出动画和定时器
+	# 与"还需得分"一起播放出现动画（得分UI不消失）
+	_play_enemy_kill_counter_intro()
 
-## 层数提示定时器回调（开始淡出）
-func _on_floor_notification_timer_timeout() -> void:
-	if not floor_notification:
-		return
+## 敌人击杀计数器出现动画
+## - "还需得分"只做出现动画，不会被隐藏
+func _play_enemy_kill_counter_intro() -> void:
+	# 还需得分：出现动画
+	if enemy_kill_counter:
+		enemy_kill_counter.visible = true
+		# 保存目标位置
+		var target_pos_score := enemy_kill_counter.position
+		# 设置起始位置（从上方）
+		enemy_kill_counter.position = target_pos_score + Vector2(0, -40)
+		enemy_kill_counter.modulate.a = 0.0
+		enemy_kill_counter.scale = Vector2(0.85, 0.85)
+		
+		var tween = create_tween()
+		tween.set_ease(Tween.EASE_OUT)
+		tween.set_trans(Tween.TRANS_BACK)
+		tween.tween_property(enemy_kill_counter, "modulate:a", 1.0, 0.5)
+		tween.parallel().tween_property(enemy_kill_counter, "scale", Vector2.ONE, 0.5)
+		tween.parallel().tween_property(enemy_kill_counter, "position", target_pos_score, 0.5)
+## - 层数提示仍会按原逻辑淡出隐藏
+## - “还需得分”只做出现动画，不会被隐藏
+func _play_top_ui_intro() -> void:
+	# 层数提示：从上方滑入 + 淡入 + 缩放出现
+	if floor_notification:
+		floor_notification.visible = true
+		# 保存目标位置
+		var target_pos := floor_notification.position
+		# 设置起始位置（从上方）
+		floor_notification.position = target_pos + Vector2(0, -40)
+		floor_notification.modulate.a = 0.0
+		floor_notification.scale = Vector2(0.85, 0.85)
+		
+		var t1 = create_tween()
+		t1.set_ease(Tween.EASE_OUT)
+		t1.set_trans(Tween.TRANS_BACK)
+		t1.tween_property(floor_notification, "modulate:a", 1.0, 0.5)
+		t1.parallel().tween_property(floor_notification, "scale", Vector2.ONE, 0.5)
+		t1.parallel().tween_property(floor_notification, "position", target_pos, 0.5)
 	
-	# 创建淡出动画
-	var tween = create_tween()
-	tween.tween_property(floor_notification, "modulate:a", 0.0, 0.5)
-	tween.tween_callback(func(): floor_notification.visible = false)
+	# 还需得分：同样出现，但不安排消失
+	if enemy_kill_counter:
+		enemy_kill_counter.visible = true
+		# 保存目标位置
+		var target_pos_score := enemy_kill_counter.position
+		# 设置起始位置（从上方）
+		enemy_kill_counter.position = target_pos_score + Vector2(0, -40)
+		enemy_kill_counter.modulate.a = 0.0
+		enemy_kill_counter.scale = Vector2(0.85, 0.85)
+		
+		var tween = create_tween()
+		tween.set_ease(Tween.EASE_OUT)
+		tween.set_trans(Tween.TRANS_BACK)
+		tween.tween_property(enemy_kill_counter, "modulate:a", 1.0, 0.5)
+		tween.parallel().tween_property(enemy_kill_counter, "scale", Vector2.ONE, 0.5)
+		tween.parallel().tween_property(enemy_kill_counter, "position", target_pos_score, 0.5)

@@ -228,7 +228,7 @@ position = Vector2(0, -51)
 shape = SubResource("RectangleShape2D_sword")
 
 [node name="SwordTip" type="Marker2D" parent="SwordArea"]
-position = Vector2(-1, -59)
+position = Vector2(0, -92.37)
 
 [node name="SkillEffect" type="AnimatedSprite2D" parent="."]
 visible = false

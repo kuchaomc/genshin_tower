@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://c5vy4j04yih54"]
+[gd_scene load_steps=11 format=3 uid="uid://c5vy4j04yih54"]
 
 [ext_resource type="Script" uid="uid://bwlkkwfk4bcuy" path="res://scripts/battle/battle_manager.gd" id="1_battle"]
 [ext_resource type="Texture2D" uid="uid://bnoahwud6qeff" path="res://textures/effects/战斗场景.png" id="2_3ma01"]
@@ -7,7 +7,21 @@
 [ext_resource type="PackedScene" path="res://scenes/boundaries/ellipse_boundary.tscn" id="5_boundary"]
 [ext_resource type="Script" uid="uid://cf2cxfxf21emy" path="res://scripts/ui/enemy_indicator_manager.gd" id="6_indicator_manager"]
 [ext_resource type="PackedScene" uid="uid://b8k3j2h4m5n6p" path="res://scenes/ui/enemy_indicator.tscn" id="7_indicator"]
-[ext_resource type="Texture2D" path="res://textures/ui/摩拉.png" id="8_gold"]
+[ext_resource type="Texture2D" uid="uid://wewl3oalmili" path="res://textures/ui/摩拉.png" id="8_gold"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_HPBackground"]
+bg_color = Color(0.2, 0.2, 0.2, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_HPFill"]
+bg_color = Color(0.5, 0.9, 0.5, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [node name="Node2D" type="Node2D"]
 y_sort_enabled = true
@@ -33,16 +47,17 @@ boundary_segments = 128
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="EnemyKillCounter" type="Control" parent="CanvasLayer"]
+visible = false
 layout_mode = 3
-anchors_preset = 7
+anchors_preset = 5
 anchor_left = 0.5
-anchor_top = 1.0
 anchor_right = 0.5
-anchor_bottom = 1.0
+anchor_top = 0.0
+anchor_bottom = 0.0
 offset_left = -150.0
-offset_top = -80.0
+offset_top = 30.0
 offset_right = 150.0
-offset_bottom = -20.0
+offset_bottom = 90.0
 grow_horizontal = 2
 grow_vertical = 0
 
@@ -52,7 +67,7 @@ offset_top = -25.0
 offset_right = 300.0
 theme_override_colors/font_color = Color(0.2, 0.8, 0.2, 1)
 theme_override_font_sizes/font_size = 20
-text = "还需击杀"
+text = "还需得分"
 horizontal_alignment = 1
 
 [node name="Label" type="Label" parent="CanvasLayer/EnemyKillCounter"]
@@ -67,37 +82,38 @@ vertical_alignment = 1
 
 [node name="PlayerHPBar" type="Control" parent="CanvasLayer"]
 layout_mode = 3
-anchors_preset = 0
-offset_left = 20.0
-offset_top = 130.0
-offset_right = 320.0
-offset_bottom = 180.0
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -250.0
+offset_top = -80.0
+offset_right = 250.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
 mouse_filter = 2
 
 [node name="ProgressBar" type="ProgressBar" parent="CanvasLayer/PlayerHPBar"]
 layout_mode = 0
-offset_right = 300.0
-offset_bottom = 30.0
+offset_right = 500.0
+offset_bottom = 22.0
+theme_override_styles/background = SubResource("StyleBoxFlat_HPBackground")
+theme_override_styles/fill = SubResource("StyleBoxFlat_HPFill")
 value = 100.0
+fill_mode = 1
 show_percentage = false
 
 [node name="Label" type="Label" parent="CanvasLayer/PlayerHPBar"]
 layout_mode = 0
-offset_right = 300.0
-offset_bottom = 30.0
-theme_override_colors/font_color = Color(0, 0, 0, 1)
-theme_override_font_sizes/font_size = 18
-text = "HP: 100/100"
+offset_right = 500.0
+offset_bottom = 22.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "100/100"
 horizontal_alignment = 1
 vertical_alignment = 1
-
-[node name="Title" type="Label" parent="CanvasLayer/PlayerHPBar"]
-layout_mode = 0
-offset_top = -25.0
-offset_right = 100.0
-theme_override_colors/font_color = Color(0.8, 0.1, 0.1, 1)
-theme_override_font_sizes/font_size = 20
-text = "玩家血量"
 
 [node name="GoldDisplay" type="Control" parent="CanvasLayer"]
 layout_mode = 3
@@ -195,6 +211,7 @@ script = ExtResource("6_indicator_manager")
 indicator_scene = ExtResource("7_indicator")
 
 [node name="FloorNotification" type="Control" parent="CanvasLayer"]
+visible = false
 layout_mode = 3
 anchors_preset = 5
 anchor_left = 0.5
@@ -202,12 +219,11 @@ anchor_top = 0.0
 anchor_right = 0.5
 anchor_bottom = 0.0
 offset_left = -200.0
-offset_top = 50.0
+offset_top = 95.0
 offset_right = 200.0
-offset_bottom = 100.0
+offset_bottom = 155.0
 grow_horizontal = 2
 grow_vertical = 0
-visible = false
 mouse_filter = 2
 
 [node name="Label" type="Label" parent="CanvasLayer/FloorNotification"]

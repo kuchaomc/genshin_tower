@@ -62,7 +62,12 @@ func _ready() -> void:
 	print("游戏管理器初始化完成")
 
 ## 切换场景
-func change_scene_to(scene_path: String) -> void:
+func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
+	# 如果需要转场动画（仅用于战斗场景）
+	if use_transition and TransitionManager:
+		# 播放淡出动画
+		await TransitionManager.fade_out(2.0)
+	
 	# 优先通过 DataManager 的缓存加载，减少反复 load 造成的卡顿
 	var scene: PackedScene = null
 	if DataManager and DataManager.has_method("get_packed_scene"):
@@ -103,7 +108,13 @@ func go_to_map_view() -> void:
 
 ## 开始战斗
 func start_battle(_enemy_data: EnemyData = null) -> void:
-	_change_scene_by_state(GameState.BATTLE)
+	# 使用转场动画切换到战斗场景
+	current_state = GameState.BATTLE
+	var scene_path = SCENE_PATHS.get(GameState.BATTLE)
+	if scene_path:
+		change_scene_to(scene_path, true)  # 启用转场动画
+	else:
+		push_error("GameManager: 状态 %d 没有对应的场景路径" % GameState.BATTLE)
 
 ## 打开宝箱
 func open_treasure() -> void:

@@ -21,6 +21,8 @@ class_name EnemyData
 # 掉落奖励
 @export var drop_gold: int = 10
 @export var drop_exp: int = 1
+# 击杀分值（每击杀一个敌人获得的分数）
+@export var score_value: int = 1
 
 # 敌人场景路径
 @export var scene_path: String = "res://scenes/enemies/enemy.tscn"

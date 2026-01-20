@@ -26,6 +26,7 @@ DataManager="*res://scripts/autoload/data_manager.gd"
 RunManager="*res://scripts/autoload/run_manager.gd"
 UpgradeRegistry="*res://scripts/upgrades/upgrade_registry.gd"
 EventBus="*res://scripts/core/event_bus.gd"
+TransitionManager="*res://scripts/ui/transition_manager.gd"
 
 [display]
 
