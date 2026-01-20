@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "adventurer_thanks"
+display_name = "冒险家的谢礼"
+description = "帮助迷路的冒险家找到营地，对方赠予你1-100摩拉和1个升级。"
+event_type = 0
+rarity = 3
+base_weight = 40.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = true
+tags = ["reward", "multiple"]
+reward_type = 4
+reward_value = {"gold": 100, "upgrade": 1}
+reward_min = 1.0
+reward_max = 100.0
+reward_description = "获得1-100摩拉和1个升级"
+choices = []
+enemy_data = null
+battle_reward = {}

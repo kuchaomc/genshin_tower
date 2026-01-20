@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "thirsty_traveler"
+display_name = "口渴的旅行者"
+description = "你遇到一位口干舌燥的旅行者，对方请求分享水源。"
+event_type = 1
+rarity = 0
+base_weight = 100.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = false
+tags = ["choice", "decision"]
+reward_type = 1
+reward_value = 0
+reward_min = 0.0
+reward_max = 0.0
+reward_description = ""
+choices = [
+{
+"text": "分享全部剩余清水",
+"reward_type": 4,
+"reward_value": {"health": -20.0, "artifact": 1},
+"cost": 0,
+"description": "自身生命值-20，获得随机一个圣遗物"
+},
+{
+"text": "分享一半清水",
+"reward_type": 4,
+"reward_value": {"health": -10.0, "gold": 200},
+"cost": 0,
+"description": "自身生命值-10，获得200摩拉"
+},
+{
+"text": "拒绝分享",
+"reward_type": null,
+"reward_value": null,
+"cost": 0,
+"description": "无奖励"
+}
+]
+enemy_data = null
+battle_reward = {}

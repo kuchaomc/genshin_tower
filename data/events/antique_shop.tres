@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "antique_shop"
+display_name = "古董店的隐藏货"
+description = "璃月古董店老板拿出压箱底的藏品，出售全套满级圣遗物，售价1000，仅限购买1次。"
+event_type = 3
+rarity = 3
+base_weight = 20.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = true
+tags = ["shop", "artifact"]
+reward_type = 4
+reward_value = {}
+reward_min = 0.0
+reward_max = 0.0
+reward_description = ""
+choices = []
+enemy_data = null
+battle_reward = {}

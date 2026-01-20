@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "example_treasure"
+display_name = "发现宝藏"
+description = "你在探索中发现了一个隐藏的宝藏箱，里面装满了珍贵的物品。\n获得 {reward} 摩拉。"
+event_type = 0
+rarity = 1
+base_weight = 80.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = false
+tags = ["reward", "gold", "treasure"]
+reward_type = 0
+reward_value = 150
+reward_description = "获得150摩拉"
+choices = []
+enemy_data = null
+battle_reward = {}

@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "example_choice"
+display_name = "神秘的选择"
+description = "你遇到了一个分岔路口，需要做出选择。"
+event_type = 1
+rarity = 2
+base_weight = 60.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 2
+max_floor = 0
+one_time_only = false
+tags = ["choice", "decision"]
+reward_type = 0
+reward_value = 0
+reward_description = ""
+choices = [
+{
+"text": "选择左边的路（安全但奖励少）",
+"reward_type": 0,
+"reward_value": 50,
+"cost": 0,
+"description": "安全地获得50摩拉"
+},
+{
+"text": "选择右边的路（危险但奖励多）",
+"reward_type": 4,
+"reward_value": {"gold": 150, "health": -30},
+"cost": 0,
+"description": "获得150摩拉，但失去30点生命值"
+},
+{
+"text": "原路返回",
+"reward_type": null,
+"reward_value": null,
+"cost": 0,
+"description": "不获得任何奖励"
+}
+]
+enemy_data = null
+battle_reward = {}

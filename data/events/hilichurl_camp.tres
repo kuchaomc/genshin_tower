@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "hilichurl_camp"
+display_name = "丘丘人营地挑衅"
+description = "路过丘丘人营地时被投石挑衅，触发普通战斗。"
+event_type = 2
+rarity = 0
+base_weight = 100.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = false
+tags = ["battle", "combat"]
+reward_type = 0
+reward_value = 0
+reward_min = 0.0
+reward_max = 0.0
+reward_description = ""
+choices = []
+enemy_data = null
+battle_reward = {
+"gold": 80,
+"description": "击败敌人后获得80摩拉"
+}

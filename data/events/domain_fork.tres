@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "domain_fork"
+display_name = "秘境的岔路"
+description = "探索秘境时出现两条岔路。"
+event_type = 1
+rarity = 2
+base_weight = 50.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = true
+tags = ["choice", "decision", "domain"]
+reward_type = 4
+reward_value = {}
+reward_min = 0.0
+reward_max = 0.0
+reward_description = ""
+choices = [
+{
+"text": "走左侧明亮通道",
+"reward_type": 2,
+"reward_value": "battle",
+"cost": 0,
+"description": "进入普通战斗场景",
+"is_battle": true
+},
+{
+"text": "走右侧幽暗通道",
+"reward_type": 4,
+"reward_value": {"artifact": 1},
+"cost": 0,
+"description": "发现隐藏宝箱，获得圣遗物"
+},
+{
+"text": "原路返回",
+"reward_type": 1,
+"reward_value": -10,
+"cost": 0,
+"description": "本次秘境探索无收益，但生命值回复10%"
+}
+]
+enemy_data = null
+battle_reward = {}

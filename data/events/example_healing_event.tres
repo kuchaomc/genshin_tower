@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "example_healing"
+display_name = "治愈之泉"
+description = "你发现了一处清澈的治愈之泉，泉水散发着温暖的光芒。\n恢复 {reward} 点生命值。"
+event_type = 0
+rarity = 0
+base_weight = 100.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = false
+tags = ["reward", "healing", "rest"]
+reward_type = 1
+reward_value = 40
+reward_description = "恢复40点生命值"
+choices = []
+enemy_data = null
+battle_reward = {}

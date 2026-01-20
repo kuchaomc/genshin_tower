@@ -84,6 +84,10 @@ func start_new_run(character: CharacterData) -> void:
 	damage_taken = 0.0
 	start_time = Time.get_ticks_msec() / 1000.0
 	
+	# 清除已触发的事件记录
+	if EventRegistry:
+		EventRegistry.clear_triggered_events()
+	
 	emit_signal("health_changed", health, max_health)
 	emit_signal("gold_changed", gold)
 	print("开始新的一局游戏，角色：", character.display_name)

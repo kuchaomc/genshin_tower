@@ -1,3 +1,49 @@
-[gd_scene load_steps=0 format=3 uid="uid://dfvmih4817l35"]
+[gd_scene load_steps=2 format=3 uid="uid://dfvmih4817l35"]
+
+[ext_resource type="Script" path="res://scripts/ui/event_ui.gd" id="1_event_ui"]
 
 [node name="奇遇" type="Node2D"]
+script = ExtResource("1_event_ui")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -300.0
+offset_right = 400.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "奇遇事件"
+horizontal_alignment = 1
+
+[node name="DescriptionLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "事件描述..."
+horizontal_alignment = 1
+autowrap_mode = 3
+custom_minimum_size = Vector2(0, 100)
+
+[node name="ContentContainer" type="VBoxContainer" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ChoiceContainer" type="VBoxContainer" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BackButton" type="Button" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 50)
+text = "返回地图"

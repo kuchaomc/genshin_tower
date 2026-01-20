@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "weather_change"
+display_name = "突发的天气变化"
+description = "赶路时天气突变：\n20%概率：暴雨导致滑倒，生命值-10%\n30%概率：微风拂面，生命值+5%\n50%概率：无影响"
+event_type = 6
+rarity = 0
+base_weight = 100.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = ["monster_disturbance"]
+min_floor = 0
+max_floor = 0
+one_time_only = false
+tags = ["random", "weather"]
+reward_type = 4
+reward_value = {}
+reward_min = 0.0
+reward_max = 0.0
+reward_description = ""
+choices = []
+enemy_data = null
+battle_reward = {}

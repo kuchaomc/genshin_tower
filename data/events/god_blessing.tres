@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "god_blessing"
+display_name = "神明的赐福"
+description = "在神像前祈祷时获得神明的注视，随机选择一个升级并直接满级。"
+event_type = 5
+rarity = 4
+base_weight = 10.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = true
+tags = ["upgrade", "legendary"]
+reward_type = 2
+reward_value = "random_max"
+reward_min = 0.0
+reward_max = 0.0
+reward_description = "随机选择一个升级并直接满级"
+choices = []
+enemy_data = null
+battle_reward = {}

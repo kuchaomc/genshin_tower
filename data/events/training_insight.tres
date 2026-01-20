@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "training_insight"
+display_name = "历练的感悟"
+description = "经历多次战斗后有所感悟，可获得两个升级。"
+event_type = 5
+rarity = 1
+base_weight = 70.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = false
+tags = ["upgrade", "reward"]
+reward_type = 2
+reward_value = 2
+reward_min = 0.0
+reward_max = 0.0
+reward_description = "获得两个升级"
+choices = []
+enemy_data = null
+battle_reward = {}

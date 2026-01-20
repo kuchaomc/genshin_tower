@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "springvale_rest"
+display_name = "清泉镇的小憩"
+description = "在清泉镇的草地上休息，沐浴阳光后生命值回复50%。"
+event_type = 4
+rarity = 0
+base_weight = 100.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = false
+tags = ["rest", "healing"]
+reward_type = 1
+reward_value = -50
+reward_min = 0.0
+reward_max = 0.0
+reward_description = "生命值回复50%"
+choices = []
+enemy_data = null
+battle_reward = {}

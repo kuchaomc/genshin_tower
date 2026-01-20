@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+id = "liyue_inn"
+display_name = "璃月客栈的休整"
+description = "在璃月客栈住下，花费200摩拉，生命值全满。"
+event_type = 4
+rarity = 2
+base_weight = 60.0
+required_character_ids = []
+required_event_ids = []
+exclusive_event_ids = []
+min_floor = 0
+max_floor = 0
+one_time_only = false
+tags = ["rest", "healing", "cost"]
+reward_type = 4
+reward_value = {"gold": -200, "health": 999999}
+reward_min = 0.0
+reward_max = 0.0
+reward_description = "花费200摩拉，生命值全满"
+choices = []
+enemy_data = null
+battle_reward = {}
