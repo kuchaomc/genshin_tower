@@ -200,6 +200,8 @@ func _initialize_pause_menu() -> void:
 		pause_menu.resume_game.connect(_on_pause_menu_resume)
 	if pause_menu.has_signal("return_to_main_menu"):
 		pause_menu.return_to_main_menu.connect(_on_pause_menu_return_to_main_menu)
+	if pause_menu.has_signal("open_settings"):
+		pause_menu.open_settings.connect(_on_pause_menu_open_settings)
 	
 	# 添加到battle_manager组，方便暂停菜单查找
 	add_to_group("battle_manager")
@@ -213,6 +215,11 @@ func _on_pause_menu_resume() -> void:
 ## 暂停菜单返回主菜单
 func _on_pause_menu_return_to_main_menu() -> void:
 	# 返回主菜单前的清理工作
+	pass
+
+## 暂停菜单打开设置
+func _on_pause_menu_open_settings() -> void:
+	# 设置界面由暂停菜单自己管理
 	pass
 
 ## 获取玩家实例（供暂停菜单使用）

@@ -14,6 +14,9 @@ extends Control
 @onready var upgrades_container: VBoxContainer = $MainContainer/RightPanel/UpgradesScrollContainer/UpgradesContainer
 @onready var artifacts_container: HBoxContainer = $MainContainer/RightPanel/ArtifactsContainer
 
+# 设置界面引用
+var settings_menu: Control = null
+
 # 信号
 signal resume_game
 signal open_settings
@@ -33,8 +36,29 @@ func _ready() -> void:
 	# 初始隐藏
 	visible = false
 	
+	# 加载设置界面
+	_load_settings_menu()
+	
 	# 更新角色信息
 	update_character_info()
+
+## 加载设置界面
+func _load_settings_menu() -> void:
+	var settings_scene = preload("res://scenes/ui/settings.tscn")
+	if settings_scene:
+		settings_menu = settings_scene.instantiate()
+		if settings_menu:
+			# 添加到与暂停菜单相同的父节点下（通常是CanvasLayer）
+			var parent = get_parent()
+			if parent:
+				parent.add_child(settings_menu)
+			else:
+				# 如果没有父节点，添加到场景根节点
+				get_tree().current_scene.add_child(settings_menu)
+			# 连接设置界面关闭信号
+			if settings_menu.has_signal("settings_closed"):
+				settings_menu.settings_closed.connect(_on_settings_closed)
+			print("设置界面已加载到暂停菜单")
 
 ## 显示暂停菜单
 func show_menu() -> void:
@@ -472,7 +496,12 @@ func _on_continue_pressed() -> void:
 ## 设置按钮
 func _on_settings_pressed() -> void:
 	open_settings.emit()
-	# TODO: 实现设置界面
+	if settings_menu and settings_menu.has_method("show_settings"):
+		settings_menu.show_settings()
+
+## 设置界面关闭回调
+func _on_settings_closed() -> void:
+	print("设置界面已关闭")
 
 ## 返回主菜单按钮
 func _on_main_menu_pressed() -> void:

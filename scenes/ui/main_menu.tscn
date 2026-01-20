@@ -49,6 +49,11 @@ custom_minimum_size = Vector2(150, 60)
 layout_mode = 2
 text = "游戏说明"
 
+[node name="Button4" type="Button" parent="CanvasLayer/VBoxContainer"]
+custom_minimum_size = Vector2(150, 60)
+layout_mode = 2
+text = "设置"
+
 [node name="Button3" type="Button" parent="CanvasLayer/VBoxContainer"]
 custom_minimum_size = Vector2(150, 60)
 layout_mode = 2
