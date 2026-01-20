@@ -89,7 +89,6 @@ var _attack_button_pressed: bool = false
 var collision_shape: CollisionShape2D
 
 # ========== 击退效果 ==========
-@export var knockback_resistance: float = 0.5  # 击退抗性（0-1，1表示完全抵抗）
 var knockback_velocity: Vector2 = Vector2.ZERO
 var is_knockback_active: bool = false
 @export var knockback_duration: float = 0.12  # 击退持续时间（秒）
@@ -737,13 +736,11 @@ func apply_knockback(direction: Vector2, distance: float) -> void:
 	if direction == Vector2.ZERO or distance <= 0.0:
 		return
 	
-	# 应用击退抗性
-	var effective_distance = distance * (1.0 - knockback_resistance)
 	var knockback_dir = direction.normalized()
 	
 	# 设置击退速度：在 knockback_duration 内推开指定距离
 	var dur: float = max(0.01, knockback_duration)
-	knockback_velocity = knockback_dir * (effective_distance / dur)
+	knockback_velocity = knockback_dir * (distance / dur)
 	is_knockback_active = true
 	_knockback_end_ms = Time.get_ticks_msec() + int(dur * 1000.0)
 	
@@ -904,10 +901,6 @@ func _apply_dodge_upgrades(run_manager: Node) -> void:
 
 ## 应用特殊属性升级
 func _apply_special_upgrades(run_manager: Node) -> void:
-	# 击退抗性
-	var knockback_resist_bonus = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.KNOCKBACK_RESISTANCE)
-	knockback_resistance = clamp(knockback_resistance + knockback_resist_bonus, 0.0, 1.0)
-	
 	# 充能效率（通用升级）
 	var energy_gain_bonus = run_manager.get_stat_percent_bonus(UpgradeData.TargetStat.ENERGY_GAIN)
 	energy_gain_multiplier = 1.0 + energy_gain_bonus

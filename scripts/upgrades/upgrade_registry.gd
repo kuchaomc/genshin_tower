@@ -209,13 +209,7 @@ func _register_builtin_upgrades() -> void:
 	_register_upgrade(_create_stat_upgrade(
 		"knockback_force", "击退强化", "增加 {value} 击退力度",
 		UpgradeData.TargetStat.KNOCKBACK_FORCE, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.20, 5, UpgradeData.Rarity.UNCOMMON, ["special", "offensive"]
-	))
-	
-	_register_upgrade(_create_stat_upgrade(
-		"knockback_resist", "击退抗性", "增加 {value} 击退抗性",
-		UpgradeData.TargetStat.KNOCKBACK_RESISTANCE, UpgradeData.UpgradeType.STAT_FLAT,
-		0.10, 5, UpgradeData.Rarity.UNCOMMON, ["special", "defensive"]
+		0.40, 5, UpgradeData.Rarity.UNCOMMON, ["special", "offensive"]
 	))
 	
 	# ========== 角色专属升级示例（神里绫华） ==========

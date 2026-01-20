@@ -10,7 +10,7 @@ enum UpgradeType {
 	STAT_FLAT,      # 固定值加成（如 +20 生命）
 	STAT_PERCENT,   # 百分比加成（如 +10% 攻击力）
 	ABILITY,        # 技能相关（如技能范围、冷却时间）
-	SPECIAL,        # 特殊效果（如闪避距离、击退抗性）
+	SPECIAL,        # 特殊效果（如闪避距离、拾取范围）
 	CUSTOM          # 自定义效果（通过回调实现）
 }
 
@@ -51,7 +51,6 @@ enum TargetStat {
 	
 	# 特殊属性
 	INVINCIBILITY_DURATION,  # 无敌时间
-	KNOCKBACK_RESISTANCE,    # 击退抗性
 	PICKUP_RANGE,            # 拾取范围
 	
 	# 自定义（不直接映射到属性）
