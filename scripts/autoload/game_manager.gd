@@ -5,6 +5,13 @@ extends Node
 
 signal scene_changed(scene_name: String)
 
+# BGM曲目key（与 BGMManager.TRACK_* 保持一致）
+const BGM_TRACK_MAIN_MENU: StringName = &"main_menu"
+const BGM_TRACK_MAP: StringName = &"map"
+const BGM_TRACK_BATTLE: StringName = &"battle"
+
+var _pending_bgm_track: StringName = &""
+
 # 游戏状态
 enum GameState {
 	MAIN_MENU,
@@ -61,6 +68,23 @@ func _ready() -> void:
 	load_save_data()
 	print("游戏管理器初始化完成")
 
+func _get_bgm_track_for_state(state: GameState) -> StringName:
+	match state:
+		GameState.MAIN_MENU, GameState.CHARACTER_SELECT:
+			return BGM_TRACK_MAIN_MENU
+		GameState.BATTLE, GameState.BOSS_BATTLE, GameState.GAME_OVER:
+			return BGM_TRACK_BATTLE
+		_:
+			# 地图相关/跑图中的各类UI（地图、商店、休息、事件、宝箱、结算等）统一使用地图BGM
+			return BGM_TRACK_MAP
+
+func _apply_pending_bgm() -> void:
+	if _pending_bgm_track.is_empty():
+		return
+	if BGMManager:
+		BGMManager.play_track(_pending_bgm_track)
+	_pending_bgm_track = &""
+
 ## 切换场景
 func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 	# 如果需要转场动画（仅用于战斗场景）
@@ -79,6 +103,11 @@ func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 		get_tree().change_scene_to_packed(scene)
 		emit_signal("scene_changed", scene_path)
 		print("切换到场景：", scene_path)
+		
+		# 场景切换完成后切换BGM（同时保存/恢复各曲目的播放进度）
+		if _pending_bgm_track.is_empty():
+			_pending_bgm_track = _get_bgm_track_for_state(current_state)
+		_apply_pending_bgm()
 	else:
 		print("错误：无法加载场景 ", scene_path)
 		# 如果场景加载失败，返回主菜单
@@ -88,6 +117,7 @@ func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 ## 通用场景切换方法（根据状态切换）
 func _change_scene_by_state(state: GameState) -> void:
 	current_state = state
+	_pending_bgm_track = _get_bgm_track_for_state(state)
 	var scene_path = SCENE_PATHS.get(state)
 	if scene_path:
 		change_scene_to(scene_path)
@@ -110,6 +140,7 @@ func go_to_map_view() -> void:
 func start_battle(_enemy_data: EnemyData = null) -> void:
 	# 使用转场动画切换到战斗场景
 	current_state = GameState.BATTLE
+	_pending_bgm_track = _get_bgm_track_for_state(GameState.BATTLE)
 	var scene_path = SCENE_PATHS.get(GameState.BATTLE)
 	if scene_path:
 		change_scene_to(scene_path, true)  # 启用转场动画
@@ -145,11 +176,13 @@ func show_result(_victory: bool = false) -> void:
 ## 显示升级选择界面
 func show_upgrade_selection() -> void:
 	current_state = GameState.MAP_VIEW
+	_pending_bgm_track = _get_bgm_track_for_state(GameState.MAP_VIEW)
 	change_scene_to(SCENE_UPGRADE_SELECTION)
 
 ## 显示圣遗物选择界面
 func show_artifact_selection() -> void:
 	current_state = GameState.TREASURE
+	_pending_bgm_track = _get_bgm_track_for_state(GameState.TREASURE)
 	change_scene_to(SCENE_ARTIFACT_SELECTION)
 
 ## 游戏结束

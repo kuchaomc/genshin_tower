@@ -17,9 +17,7 @@ offset_top = -320.0
 offset_right = 320.0
 offset_bottom = 320.0
 grow_horizontal = 2
-grow_vertical = 2
-
-[node name="TitleLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
+grow_vertical = 2[node name="TitleLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 36
 text = "商店"

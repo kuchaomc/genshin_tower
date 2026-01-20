@@ -14,9 +14,14 @@ var available_upgrades: Array = []
 # 升级选项数量
 @export var upgrade_count: int = 3
 
+var _is_processing_selection: bool = false
+
 func _ready() -> void:
 	generate_upgrade_options()
 	display_upgrades()
+	# 如果是从战斗转场过来（屏幕仍处于黑屏/转场中），在UI准备好后淡入
+	if TransitionManager and TransitionManager.is_transitioning:
+		await TransitionManager.fade_in(1.0)
 
 ## 获取 UpgradeRegistry
 func _get_upgrade_registry() -> Node:
@@ -140,6 +145,10 @@ func _create_upgrade_button(upgrade: UpgradeData) -> void:
 
 ## 升级被选中
 func _on_upgrade_selected(upgrade_id: String) -> void:
+	if _is_processing_selection:
+		return
+	_is_processing_selection = true
+	
 	if RunManager:
 		RunManager.add_upgrade(upgrade_id, 1)
 	
@@ -152,6 +161,9 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 	
 	# 返回地图界面
 	if GameManager:
+		# 先淡出转场，再进入地图；地图场景会在 _ready 中检测并淡入
+		if TransitionManager:
+			await TransitionManager.fade_out(1.0)
 		GameManager.go_to_map_view()
 
 ## 刷新升级选项（可在运行时调用）

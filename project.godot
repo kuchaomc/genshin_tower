@@ -21,13 +21,13 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+BGMManager="*res://scripts/autoload/bgm_manager.gd"
 GameManager="*res://scripts/autoload/game_manager.gd"
 DataManager="*res://scripts/autoload/data_manager.gd"
 RunManager="*res://scripts/autoload/run_manager.gd"
 UpgradeRegistry="*res://scripts/upgrades/upgrade_registry.gd"
 EventBus="*res://scripts/core/event_bus.gd"
 TransitionManager="*res://scripts/ui/transition_manager.gd"
-PostProcessManager="*res://scripts/autoload/post_process_manager.gd"
 
 [display]
 

@@ -4,6 +4,11 @@ class_name BattleManager
 ## 战斗管理器
 ## 管理战斗场景的状态和逻辑
 
+# 胜利提示与转场参数
+const LEVEL_GOAL_COMPLETED_TEXT: String = "已完成当前层级目标"
+const VICTORY_NOTIFY_SECONDS: float = 1.2
+const VICTORY_TRANSITION_SECONDS: float = 1.0
+
 # 战斗场景准星贴图
 const CROSSHAIR_TEXTURE := preload("res://textures/effects/mouse.png")
 
@@ -165,6 +170,7 @@ func _connect_signals() -> void:
 		RunManager.gold_changed.connect(_on_gold_changed)
 
 func _exit_tree() -> void:
+	_restore_floor_notification_from_transition_layer()
 	_restore_default_cursor()
 
 func _input(event: InputEvent) -> void:
@@ -421,10 +427,11 @@ func battle_victory() -> void:
 	# 立刻清除场上所有敌人
 	clear_all_enemies()
 	
-	print("战斗胜利！当前得分：", current_score, "。3秒后返回地图...")
+	_show_level_goal_completed_notification()
+	print("战斗胜利！当前得分：", current_score, "。即将进入升级选择...")
 	
-	# 设置3秒后返回地图
-	game_over_timer.wait_time = 3.0
+	# 先短暂显示“层级目标完成”提示，再转场进入升级选择
+	game_over_timer.wait_time = VICTORY_NOTIFY_SECONDS
 	game_over_timer.start()
 
 ## 清除场上所有敌人
@@ -459,15 +466,67 @@ func _on_game_over_timer_timeout() -> void:
 	# 只有通过击杀足够数量的敌人正常结束战斗才算胜利
 	# 玩家死亡则无论击杀数多少都算失败
 	if is_battle_victory:
-		# 战斗胜利，显示升级选择界面
+		# 战斗胜利：转场 -> 升级选择界面
+		_restore_floor_notification_from_transition_layer()
+		if TransitionManager:
+			await TransitionManager.fade_out(VICTORY_TRANSITION_SECONDS)
 		if GameManager:
 			GameManager.show_upgrade_selection()
 	else:
 		# 战斗失败，直接返回地图
+		_restore_floor_notification_from_transition_layer()
 		if RunManager:
 			RunManager.end_run(false)
 		if GameManager:
 			GameManager.go_to_map_view()
+
+## 显示“已完成当前层级目标”提示（复用 FloorNotification）
+func _show_level_goal_completed_notification() -> void:
+	if not floor_notification or not floor_notification_label:
+		return
+	
+	# 如果存在转场层，保证提示始终可见
+	if TransitionManager:
+		_move_floor_notification_to_transition_layer()
+	
+	floor_notification_label.text = LEVEL_GOAL_COMPLETED_TEXT
+	floor_notification.visible = true
+	floor_notification.modulate.a = 1.0
+	floor_notification.scale = Vector2.ONE
+
+## 归还 FloorNotification 到原父节点，避免转场层持有导致跨场景残留
+func _restore_floor_notification_from_transition_layer() -> void:
+	if not floor_notification:
+		return
+	if not floor_notification.has_meta("original_parent_path"):
+		return
+	
+	var original_parent_path: Variant = floor_notification.get_meta("original_parent_path")
+	var original_parent: Node = null
+	if original_parent_path is NodePath:
+		original_parent = get_node_or_null(original_parent_path as NodePath)
+	elif original_parent_path is String:
+		original_parent = get_node_or_null(NodePath(original_parent_path as String))
+	
+	if not original_parent:
+		return
+	
+	# 已经在原父节点下则无需处理
+	if floor_notification.get_parent() == original_parent:
+		return
+	
+	# 保留全局位置/缩放，避免闪动（即便即将切场也更稳）
+	var global_pos := floor_notification.global_position
+	var s := floor_notification.scale
+	
+	var current_parent := floor_notification.get_parent()
+	if current_parent:
+		current_parent.remove_child(floor_notification)
+	original_parent.add_child(floor_notification)
+	
+	floor_notification.global_position = global_pos
+	floor_notification.scale = s
+	floor_notification.visible = false
 
 ## 玩家血量变化回调
 func _on_player_health_changed(current: float, maximum: float) -> void:

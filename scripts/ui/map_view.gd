@@ -50,13 +50,18 @@ var zoom_step: float = 0.1
 var camera_bounds: Rect2 = Rect2(-500, -3000, 3000, 4200)  # x, y, width, height
 
 func _ready() -> void:
+	var should_fade_in: bool = (TransitionManager != null and TransitionManager.is_transitioning)
 	# 检查必要的单例是否存在
 	if not DataManager:
 		print("错误：DataManager未找到")
+		if should_fade_in:
+			await TransitionManager.fade_in(1.0)
 		return
 	
 	if not RunManager:
 		print("错误：RunManager未找到")
+		if should_fade_in:
+			await TransitionManager.fade_in(1.0)
 		return
 	
 	# 如果是新游戏（current_node_id为空且没有地图种子），生成新地图种子
@@ -72,6 +77,10 @@ func _ready() -> void:
 	# 更新楼层显示
 	if floor_label:
 		floor_label.text = "当前楼层: %d / 16" % RunManager.current_floor
+	
+	# 如果是转场进入地图（例如：升级选择后回到地图），在地图生成完成后再淡入
+	if should_fade_in:
+		await TransitionManager.fade_in(1.0)
 
 func _input(event: InputEvent) -> void:
 	# 处理鼠标拖拽滚动地图
