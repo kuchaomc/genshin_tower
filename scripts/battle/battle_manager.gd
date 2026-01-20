@@ -56,7 +56,20 @@ var floor_notification_timer: Timer
 var _active_enemies: Array[Node] = []
 
 func _ready() -> void:
-	# 获取UI组件
+	_initialize_ui_components()
+	_initialize_player()
+	_initialize_battle_conditions()
+	_initialize_enemy_spawning()
+	_initialize_timers()
+	_connect_signals()
+	_initialize_pause_menu()
+	_apply_crosshair_cursor()
+	show_floor_notification()
+	
+	print("战斗管理器已初始化")
+
+## 初始化UI组件
+func _initialize_ui_components() -> void:
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
 	player_hp_label = get_node_or_null("CanvasLayer/PlayerHPBar/Label") as Label
 	enemy_kill_counter_label = get_node_or_null("CanvasLayer/EnemyKillCounter/Label") as Label
@@ -68,66 +81,59 @@ func _ready() -> void:
 	if debug_toggle_button:
 		debug_toggle_button.pressed.connect(_on_debug_toggle_pressed)
 	
-	# 获取层数提示UI组件
 	floor_notification = get_node_or_null("CanvasLayer/FloorNotification") as Control
 	floor_notification_label = get_node_or_null("CanvasLayer/FloorNotification/Label") as Label
-	
-	# 初始化玩家
+
+## 初始化玩家
+func _initialize_player() -> void:
 	initialize_player()
 	_update_all_hitbox_visibility()
-	
-	# 初始化战斗胜利条件
+
+## 初始化战斗条件
+func _initialize_battle_conditions() -> void:
 	enemies_killed_in_battle = 0
-	# 根据当前楼层计算需要击杀的敌人数量：初始值5，每往上走一个节点层就+5
 	var current_floor = RunManager.current_floor if RunManager else 1
 	enemies_required_to_kill = 5 + (current_floor - 1) * 5
-	
-	# 更新击杀计数器显示
 	update_enemy_kill_counter_display()
-	
-	# 初始化摩拉显示
 	_update_gold_display()
-	
-	# 如果没有手动分配敌人场景，则预加载默认敌人场景
+
+## 初始化敌人生成系统
+func _initialize_enemy_spawning() -> void:
 	if enemy_scene == null:
 		enemy_scene = preload("res://scenes/enemies/enemy.tscn")
-	
+
+## 初始化计时器
+func _initialize_timers() -> void:
 	# 创建敌人生成计时器
-	# 注意：Timer使用默认的PROCESS_MODE_INHERIT，会在游戏暂停时自动暂停
 	enemy_spawn_timer = Timer.new()
-	# 根据当前楼层计算生成速度：每向上两层，生成速度提升（wait_time减少）
-	# 基础速度：3.0秒，每两层减少0.5秒，最低0.5秒
-	var base_spawn_time = 3.0
-	var speed_increase_per_two_floors = 0.5
-	var min_spawn_time = 0.5
-	var floors_up = int((current_floor - 1) / 2)  # 每两层算一次提升（向下取整）
-	var calculated_spawn_time = base_spawn_time - floors_up * speed_increase_per_two_floors
-	enemy_spawn_timer.wait_time = max(min_spawn_time, calculated_spawn_time)
+	var current_floor = RunManager.current_floor if RunManager else 1
+	enemy_spawn_timer.wait_time = _calculate_enemy_spawn_time(current_floor)
 	print("当前楼层：", current_floor, "，怪物生成间隔：", enemy_spawn_timer.wait_time, "秒")
 	enemy_spawn_timer.timeout.connect(_on_enemy_spawn_timer_timeout)
 	add_child(enemy_spawn_timer)
 	enemy_spawn_timer.start()
 	
 	# 创建游戏结束计时器
-	# 注意：Timer使用默认的PROCESS_MODE_INHERIT，会在游戏暂停时自动暂停
 	game_over_timer = Timer.new()
 	game_over_timer.one_shot = true
 	game_over_timer.timeout.connect(_on_game_over_timer_timeout)
 	add_child(game_over_timer)
+
+## 计算敌人生成时间（根据楼层）
+func _calculate_enemy_spawn_time(current_floor: int) -> float:
+	const BASE_SPAWN_TIME = 3.0
+	const SPEED_INCREASE_PER_TWO_FLOORS = 0.5
+	const MIN_SPAWN_TIME = 0.5
 	
-	# 连接RunManager信号
+	var floors_up = int((current_floor - 1) / 2)  # 每两层算一次提升（向下取整）
+	var calculated_spawn_time = BASE_SPAWN_TIME - floors_up * SPEED_INCREASE_PER_TWO_FLOORS
+	return max(MIN_SPAWN_TIME, calculated_spawn_time)
+
+## 连接信号
+func _connect_signals() -> void:
 	if RunManager:
 		RunManager.health_changed.connect(_on_player_health_changed)
 		RunManager.gold_changed.connect(_on_gold_changed)
-	
-	# 初始化暂停菜单
-	initialize_pause_menu()
-	
-	print("战斗管理器已初始化")
-	_apply_crosshair_cursor()
-	
-	# 显示层数提示
-	show_floor_notification()
 
 func _exit_tree() -> void:
 	_restore_default_cursor()
@@ -140,29 +146,35 @@ func _input(event: InputEvent) -> void:
 			pause_menu.handle_esc_key()
 
 ## 初始化暂停菜单
-func initialize_pause_menu() -> void:
+func _initialize_pause_menu() -> void:
 	# 加载暂停菜单场景
-	var pause_menu_scene = preload("res://scenes/ui/pause_menu.tscn") as PackedScene
-	if pause_menu_scene:
-		pause_menu = pause_menu_scene.instantiate() as Control
-		if pause_menu:
-			# 添加到CanvasLayer下，确保在最上层
-			var canvas_layer = get_node_or_null("CanvasLayer")
-			if canvas_layer:
-				canvas_layer.add_child(pause_menu)
-			else:
-				# 如果没有CanvasLayer，直接添加到场景根节点
-				add_child(pause_menu)
-			
-			# 连接暂停菜单信号
-			if pause_menu.has_signal("resume_game"):
-				pause_menu.resume_game.connect(_on_pause_menu_resume)
-			if pause_menu.has_signal("return_to_main_menu"):
-				pause_menu.return_to_main_menu.connect(_on_pause_menu_return_to_main_menu)
-			
-			# 添加到battle_manager组，方便暂停菜单查找
-			add_to_group("battle_manager")
-			print("暂停菜单已初始化")
+	var pause_menu_scene = DataManager.get_packed_scene("res://scenes/ui/pause_menu.tscn") if DataManager else preload("res://scenes/ui/pause_menu.tscn")
+	if not pause_menu_scene:
+		push_error("BattleManager: 无法加载暂停菜单场景")
+		return
+	
+	pause_menu = pause_menu_scene.instantiate() as Control
+	if not pause_menu:
+		push_error("BattleManager: 无法实例化暂停菜单")
+		return
+	
+	# 添加到CanvasLayer下，确保在最上层
+	var canvas_layer = get_node_or_null("CanvasLayer")
+	if canvas_layer:
+		canvas_layer.add_child(pause_menu)
+	else:
+		# 如果没有CanvasLayer，直接添加到场景根节点
+		add_child(pause_menu)
+	
+	# 连接暂停菜单信号
+	if pause_menu.has_signal("resume_game"):
+		pause_menu.resume_game.connect(_on_pause_menu_resume)
+	if pause_menu.has_signal("return_to_main_menu"):
+		pause_menu.return_to_main_menu.connect(_on_pause_menu_return_to_main_menu)
+	
+	# 添加到battle_manager组，方便暂停菜单查找
+	add_to_group("battle_manager")
+	print("暂停菜单已初始化")
 
 ## 暂停菜单继续游戏
 func _on_pause_menu_resume() -> void:
@@ -252,11 +264,7 @@ func connect_player_signals() -> void:
 		if skill_ui and RunManager and RunManager.current_character:
 			var skill_icon_path = _get_skill_icon_path(RunManager.current_character.id)
 			if skill_icon_path:
-				var skill_icon: Texture2D = null
-				if DataManager and DataManager.has_method("get_texture"):
-					skill_icon = DataManager.get_texture(skill_icon_path)
-				else:
-					skill_icon = load(skill_icon_path) as Texture2D
+				var skill_icon = _load_texture(skill_icon_path)
 				if skill_icon:
 					skill_ui.set_skill_icon(skill_icon)
 		
@@ -264,11 +272,7 @@ func connect_player_signals() -> void:
 		if burst_ui and RunManager and RunManager.current_character:
 			var burst_icon_path = _get_burst_icon_path(RunManager.current_character.id)
 			if burst_icon_path:
-				var burst_icon: Texture2D = null
-				if DataManager and DataManager.has_method("get_texture"):
-					burst_icon = DataManager.get_texture(burst_icon_path)
-				else:
-					burst_icon = load(burst_icon_path) as Texture2D
+				var burst_icon = _load_texture(burst_icon_path)
 				if burst_icon:
 					burst_ui.set_skill_icon(burst_icon)
 
@@ -561,6 +565,12 @@ func _create_shape_overlay(shape: CollisionShape2D, color: Color) -> Node2D:
 		return null
 	
 	return poly
+
+## 统一加载纹理（使用DataManager缓存）
+func _load_texture(path: String) -> Texture2D:
+	if DataManager:
+		return DataManager.get_texture(path)
+	return load(path) as Texture2D
 
 ## 根据角色ID获取技能图标路径
 func _get_skill_icon_path(character_id: String) -> String:

@@ -106,10 +106,11 @@ func _ready() -> void:
 func _create_warning_sprite() -> void:
 	warning_sprite = Sprite2D.new()
 	var warning_texture: Texture2D = null
-	if DataManager and DataManager.has_method("get_texture"):
+	if DataManager:
 		warning_texture = DataManager.get_texture("res://textures/effects/warning.png")
 	else:
 		warning_texture = load("res://textures/effects/warning.png") as Texture2D
+	
 	if warning_texture:
 		warning_sprite.texture = warning_texture
 		warning_sprite.z_index = 10
@@ -378,8 +379,13 @@ func on_death() -> void:
 
 ## 掉落摩拉
 func _drop_gold(amount: int) -> void:
-	# 加载摩拉场景
-	var gold_pickup_scene = load("res://scenes/items/gold_pickup.tscn")
+	# 加载摩拉场景（使用DataManager缓存）
+	var gold_pickup_scene: PackedScene = null
+	if DataManager:
+		gold_pickup_scene = DataManager.get_packed_scene("res://scenes/items/gold_pickup.tscn")
+	else:
+		gold_pickup_scene = load("res://scenes/items/gold_pickup.tscn") as PackedScene
+	
 	if not gold_pickup_scene:
 		# 如果场景不存在，直接添加到RunManager（兼容性处理）
 		if RunManager:

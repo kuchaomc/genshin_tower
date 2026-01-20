@@ -362,9 +362,8 @@ func _enter_state(state: CharacterState) -> void:
 			_dodge_elapsed = 0.0
 			_dodge_next_ready_ms = Time.get_ticks_msec() + int(dodge_cooldown * 1000.0)
 			
-			# 计算闪避方向（朝鼠标方向）
-			var mouse_pos = get_global_mouse_position()
-			var dir = mouse_pos - global_position
+			# 计算闪避方向（使用方向键）
+			var dir = _get_input_direction()
 			if dir == Vector2.ZERO:
 				dir = _last_nonzero_move_dir
 			_dodge_direction = dir.normalized()
@@ -464,7 +463,7 @@ func is_charged_attack_ready() -> bool:
 
 ## 检查是否按下闪避键
 func _is_dodge_pressed() -> bool:
-	return Input.is_action_just_pressed("mouse2")
+	return Input.is_action_just_pressed("mouse2") or Input.is_action_just_pressed("shift")
 
 ## 处理动画（子类可重写）
 func handle_animation() -> void:

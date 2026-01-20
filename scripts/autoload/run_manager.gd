@@ -36,6 +36,11 @@ var artifact_inventory: Dictionary = {}
 ## 存储各属性的总加成值（每次升级后重新计算）
 var _stat_bonuses: Dictionary = {}
 
+# ========== 常量定义 ==========
+## 加成键后缀
+const BONUS_KEY_FLAT_SUFFIX = "_flat"
+const BONUS_KEY_PERCENT_SUFFIX = "_percent"
+
 # ========== 通用升级属性 ==========
 ## 所有角色都拥有的通用属性升级列表
 const COMMON_UPGRADE_STATS: Array[Dictionary] = [
@@ -187,32 +192,39 @@ func _recalculate_stat_bonuses() -> void:
 		if upgrade_data == null:
 			continue
 		
-		var target_stat = upgrade_data.target_stat
-		var value = upgrade_data.get_value_at_level(level)
-		var upgrade_type = upgrade_data.upgrade_type
-		
-		# 区分固定值和百分比加成
-		var stat_key = str(target_stat)
-		var flat_key = stat_key + "_flat"
-		var percent_key = stat_key + "_percent"
-		
-		if upgrade_type == UpgradeData.UpgradeType.STAT_FLAT or upgrade_type == UpgradeData.UpgradeType.SPECIAL:
-			if not _stat_bonuses.has(flat_key):
-				_stat_bonuses[flat_key] = 0.0
-			_stat_bonuses[flat_key] += value
-		elif upgrade_type == UpgradeData.UpgradeType.STAT_PERCENT:
-			if not _stat_bonuses.has(percent_key):
-				_stat_bonuses[percent_key] = 0.0
-			_stat_bonuses[percent_key] += value
+		_apply_upgrade_bonus(upgrade_data, level)
+
+## 应用单个升级的加成
+func _apply_upgrade_bonus(upgrade_data: UpgradeData, level: int) -> void:
+	var target_stat = upgrade_data.target_stat
+	var value = upgrade_data.get_value_at_level(level)
+	var upgrade_type = upgrade_data.upgrade_type
+	
+	# 构建加成键
+	var stat_key = str(target_stat)
+	var flat_key = stat_key + BONUS_KEY_FLAT_SUFFIX
+	var percent_key = stat_key + BONUS_KEY_PERCENT_SUFFIX
+	
+	# 根据升级类型应用加成
+	if upgrade_type == UpgradeData.UpgradeType.STAT_FLAT or upgrade_type == UpgradeData.UpgradeType.SPECIAL:
+		_add_bonus(flat_key, value)
+	elif upgrade_type == UpgradeData.UpgradeType.STAT_PERCENT:
+		_add_bonus(percent_key, value)
+
+## 添加加成值（如果键不存在则初始化为0）
+func _add_bonus(key: String, value: float) -> void:
+	if not _stat_bonuses.has(key):
+		_stat_bonuses[key] = 0.0
+	_stat_bonuses[key] += value
 
 ## 获取指定属性的固定值加成
 func get_stat_flat_bonus(target_stat: int) -> float:
-	var key = str(target_stat) + "_flat"
+	var key = str(target_stat) + BONUS_KEY_FLAT_SUFFIX
 	return _stat_bonuses.get(key, 0.0)
 
 ## 获取指定属性的百分比加成
 func get_stat_percent_bonus(target_stat: int) -> float:
-	var key = str(target_stat) + "_percent"
+	var key = str(target_stat) + BONUS_KEY_PERCENT_SUFFIX
 	return _stat_bonuses.get(key, 0.0)
 
 ## 计算最终属性值 = (基础值 + 固定加成) * (1 + 百分比加成)

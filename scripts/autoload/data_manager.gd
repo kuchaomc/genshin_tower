@@ -32,72 +32,52 @@ func load_all_data() -> void:
 ## 加载角色数据
 func load_characters() -> void:
 	characters.clear()
-	
-	# 从data/characters目录加载所有.tres文件
-	var dir_path = "res://data/characters"
-	var dir = DirAccess.open(dir_path)
-	if dir:
-		dir.list_dir_begin()
-		var file_name = dir.get_next()
-		while file_name != "":
-			if not dir.current_is_dir() and file_name.ends_with(".tres"):
-				var resource_path = dir_path + "/" + file_name
-				var resource = load(resource_path)
-				if resource:
-					# 只处理CharacterData类型的资源，跳过CharacterStats等其他资源
-					if not resource is CharacterDataClass:
-						file_name = dir.get_next()
-						continue
-					
-					# 尝试访问id属性
-					var char_id = resource.get("id")
-					if char_id and char_id != "":
-						characters[char_id] = resource
-						var char_name = resource.get("display_name")
-						print("加载角色：", char_name if char_name else "未知")
-					else:
-						print("警告：角色资源缺少id属性 ", resource_path)
-				else:
-					print("警告：无法加载资源文件 ", resource_path)
-			file_name = dir.get_next()
-		dir.list_dir_end()
-	else:
-		print("警告：无法打开data/characters目录")
+	_load_resources_from_directory("res://data/characters", CharacterDataClass, characters, "角色")
 
 ## 加载敌人数据
 func load_enemies() -> void:
 	enemies.clear()
-	
-	# 从data/enemies目录加载所有.tres文件
-	var dir_path = "res://data/enemies"
+	_load_resources_from_directory("res://data/enemies", EnemyDataClass, enemies, "敌人")
+
+## 通用资源加载方法（消除重复代码）
+## dir_path: 目录路径
+## expected_script: 期望的资源脚本（Script对象）
+## target_dict: 目标字典（用于存储加载的资源）
+## resource_type_name: 资源类型名称（用于日志输出）
+func _load_resources_from_directory(dir_path: String, expected_script: Script, target_dict: Dictionary, resource_type_name: String) -> void:
 	var dir = DirAccess.open(dir_path)
-	if dir:
-		dir.list_dir_begin()
-		var file_name = dir.get_next()
-		while file_name != "":
-			if not dir.current_is_dir() and file_name.ends_with(".tres"):
-				var resource_path = dir_path + "/" + file_name
-				var resource = load(resource_path)
-				if resource:
-					# 只处理EnemyData类型的资源，跳过EnemyStats等其他资源
-					if not resource is EnemyDataClass:
-						file_name = dir.get_next()
-						continue
-					
-					# 尝试访问id属性
-					var enemy_id = resource.get("id")
-					if enemy_id and enemy_id != "":
-						enemies[enemy_id] = resource
-						var enemy_name = resource.get("display_name")
-						print("加载敌人：", enemy_name if enemy_name else "未知")
-					else:
-						print("警告：敌人资源缺少id属性 ", resource_path)
+	if not dir:
+		print("警告：无法打开", dir_path, "目录")
+		return
+	
+	dir.list_dir_begin()
+	var file_name = dir.get_next()
+	
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".tres"):
+			var resource_path = dir_path + "/" + file_name
+			var resource = load_cached(resource_path)
+			
+			if resource:
+				# 只处理指定类型的资源，跳过其他类型（通过比较脚本对象）
+				if resource.get_script() != expected_script:
+					file_name = dir.get_next()
+					continue
+				
+				# 尝试访问id属性
+				var resource_id = resource.get("id")
+				if resource_id and resource_id != "":
+					target_dict[resource_id] = resource
+					var display_name = resource.get("display_name")
+					print("加载", resource_type_name, "：", display_name if display_name else "未知")
 				else:
-					print("警告：无法加载资源文件 ", resource_path)
-			file_name = dir.get_next()
-		dir.list_dir_end()
-	else:
-		print("警告：无法打开data/enemies目录")
+					print("警告：", resource_type_name, "资源缺少id属性 ", resource_path)
+			else:
+				print("警告：无法加载资源文件 ", resource_path)
+		
+		file_name = dir.get_next()
+	
+	dir.list_dir_end()
 
 ## 加载地图配置
 func load_map_config() -> void:
