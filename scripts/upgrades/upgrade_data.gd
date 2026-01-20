@@ -116,16 +116,42 @@ func get_formatted_description(current_level: int = 0) -> String:
 	var next_value = get_next_level_value(current_level)
 	var increment = get_level_increment()
 	
-	# 替换占位符
-	formatted = formatted.replace("{value}", _format_value(increment))
-	formatted = formatted.replace("{current}", _format_value(current_value))
-	formatted = formatted.replace("{next}", _format_value(next_value))
+	# 替换占位符（使用专门用于描述显示的格式化函数）
+	formatted = formatted.replace("{value}", _format_value_for_description(increment))
+	formatted = formatted.replace("{current}", _format_value_for_description(current_value))
+	formatted = formatted.replace("{next}", _format_value_for_description(next_value))
 	formatted = formatted.replace("{level}", str(current_level))
 	formatted = formatted.replace("{max_level}", str(max_level))
 	
 	return formatted
 
-## 格式化数值显示
+## 专门用于描述文本的数值格式化（只影响玩家看到的描述）
+func _format_value_for_description(value: float) -> String:
+	# 检查是否为百分比类型
+	var is_percent = upgrade_type == UpgradeType.STAT_PERCENT
+	
+	# 检查目标属性是否为百分比相关（即使upgrade_type不是STAT_PERCENT）
+	if not is_percent:
+		match target_stat:
+			TargetStat.DEFENSE_PERCENT, TargetStat.CRIT_RATE, TargetStat.CRIT_DAMAGE:
+				is_percent = true
+	
+	# 检查描述文本中是否包含百分比相关关键词
+	if not is_percent:
+		var percent_keywords = ["减伤", "暴击率", "暴击伤害", "百分比", "%", "比例"]
+		for keyword in percent_keywords:
+			if keyword in description:
+				is_percent = true
+				break
+	
+	if is_percent:
+		return "%.0f%%" % (value * 100) if value < 1.0 else "%.0f%%" % value
+	elif abs(value - floor(value)) < 0.001:
+		return "%.0f" % value
+	else:
+		return "%.1f" % value
+
+## 格式化数值显示（通用方法，保持原逻辑不变）
 func _format_value(value: float) -> String:
 	if upgrade_type == UpgradeType.STAT_PERCENT:
 		return "%.0f%%" % (value * 100) if value < 1.0 else "%.0f%%" % value

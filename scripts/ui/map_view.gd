@@ -159,8 +159,28 @@ func generate_and_display_map() -> void:
 func _setup_camera() -> void:
 	if camera:
 		var viewport_size = get_viewport().get_visible_rect().size
-		# 相机初始位置在底部，显示第一层
-		camera.position = Vector2(viewport_size.x / 2.0, viewport_size.y - 200)
+		
+		# 优先定位到当前可选择的节点
+		if not selectable_nodes.is_empty():
+			# 获取第一个可选择的节点
+			var first_selectable_id = selectable_nodes[0]
+			var node_instance = node_instances.get(first_selectable_id)
+			if node_instance:
+				# 节点按钮的中心位置
+				var button_size = Vector2(64, 64)
+				var button_center_offset = button_size / 2.0
+				# 节点在 map_container 中的位置，转换为全局坐标
+				var node_local_pos = node_instance.position + button_center_offset
+				var node_global_pos = map_container.to_global(node_local_pos)
+				# 设置相机位置为节点位置
+				camera.position = node_global_pos
+			else:
+				# 如果节点实例不存在，使用默认位置
+				camera.position = Vector2(viewport_size.x / 2.0, viewport_size.y - 200)
+		else:
+			# 如果没有可选择的节点，使用默认位置（底部）
+			camera.position = Vector2(viewport_size.x / 2.0, viewport_size.y - 200)
+		
 		# 设置初始缩放
 		camera.zoom = Vector2(zoom_level, zoom_level)
 		_clamp_camera_position()
@@ -437,8 +457,7 @@ func _on_node_selected(node: MapNodeData) -> void:
 		MapNodeData.NodeType.EVENT:
 			enter_event()
 		MapNodeData.NodeType.BOSS:
-			# start_boss_battle()  # 占位符：BOSS战场景，暂不跳转
-			pass
+			start_boss_battle()
 
 ## 滚动到指定楼层
 func _scroll_to_floor(floor_num: int) -> void:
@@ -492,6 +511,10 @@ func enter_event() -> void:
 func start_boss_battle() -> void:
 	if GameManager:
 		GameManager.start_boss_battle()
+	else:
+		var boss_battle_scene = load("res://scenes/battle/boss_battle.tscn") as PackedScene
+		if boss_battle_scene:
+			get_tree().change_scene_to_packed(boss_battle_scene)
 
 ## 计算从起点开始所有可达的节点（使用BFS）
 func _calculate_reachable_nodes(start_node_id: String) -> void:

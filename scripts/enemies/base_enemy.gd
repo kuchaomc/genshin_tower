@@ -25,6 +25,7 @@ var hp_bar_container: Node2D
 
 # 动画精灵引用
 var animated_sprite: AnimatedSprite2D
+var sprite_2d: Sprite2D  # 静态贴图精灵（用于BOSS等）
 var warning_sprite: Sprite2D
 var collision_shape: CollisionShape2D
 var knockback_tween: Tween
@@ -91,6 +92,7 @@ func _ready() -> void:
 	hp_label = get_node_or_null("HPBar/Label") as Label
 	hp_bar_container = get_node_or_null("HPBar") as Node2D
 	animated_sprite = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	sprite_2d = get_node_or_null("Sprite2D") as Sprite2D
 	collision_shape = get_node_or_null("CollisionShape2D") as CollisionShape2D
 	
 	# 创建警告图标
@@ -123,6 +125,8 @@ func _create_warning_sprite() -> void:
 func _set_enemy_visible(visible_state: bool) -> void:
 	if animated_sprite:
 		animated_sprite.visible = visible_state
+	if sprite_2d:
+		sprite_2d.visible = visible_state
 	if hp_bar_container:
 		hp_bar_container.visible = visible_state
 	if collision_shape:
@@ -228,6 +232,11 @@ func chase_player(delta: float) -> void:
 				animated_sprite.flip_h = true
 			else:
 				animated_sprite.flip_h = false
+		elif sprite_2d:
+			if direction.x < 0:
+				sprite_2d.flip_h = true
+			else:
+				sprite_2d.flip_h = false
 		
 		velocity = direction * speed
 	else:

@@ -14,7 +14,6 @@ signal reward_given(reward_type: EventData.RewardType, reward_value: Variant)
 @onready var description_label: Label = $CanvasLayer/VBoxContainer/DescriptionLabel
 @onready var content_container: VBoxContainer = $CanvasLayer/VBoxContainer/ContentContainer
 @onready var choice_container: VBoxContainer = $CanvasLayer/VBoxContainer/ChoiceContainer
-@onready var back_button: Button = $CanvasLayer/VBoxContainer/BackButton
 
 ## 当前显示的事件
 var current_event: EventData = null
@@ -28,10 +27,6 @@ func _ready() -> void:
 	
 	# 显示事件内容
 	_display_event()
-	
-	# 连接返回按钮
-	if back_button and not back_button.pressed.is_connected(_on_back_pressed):
-		back_button.pressed.connect(_on_back_pressed)
 
 ## 加载随机事件
 func _load_random_event() -> void:
@@ -468,16 +463,6 @@ func _on_upgrade_confirmed() -> void:
 	if GameManager:
 		GameManager.show_upgrade_selection()
 
-## 返回地图
-func _on_back_pressed() -> void:
-	# 如果事件还没完成，标记为已触发（避免重复触发）
-	if current_event_id:
-		_mark_event_triggered()
-	
-	if GameManager:
-		GameManager.go_to_map_view()
-	else:
-		queue_free()
 
 # ========== 奖励处理 ==========
 

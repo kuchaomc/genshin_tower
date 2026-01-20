@@ -33,6 +33,9 @@ var required_score: int = 5  # 需要达到的分数（初始值=5，每往上�
 var current_score: int = 0  # 当前得分（每击杀一个敌人+1分）
 var is_battle_victory: bool = false  # 标记是否通过得分获得胜利（而非玩家死亡）
 
+# BOSS战模式
+var is_boss_battle: bool = false  # 是否为BOSS战模式
+
 # 玩家血量UI引用
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
@@ -62,6 +65,8 @@ var floor_notification_timer: Timer
 var _active_enemies: Array[Node] = []
 
 func _ready() -> void:
+	# 检查是否为BOSS战场景
+	_check_boss_battle_mode()
 	_initialize_ui_components()
 	_initialize_player()
 	_initialize_battle_conditions()
@@ -123,11 +128,22 @@ func _initialize_player() -> void:
 	initialize_player()
 	_update_all_hitbox_visibility()
 
+## 检查是否为BOSS战模式
+func _check_boss_battle_mode() -> void:
+	var scene_name = get_tree().current_scene.scene_file_path
+	is_boss_battle = scene_name.ends_with("boss_battle.tscn")
+	if is_boss_battle:
+		print("BOSS战模式已激活")
+
 ## 初始化战斗条件
 func _initialize_battle_conditions() -> void:
 	current_score = 0
-	var current_floor = RunManager.current_floor if RunManager else 1
-	required_score = 5 + (current_floor - 1) * 5
+	if is_boss_battle:
+		# BOSS战：只需要击杀1个BOSS即可胜利
+		required_score = 1
+	else:
+		var current_floor = RunManager.current_floor if RunManager else 1
+		required_score = 5 + (current_floor - 1) * 5
 	update_enemy_kill_counter_display()
 	_update_gold_display()
 
@@ -138,7 +154,20 @@ func _initialize_enemy_spawning() -> void:
 
 ## 初始化计时器
 func _initialize_timers() -> void:
-	# 创建敌人生成计时器
+	# 创建游戏结束计时器
+	game_over_timer = Timer.new()
+	game_over_timer.one_shot = true
+	game_over_timer.timeout.connect(_on_game_over_timer_timeout)
+	add_child(game_over_timer)
+	
+	# BOSS战模式：不启动计时器，直接生成BOSS
+	if is_boss_battle:
+		# 延迟一小段时间后生成BOSS，确保场景已完全加载
+		await get_tree().create_timer(0.5).timeout
+		spawn_boss()
+		return
+	
+	# 普通战斗模式：创建敌人生成计时器
 	enemy_spawn_timer = Timer.new()
 	var current_floor = RunManager.current_floor if RunManager else 1
 	enemy_spawn_timer.wait_time = _calculate_enemy_spawn_time(current_floor)
@@ -151,12 +180,6 @@ func _initialize_timers() -> void:
 	enemy_spawn_timer.timeout.connect(_on_enemy_spawn_timer_timeout)
 	add_child(enemy_spawn_timer)
 	enemy_spawn_timer.start()
-	
-	# 创建游戏结束计时器
-	game_over_timer = Timer.new()
-	game_over_timer.one_shot = true
-	game_over_timer.timeout.connect(_on_game_over_timer_timeout)
-	add_child(game_over_timer)
 
 ## 计算敌人生成时间（固定间隔）
 func _calculate_enemy_spawn_time(_current_floor: int) -> float:
@@ -353,12 +376,74 @@ func connect_player_signals() -> void:
 
 ## 敌人生成计时器回调
 func _on_enemy_spawn_timer_timeout() -> void:
-	if current_state == GameState.PLAYING:
+	if current_state == GameState.PLAYING and not is_boss_battle:
 		var current_floor = RunManager.current_floor if RunManager else 1
 		var spawn_count = _calculate_enemy_spawn_count(current_floor)
 		for i in range(spawn_count):
 			spawn_enemy()
 		print("本波生成敌人数量：", spawn_count)
+
+## 生成BOSS（BOSS战模式专用）
+func spawn_boss() -> void:
+	if not DataManager:
+		print("错误：DataManager未找到")
+		return
+	
+	# 获取BOSS数据
+	var boss_enemies = DataManager.get_enemies_by_type("boss")
+	if boss_enemies.is_empty():
+		print("错误：未找到BOSS类型敌人")
+		return
+	
+	# 使用第一个BOSS（boss1）
+	var boss_data = boss_enemies[0] as EnemyData
+	if not boss_data:
+		print("错误：BOSS数据无效")
+		return
+	
+	# 加载BOSS场景
+	var boss_scene_path = boss_data.scene_path
+	var boss_scene: PackedScene = null
+	if DataManager:
+		boss_scene = DataManager.get_packed_scene(boss_scene_path)
+	else:
+		boss_scene = load(boss_scene_path) as PackedScene
+	
+	if not boss_scene:
+		print("错误：无法加载BOSS场景：", boss_scene_path)
+		return
+	
+	# 实例化BOSS
+	var boss_instance = boss_scene.instantiate()
+	if not boss_instance:
+		print("错误：无法实例化BOSS场景")
+		return
+	
+	# 初始化BOSS
+	if boss_instance.has_method("initialize"):
+		boss_instance.initialize(boss_data)
+	
+	# BOSS战不应用楼层缩放（使用BOSS原始属性）
+	# 如果需要，可以在这里应用特殊的BOSS属性缩放
+	
+	# 在椭圆空气墙中心生成BOSS
+	var spawn_pos: Vector2
+	var boundary := get_node_or_null("EllipseBoundary") as EllipseBoundary
+	if boundary:
+		spawn_pos = boundary.global_position
+	else:
+		# 兜底：使用屏幕中心
+		var screen_size = get_viewport().get_visible_rect().size
+		spawn_pos = screen_size / 2.0
+	
+	boss_instance.global_position = spawn_pos
+	
+	# 添加到场景树中
+	add_child(boss_instance)
+	_register_enemy(boss_instance)
+	_apply_hitbox_visibility_to_enemy(boss_instance)
+	
+	print("生成BOSS：", boss_data.display_name, "，位置：", boss_instance.position)
 
 ## 生成敌人函数
 func spawn_enemy() -> void:
@@ -822,11 +907,14 @@ func show_floor_notification() -> void:
 	if not floor_notification or not floor_notification_label:
 		return
 	
-	# 获取当前层数
-	var current_floor = RunManager.current_floor if RunManager else 1
-	
-	# 设置提示文本
-	floor_notification_label.text = "正在进入第%d层" % current_floor
+	# BOSS战模式显示特殊文本
+	if is_boss_battle:
+		floor_notification_label.text = "BOSS战"
+	else:
+		# 获取当前层数
+		var current_floor = RunManager.current_floor if RunManager else 1
+		# 设置提示文本
+		floor_notification_label.text = "正在进入第%d层" % current_floor
 
 	# 将提示框位置调整为屏幕中心
 	var viewport_size := get_viewport().get_visible_rect().size
