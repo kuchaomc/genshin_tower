@@ -4,4 +4,4 @@
 
 [resource]
 script = ExtResource("1_stats")
-move_speed = 200.0
+move_speed = 150.0
