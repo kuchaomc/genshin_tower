@@ -52,6 +52,7 @@ enum TargetStat {
 	# 特殊属性
 	INVINCIBILITY_DURATION,  # 无敌时间
 	KNOCKBACK_RESISTANCE,    # 击退抗性
+	PICKUP_RANGE,            # 拾取范围
 	
 	# 自定义（不直接映射到属性）
 	CUSTOM

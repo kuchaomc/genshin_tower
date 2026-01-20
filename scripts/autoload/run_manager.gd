@@ -46,7 +46,8 @@ const COMMON_UPGRADE_STATS: Array[Dictionary] = [
 	{"property": "attack_speed", "target_stat": UpgradeData.TargetStat.ATTACK_SPEED},
 	{"property": "crit_rate", "target_stat": UpgradeData.TargetStat.CRIT_RATE},
 	{"property": "crit_damage", "target_stat": UpgradeData.TargetStat.CRIT_DAMAGE},
-	{"property": "knockback_force", "target_stat": UpgradeData.TargetStat.KNOCKBACK_FORCE}
+	{"property": "knockback_force", "target_stat": UpgradeData.TargetStat.KNOCKBACK_FORCE},
+	{"property": "pickup_range", "target_stat": UpgradeData.TargetStat.PICKUP_RANGE}
 ]
 
 # 统计数据

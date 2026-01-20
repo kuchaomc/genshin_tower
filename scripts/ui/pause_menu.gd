@@ -9,6 +9,7 @@ extends Control
 @onready var main_menu_button: Button = $MainContainer/LeftPanel/MainMenuButton
 @onready var character_portrait: TextureRect = $MainContainer/RightPanel/PortraitContainer/CharacterPortrait
 @onready var character_name_label: Label = $MainContainer/RightPanel/CharacterName
+@onready var gold_label: Label = $MainContainer/RightPanel/GoldDisplay/GoldLabel
 @onready var stats_container: VBoxContainer = $MainContainer/RightPanel/StatsContainer
 @onready var upgrades_container: VBoxContainer = $MainContainer/RightPanel/UpgradesScrollContainer/UpgradesContainer
 @onready var artifacts_container: HBoxContainer = $MainContainer/RightPanel/ArtifactsContainer
@@ -114,6 +115,9 @@ func update_character_info() -> void:
 			character_portrait.visible = false
 			print("警告：角色没有立绘或图标")
 	
+	# 更新摩拉显示
+	_update_gold_display()
+	
 	# 更新角色属性
 	_update_stats_display()
 	
@@ -131,6 +135,11 @@ func _get_character_portrait_path(character_id: String) -> String:
 			return "res://textures/characters/ayaka角色立绘.png"
 		_:
 			return ""
+
+## 更新摩拉显示
+func _update_gold_display() -> void:
+	if gold_label and RunManager:
+		gold_label.text = "摩拉: %d" % RunManager.gold
 
 ## 更新属性显示
 func _update_stats_display() -> void:

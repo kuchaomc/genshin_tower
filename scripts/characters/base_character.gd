@@ -91,7 +91,8 @@ const COMMON_UPGRADE_STATS: Array[Dictionary] = [
 	{"property": "attack_speed", "target_stat": UpgradeData.TargetStat.ATTACK_SPEED},
 	{"property": "crit_rate", "target_stat": UpgradeData.TargetStat.CRIT_RATE},
 	{"property": "crit_damage", "target_stat": UpgradeData.TargetStat.CRIT_DAMAGE},
-	{"property": "knockback_force", "target_stat": UpgradeData.TargetStat.KNOCKBACK_FORCE}
+	{"property": "knockback_force", "target_stat": UpgradeData.TargetStat.KNOCKBACK_FORCE},
+	{"property": "pickup_range", "target_stat": UpgradeData.TargetStat.PICKUP_RANGE}
 ]
 
 ## 初始化角色
@@ -162,6 +163,7 @@ func _apply_stats_to_character() -> void:
 	base_move_speed = current_stats.move_speed
 	move_speed = base_move_speed
 	knockback_force = current_stats.knockback_force
+	# 拾取范围不需要在这里设置，因为它不是运行时属性
 
 func _ready() -> void:
 	# 如果没有手动分配动画器，则自动查找
@@ -395,6 +397,12 @@ func get_knockback_force() -> float:
 	if current_stats:
 		return current_stats.knockback_force
 	return knockback_force
+
+## 获取拾取范围
+func get_pickup_range() -> float:
+	if current_stats:
+		return current_stats.pickup_range
+	return 80.0  # 默认值
 
 # ========== 血量相关方法 ==========
 

@@ -28,6 +28,10 @@ class_name CharacterStats
 ## 移动速度
 @export var move_speed: float = 100.0
 
+# ========== 拾取属性 ==========
+## 拾取范围（摩拉等物品的拾取范围）
+@export var pickup_range: float = 80.0
+
 # ========== 伤害计算方法 ==========
 
 ## 计算最终伤害
@@ -82,6 +86,7 @@ func duplicate_stats() -> CharacterStats:
 	new_stats.crit_rate = crit_rate
 	new_stats.crit_damage = crit_damage
 	new_stats.move_speed = move_speed
+	new_stats.pickup_range = pickup_range
 	return new_stats
 
 # ========== 运行时加成应用（升级 / 圣遗物 / buff 都可复用） ==========

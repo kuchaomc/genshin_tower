@@ -422,8 +422,7 @@ func _on_node_selected(node: MapNodeData) -> void:
 		MapNodeData.NodeType.TREASURE:
 			open_treasure()  # 打开宝箱，显示圣遗物选择界面
 		MapNodeData.NodeType.SHOP:
-			# enter_shop()  # 占位符：商店场景，暂不跳转
-			pass
+			enter_shop()
 		MapNodeData.NodeType.REST:
 			# enter_rest()  # 占位符：休息处场景，暂不跳转
 			pass

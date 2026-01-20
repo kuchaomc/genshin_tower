@@ -367,14 +367,36 @@ func on_death() -> void:
 		if battle_manager and battle_manager.has_method("on_enemy_killed"):
 			battle_manager.on_enemy_killed()
 	
-	# 掉落金币
+	# 掉落摩拉
 	if enemy_data:
 		var gold = enemy_data.drop_gold
-		if RunManager:
-			RunManager.add_gold(gold)
+		if gold > 0:
+			_drop_gold(gold)
 	
 	# 删除敌人节点
 	queue_free()
+
+## 掉落摩拉
+func _drop_gold(amount: int) -> void:
+	# 加载摩拉场景
+	var gold_pickup_scene = load("res://scenes/items/gold_pickup.tscn")
+	if not gold_pickup_scene:
+		# 如果场景不存在，直接添加到RunManager（兼容性处理）
+		if RunManager:
+			RunManager.add_gold(amount)
+		return
+	
+	# 创建摩拉实例
+	var gold_pickup = gold_pickup_scene.instantiate()
+	if gold_pickup and gold_pickup.has_method("set_gold_amount"):
+		gold_pickup.set_gold_amount(amount)
+		gold_pickup.global_position = global_position
+		# 添加到场景树
+		get_tree().current_scene.add_child(gold_pickup)
+	else:
+		# 如果实例化失败，直接添加到RunManager
+		if RunManager:
+			RunManager.add_gold(amount)
 
 ## 身体进入回调函数（检测与玩家的碰撞）
 func _on_body_entered(body: Node2D) -> void:

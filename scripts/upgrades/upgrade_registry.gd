@@ -191,6 +191,19 @@ func _register_builtin_upgrades() -> void:
 		0.20, 5, UpgradeData.Rarity.RARE, ["ability"]
 	))
 	
+	# 拾取范围升级
+	_register_upgrade(_create_stat_upgrade(
+		"pickup_range_flat", "拾取范围", "增加 {value} 点拾取范围",
+		UpgradeData.TargetStat.PICKUP_RANGE, UpgradeData.UpgradeType.STAT_FLAT,
+		20.0, 5, UpgradeData.Rarity.COMMON, ["stat", "utility"]
+	))
+	
+	_register_upgrade(_create_stat_upgrade(
+		"pickup_range_percent", "拾取强化", "增加 {value} 拾取范围",
+		UpgradeData.TargetStat.PICKUP_RANGE, UpgradeData.UpgradeType.STAT_PERCENT,
+		0.10, 5, UpgradeData.Rarity.UNCOMMON, ["stat", "utility"]
+	))
+	
 	# ========== 特殊升级 ==========
 	
 	_register_upgrade(_create_stat_upgrade(

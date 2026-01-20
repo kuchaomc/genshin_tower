@@ -32,6 +32,9 @@ var player_hp_bar: ProgressBar
 var player_hp_label: Label
 # 敌人击杀计数器UI引用
 var enemy_kill_counter_label: Label
+# 摩拉显示UI引用
+var gold_label: Label
+var gold_icon: TextureRect
 # 技能UI引用
 var skill_ui: SkillUI
 # 大招UI引用
@@ -58,6 +61,8 @@ func _ready() -> void:
 	enemy_kill_counter_label = get_node_or_null("CanvasLayer/EnemyKillCounter/Label") as Label
 	skill_ui = get_node_or_null("CanvasLayer/SkillUIContainer/SkillUI") as SkillUI
 	burst_ui = get_node_or_null("CanvasLayer/BurstUIContainer/BurstUI") as SkillUI
+	gold_label = get_node_or_null("CanvasLayer/GoldDisplay/Label") as Label
+	gold_icon = get_node_or_null("CanvasLayer/GoldDisplay/Icon") as TextureRect
 	debug_toggle_button = get_node_or_null("CanvasLayer/DebugToggle") as Button
 	if debug_toggle_button:
 		debug_toggle_button.pressed.connect(_on_debug_toggle_pressed)
@@ -78,6 +83,9 @@ func _ready() -> void:
 	
 	# 更新击杀计数器显示
 	update_enemy_kill_counter_display()
+	
+	# 初始化摩拉显示
+	_update_gold_display()
 	
 	# 如果没有手动分配敌人场景，则预加载默认敌人场景
 	if enemy_scene == null:
@@ -326,6 +334,11 @@ func update_enemy_kill_counter_display() -> void:
 		var remaining = max(0, enemies_required_to_kill - enemies_killed_in_battle)
 		enemy_kill_counter_label.text = str(remaining)
 
+## 更新摩拉显示
+func _update_gold_display() -> void:
+	if gold_label and RunManager:
+		gold_label.text = str(RunManager.gold)
+
 ## 敌人被击杀回调（由敌人死亡时调用）
 func on_enemy_killed() -> void:
 	if current_state != GameState.PLAYING:
@@ -420,9 +433,14 @@ func _on_player_died() -> void:
 	game_over()
 
 ## 金币变化回调
-func _on_gold_changed(_gold: int) -> void:
-	# 可以在这里更新金币显示
-	pass
+func _on_gold_changed(gold: int) -> void:
+	# 更新摩拉显示
+	if gold_label:
+		gold_label.text = str(gold)
+	
+	# 初始化时也更新一次
+	if RunManager:
+		_update_gold_display()
 
 ## 调试开关：显示/隐藏判定与碰撞箱
 func _on_debug_toggle_pressed() -> void:
