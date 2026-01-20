@@ -7,6 +7,7 @@ signal artifact_selected(artifact: ArtifactData, slot: ArtifactSlot.SlotType)
 
 @onready var artifact_container: VBoxContainer = $CanvasLayer/VBoxContainer/ArtifactContainer
 @onready var title_label: Label = $CanvasLayer/VBoxContainer/TitleLabel
+@onready var skip_button: Button = $CanvasLayer/VBoxContainer/SkipButton
 
 # 可选的圣遗物列表（ArtifactData 类型）
 var available_artifacts: Array[ArtifactData] = []
@@ -17,6 +18,8 @@ var available_artifacts: Array[ArtifactData] = []
 func _ready() -> void:
 	if title_label:
 		title_label.text = "选择圣遗物"
+	if skip_button:
+		skip_button.pressed.connect(_on_skip_pressed)
 	generate_artifact_options()
 	display_artifacts()
 
@@ -128,6 +131,15 @@ func _on_artifact_selected(artifact: ArtifactData, slot: ArtifactSlot.SlotType) 
 		RunManager.equip_artifact_to_character(artifact, slot)
 	
 	# 关闭界面并返回地图
+	_return_to_map()
+
+## 跳过按钮回调
+func _on_skip_pressed() -> void:
+	print("跳过圣遗物选择")
+	_return_to_map()
+
+## 返回地图
+func _return_to_map() -> void:
 	if GameManager:
 		GameManager.go_to_map_view()
 	else:
