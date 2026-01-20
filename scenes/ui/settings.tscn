@@ -45,20 +45,33 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 
-[node name="FullscreenContainer" type="HBoxContainer" parent="MainContainer"]
+[node name="FullscreenContainer" type="VBoxContainer" parent="MainContainer"]
 layout_mode = 2
 size_flags_horizontal = 4
 
 [node name="FullscreenLabel" type="Label" parent="MainContainer/FullscreenContainer"]
 layout_mode = 2
-size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 24
 text = "独占全屏 (1920x1080)"
+horizontal_alignment = 1
+
+[node name="SwitchContainer" type="HBoxContainer" parent="MainContainer/FullscreenContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="StatusLabel" type="Label" parent="MainContainer/FullscreenContainer/SwitchContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "窗口模式"
+horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="FullscreenCheckBox" type="CheckBox" parent="MainContainer/FullscreenContainer"]
+[node name="FullscreenSwitch" type="CheckButton" parent="MainContainer/FullscreenContainer/SwitchContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
+custom_minimum_size = Vector2(80, 40)
+theme_override_font_sizes/font_size = 18
+text = "关闭"
 
 [node name="Spacer2" type="Control" parent="MainContainer"]
 layout_mode = 2

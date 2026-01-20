@@ -4,7 +4,8 @@ extends Control
 ## 提供游戏设置功能，包括全屏切换等
 
 # UI节点引用
-@onready var fullscreen_checkbox: CheckBox = $MainContainer/FullscreenContainer/FullscreenCheckBox
+@onready var fullscreen_switch: CheckButton = $MainContainer/FullscreenContainer/SwitchContainer/FullscreenSwitch
+@onready var status_label: Label = $MainContainer/FullscreenContainer/SwitchContainer/StatusLabel
 @onready var back_button: Button = $MainContainer/BackButton
 
 # 信号
@@ -15,6 +16,9 @@ const SETTINGS_FILE_PATH = "user://settings.cfg"
 const CONFIG_SECTION = "display"
 const CONFIG_KEY_FULLSCREEN = "fullscreen"
 
+# 目标分辨率
+const TARGET_RESOLUTION = Vector2i(1920, 1080)
+
 func _ready() -> void:
 	# 设置process_mode为ALWAYS，确保暂停时仍能响应输入
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -22,8 +26,8 @@ func _ready() -> void:
 	# 连接按钮信号
 	if back_button:
 		back_button.pressed.connect(_on_back_button_pressed)
-	if fullscreen_checkbox:
-		fullscreen_checkbox.toggled.connect(_on_fullscreen_toggled)
+	if fullscreen_switch:
+		fullscreen_switch.toggled.connect(_on_fullscreen_toggled)
 	
 	# 加载设置
 	load_settings()
@@ -42,11 +46,18 @@ func hide_settings() -> void:
 	visible = false
 	settings_closed.emit()
 
+## 检查当前是否为全屏模式
+func _is_fullscreen_mode() -> bool:
+	var current_mode = DisplayServer.window_get_mode()
+	return (current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN or 
+			current_mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
+
 ## 更新UI状态
 func update_ui_state() -> void:
-	if fullscreen_checkbox:
-		var is_fullscreen = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
-		fullscreen_checkbox.button_pressed = is_fullscreen
+	if fullscreen_switch and status_label:
+		var is_fullscreen = _is_fullscreen_mode()
+		fullscreen_switch.button_pressed = is_fullscreen
+		_update_status_display(is_fullscreen)
 
 ## 加载设置
 func load_settings() -> void:
@@ -70,33 +81,44 @@ func save_settings() -> void:
 	var config = ConfigFile.new()
 	
 	# 读取现有设置（如果文件存在）
-	var err = config.load(SETTINGS_FILE_PATH)
-	if err != OK:
-		# 文件不存在，创建新配置
-		pass
+	config.load(SETTINGS_FILE_PATH)
 	
 	# 保存全屏设置
-	var is_fullscreen = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+	var is_fullscreen = _is_fullscreen_mode()
 	config.set_value(CONFIG_SECTION, CONFIG_KEY_FULLSCREEN, is_fullscreen)
-	
-	# 保存到文件
 	config.save(SETTINGS_FILE_PATH)
 	print("设置已保存")
 
 ## 应用全屏设置
 func apply_fullscreen(enabled: bool) -> void:
 	if enabled:
-		# 设置为独占全屏模式，分辨率1920x1080
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
-		DisplayServer.window_set_size(Vector2i(1920, 1080))
+		DisplayServer.window_set_size(TARGET_RESOLUTION)
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 		print("已切换到全屏模式 (1920x1080)")
 	else:
-		# 设置为窗口模式
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-		DisplayServer.window_set_size(Vector2i(1920, 1080))
+		DisplayServer.window_set_size(TARGET_RESOLUTION)
+		var screen_size = DisplayServer.screen_get_size()
+		DisplayServer.window_set_position((screen_size - TARGET_RESOLUTION) / 2)
 		print("已切换到窗口模式 (1920x1080)")
+	
+	# 更新状态显示
+	_update_status_display(enabled)
 
-## 全屏复选框切换
+## 更新状态显示
+func _update_status_display(is_fullscreen: bool) -> void:
+	if status_label:
+		if is_fullscreen:
+			status_label.text = "全屏模式"
+			status_label.add_theme_color_override("font_color", Color(0.2, 1.0, 0.2))
+		else:
+			status_label.text = "窗口模式"
+			status_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.2))
+	
+	if fullscreen_switch:
+		fullscreen_switch.text = "开启" if is_fullscreen else "关闭"
+
+## 全屏开关切换
 func _on_fullscreen_toggled(button_pressed: bool) -> void:
 	apply_fullscreen(button_pressed)
 	save_settings()
