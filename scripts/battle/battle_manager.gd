@@ -545,7 +545,15 @@ func battle_victory() -> void:
 	clear_all_enemies()
 	
 	_show_level_goal_completed_notification()
-	print("战斗胜利！当前得分：", current_score, "。即将进入升级选择...")
+	
+	# BOSS战胜利：结束游戏并标记为胜利
+	if is_boss_battle:
+		print("BOSS战胜利！游戏完成！")
+		# 结束游戏并标记为胜利
+		if RunManager:
+			RunManager.end_run(true)
+	else:
+		print("战斗胜利！当前得分：", current_score, "。即将进入升级选择...")
 	
 	# 先短暂显示“层级目标完成”提示，再转场进入升级选择
 	game_over_timer.wait_time = VICTORY_NOTIFY_SECONDS
@@ -583,12 +591,20 @@ func _on_game_over_timer_timeout() -> void:
 	# 只有通过击杀足够数量的敌人正常结束战斗才算胜利
 	# 玩家死亡则无论击杀数多少都算失败
 	if is_battle_victory:
-		# 战斗胜利：转场 -> 升级选择界面
-		_restore_floor_notification_from_transition_layer()
-		if TransitionManager:
-			await TransitionManager.fade_out(VICTORY_TRANSITION_SECONDS)
-		if GameManager:
-			GameManager.show_upgrade_selection()
+		# BOSS战胜利：转场 -> 结算界面（胜利）
+		if is_boss_battle:
+			_restore_floor_notification_from_transition_layer()
+			if TransitionManager:
+				await TransitionManager.fade_out(VICTORY_TRANSITION_SECONDS)
+			if GameManager:
+				GameManager.show_result(true)
+		else:
+			# 普通战斗胜利：转场 -> 升级选择界面
+			_restore_floor_notification_from_transition_layer()
+			if TransitionManager:
+				await TransitionManager.fade_out(VICTORY_TRANSITION_SECONDS)
+			if GameManager:
+				GameManager.show_upgrade_selection()
 	else:
 		# 战斗失败，直接返回地图
 		_restore_floor_notification_from_transition_layer()

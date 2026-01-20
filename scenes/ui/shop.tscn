@@ -33,9 +33,7 @@ layout_mode = 2
 [node name="ArtifactPackButton" type="Button" parent="CanvasLayer/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 50)
-text = "圣遗物自选包"
-
-[node name="BackButton" type="Button" parent="CanvasLayer/VBoxContainer"]
+text = "圣遗物自选包"[node name="BackButton" type="Button" parent="CanvasLayer/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(200, 50)
 text = "返回地图"
