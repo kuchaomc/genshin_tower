@@ -15,6 +15,9 @@ func enter() -> void:
 	var player = get_player()
 	if player:
 		player.velocity = Vector2.ZERO
+		# 攻击时播放idle动画（停止move动画）
+		if player.animator:
+			player.animator.play("idle")
 		# 调用角色的攻击方法
 		player.perform_attack()
 

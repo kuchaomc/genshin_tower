@@ -17,7 +17,14 @@ func physics_update(_delta: float) -> void:
 		return
 	
 	var input_dir = get_input_direction()
-	player.velocity = input_dir * player.move_speed
+	
+	# 计算移动速度（如果正在蓄力重击，减慢速度）
+	var current_move_speed = player.move_speed
+	if player._attack_button_pressed:
+		# 正在蓄力重击，应用速度减慢
+		current_move_speed = player.move_speed * player.charged_attack_move_speed_multiplier
+	
+	player.velocity = input_dir * current_move_speed
 	
 	# 记录最后非零移动方向
 	if input_dir != Vector2.ZERO:

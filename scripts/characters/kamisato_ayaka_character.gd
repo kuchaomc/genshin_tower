@@ -592,8 +592,8 @@ func _handle_charged_hit(target: Node2D) -> void:
 	
 	# 造成伤害
 	if target.has_method("take_damage"):
-		# 判断是否为最后一击
-		var is_final_hit = (phase2_current_hit >= charged_hit_count)
+		# 判断是否为最后一击（因为 phase2_current_hit 在伤害检测后才增加，所以需要 +1）
+		var is_final_hit = (phase2_current_hit + 1 >= charged_hit_count)
 		
 		# 前两次造成僵直，最后一次造成击退
 		var apply_knockback = is_final_hit

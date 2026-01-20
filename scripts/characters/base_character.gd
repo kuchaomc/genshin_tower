@@ -82,6 +82,8 @@ var _attack_button_press_time: int = 0
 var _attack_button_pressed: bool = false
 ## 重击触发阈值（秒）
 @export var charged_attack_threshold: float = 1.0
+## 重击蓄力时移动速度倍率（0.5 = 50%速度）
+@export var charged_attack_move_speed_multiplier: float = 0.5
 
 # ========== 碰撞箱引用 ==========
 var collision_shape: CollisionShape2D
@@ -267,7 +269,14 @@ func _process_idle_state() -> void:
 ## 移动状态逻辑
 func _process_move_state() -> void:
 	var input_dir = _get_input_direction()
-	velocity = input_dir * move_speed
+	
+	# 计算移动速度（如果正在蓄力重击，减慢速度）
+	var current_move_speed = move_speed
+	if _attack_button_pressed:
+		# 正在蓄力重击，应用速度减慢
+		current_move_speed = move_speed * charged_attack_move_speed_multiplier
+	
+	velocity = input_dir * current_move_speed
 	
 	# 记录最后非零移动方向
 	if input_dir != Vector2.ZERO:
@@ -345,6 +354,9 @@ func _enter_state(state: CharacterState) -> void:
 				animator.play("run")
 		CharacterState.ATTACKING:
 			velocity = Vector2.ZERO
+			# 攻击时播放idle动画（停止move动画）
+			if animator:
+				animator.play("idle")
 			perform_attack()
 		CharacterState.DODGING:
 			_dodge_elapsed = 0.0

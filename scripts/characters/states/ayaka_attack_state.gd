@@ -25,6 +25,9 @@ func enter() -> void:
 	var player = get_player()
 	if player:
 		player.velocity = Vector2.ZERO
+		# 攻击时播放idle动画（停止move动画）
+		if player.animator:
+			player.animator.play("idle")
 		# 开始第一阶段攻击
 		_start_phase1()
 
