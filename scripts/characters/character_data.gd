@@ -23,6 +23,10 @@ class_name CharacterData
 ## 角色技能列表（未来扩展）
 @export var abilities: Array[String] = []
 
+# ========== 圣遗物系统 ==========
+## 角色专属圣遗物套装（每个角色都有独一无二的圣遗物）
+@export var artifact_set: ArtifactSetData = null
+
 ## 获取角色属性对象
 func get_stats() -> CharacterStats:
 	if stats:

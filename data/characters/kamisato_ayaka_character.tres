@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3 uid="uid://c2ojwr6swsrjw"]
+[gd_resource type="Resource" script_class="CharacterData" load_steps=4 format=3 uid="uid://c2ojwr6swsrjw"]
 
 [ext_resource type="Script" uid="uid://btuxq8fk8sjog" path="res://scripts/characters/character_data.gd" id="1_char_data"]
 [ext_resource type="Resource" uid="uid://bjtwl2073dk0e" path="res://data/characters/ayaka_stats.tres" id="2_stats"]
+[ext_resource type="Resource" path="res://data/characters/artifacts/ayaka_artifact_set.tres" id="3_artifact_set"]
 
 [resource]
 script = ExtResource("1_char_data")
@@ -10,3 +11,4 @@ display_name = "神里绫华"
 description = "使用剑进行近战攻击的角色（Kamisato Ayaka），拥有两段攻击：位移挥剑和原地剑花"
 stats = ExtResource("2_stats")
 scene_path = "res://scenes/characters/kamisato_ayaka.tscn"
+artifact_set = ExtResource("3_artifact_set")

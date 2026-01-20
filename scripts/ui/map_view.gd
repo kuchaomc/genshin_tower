@@ -420,8 +420,7 @@ func _on_node_selected(node: MapNodeData) -> void:
 		# TODO: 以下节点类型为占位符，暂时不跳转场景，允许直接选择下一节点
 		# 后期需要实现这些场景时，取消注释对应的函数调用即可
 		MapNodeData.NodeType.TREASURE:
-			# open_treasure()  # 占位符：宝箱场景，暂不跳转
-			pass
+			open_treasure()  # 打开宝箱，显示圣遗物选择界面
 		MapNodeData.NodeType.SHOP:
 			# enter_shop()  # 占位符：商店场景，暂不跳转
 			pass

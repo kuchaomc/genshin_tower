@@ -27,6 +27,11 @@ var max_health: float = 100.0
 var upgrades: Dictionary = {}  # upgrade_id -> level
 var visited_nodes: Array[String] = []  # 已访问的地图节点ID
 
+# ========== 圣遗物系统 ==========
+## 已获得的圣遗物库存（按槽位类型存储）
+## 格式: {ArtifactSlot.SlotType: Array[ArtifactData]}
+var artifact_inventory: Dictionary = {}
+
 # ========== 升级加成缓存 ==========
 ## 存储各属性的总加成值（每次升级后重新计算）
 var _stat_bonuses: Dictionary = {}
@@ -55,6 +60,9 @@ func start_new_run(character: CharacterData) -> void:
 	current_character = character
 	current_floor = 0
 	current_node_id = ""
+	
+	# 清空圣遗物库存
+	artifact_inventory.clear()
 	map_seed = -1  # 重置地图种子，新游戏会生成新地图
 	gold = 0
 	
@@ -293,3 +301,61 @@ func visit_node(node_id: String) -> void:
 ## 检查节点是否已访问
 func is_node_visited(node_id: String) -> bool:
 	return node_id in visited_nodes
+
+# ========== 圣遗物系统 ==========
+
+## 添加圣遗物到库存
+func add_artifact_to_inventory(artifact: ArtifactData, slot: ArtifactSlot.SlotType) -> void:
+	if not artifact_inventory.has(slot):
+		artifact_inventory[slot] = []
+	artifact_inventory[slot].append(artifact)
+	print("获得圣遗物：%s（%s）" % [artifact.name, ArtifactSlot.get_slot_name(slot)])
+
+## 获取指定槽位的所有圣遗物
+func get_artifacts_by_slot(slot: ArtifactSlot.SlotType) -> Array[ArtifactData]:
+	return artifact_inventory.get(slot, [])
+
+## 获取所有已获得的圣遗物
+func get_all_artifacts() -> Dictionary:
+	return artifact_inventory.duplicate()
+
+## 装备圣遗物到角色
+func equip_artifact_to_character(artifact: ArtifactData, slot: ArtifactSlot.SlotType) -> bool:
+	if not current_character_node:
+		push_error("RunManager: 当前没有角色节点，无法装备圣遗物")
+		return false
+	
+	if not current_character_node.has_method("equip_artifact"):
+		push_error("RunManager: 角色节点不支持装备圣遗物")
+		return false
+	
+	var success = current_character_node.equip_artifact(slot, artifact)
+	if success:
+		print("装备圣遗物：%s 到 %s" % [artifact.name, ArtifactSlot.get_slot_name(slot)])
+	return success
+
+## 从角色专属圣遗物套装中随机获取一个圣遗物
+## 返回: ArtifactData 或 null
+func get_random_artifact_from_character_set() -> ArtifactData:
+	if not current_character or not current_character.artifact_set:
+		return null
+	
+	# 获取所有可用的圣遗物槽位
+	var available_slots: Array[ArtifactSlot.SlotType] = []
+	for slot in ArtifactSlot.get_all_slots():
+		var artifact = current_character.artifact_set.get_artifact(slot)
+		if artifact:
+			available_slots.append(slot)
+	
+	if available_slots.is_empty():
+		return null
+	
+	# 随机选择一个槽位
+	var random_slot = available_slots[randi() % available_slots.size()]
+	return current_character.artifact_set.get_artifact(random_slot)
+
+## 从角色专属圣遗物套装中获取指定槽位的圣遗物
+func get_artifact_from_character_set(slot: ArtifactSlot.SlotType) -> ArtifactData:
+	if not current_character or not current_character.artifact_set:
+		return null
+	return current_character.artifact_set.get_artifact(slot)

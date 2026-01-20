@@ -18,6 +18,10 @@ var base_stats: CharacterStats = null
 ## 当前属性（运行时可被 buff/debuff 修改）
 var current_stats: CharacterStats = null
 
+# ========== 圣遗物系统 ==========
+## 圣遗物管理器
+var artifact_manager: ArtifactManager = null
+
 # ========== 血量属性 ==========
 var current_health: float = 100.0
 var max_health: float = 100.0
@@ -98,6 +102,9 @@ func initialize(data: CharacterData) -> void:
 	base_stats = data.get_stats()
 	current_stats = base_stats.duplicate_stats()
 	
+	# 初始化圣遗物系统
+	_initialize_artifacts(data)
+	
 	# 在应用属性前，保存RunManager中的当前血量（如果存在）
 	var saved_health: float = -1.0
 	var saved_max_health: float = -1.0
@@ -122,6 +129,29 @@ func initialize(data: CharacterData) -> void:
 	
 	emit_signal("health_changed", current_health, max_health)
 	print("角色初始化：", data.display_name, " | ", current_stats.get_summary())
+	
+	# 注意：圣遗物加成在装备时才会应用，初始化时不应用
+
+## 初始化圣遗物系统
+## 注意：角色默认不装备任何圣遗物，需要在对局中获取
+func _initialize_artifacts(data: CharacterData) -> void:
+	if data.artifact_set:
+		artifact_manager = ArtifactManager.new()
+		# 创建空的圣遗物套装（不装备任何圣遗物）
+		var set_copy = ArtifactSetData.new()
+		set_copy.character_id = data.artifact_set.character_id
+		set_copy.set_name = data.artifact_set.set_name
+		set_copy.set_description = data.artifact_set.set_description
+		# 不自动装备圣遗物，所有槽位初始为空
+		set_copy.flower = null
+		set_copy.plume = null
+		set_copy.sands = null
+		set_copy.goblet = null
+		set_copy.circlet = null
+		artifact_manager.initialize(set_copy)
+		print("圣遗物系统已初始化（未装备）：", set_copy.set_name)
+	else:
+		artifact_manager = null
 
 ## 从当前属性应用到角色实际数值
 func _apply_stats_to_character() -> void:
@@ -578,6 +608,9 @@ func apply_upgrades(run_manager: Node) -> void:
 	# 应用非通用属性升级（由子类重写实现）
 	_apply_custom_upgrades(run_manager)
 	
+	# 应用圣遗物属性加成
+	_apply_artifact_bonuses()
+	
 	# 同步属性到角色
 	_sync_stats_to_character()
 	
@@ -716,3 +749,77 @@ func can_move() -> bool:
 ## 检查是否可以闪避
 func can_dodge() -> bool:
 	return can_move() and _is_dodge_ready()
+
+# ========== 圣遗物系统 ==========
+
+## 应用圣遗物属性加成
+func _apply_artifact_bonuses() -> void:
+	if not artifact_manager or not current_stats:
+		return
+	
+	var bonuses = artifact_manager.apply_stat_bonuses()
+	if bonuses.is_empty():
+		return
+	
+	# 应用每个属性的加成
+	for stat_name in bonuses:
+		var bonus_value = bonuses[stat_name]
+		
+		# 检查属性是否存在
+		if not stat_name in current_stats:
+			push_warning("BaseCharacter: 圣遗物属性 '%s' 不存在于 CharacterStats 中" % stat_name)
+			continue
+		
+		var current_value = current_stats.get(stat_name)
+		var new_value = current_value + bonus_value
+		
+		# 特殊处理：防御和暴击率需要限制范围
+		if stat_name == "defense_percent" or stat_name == "crit_rate":
+			new_value = clamp(new_value, 0.0, 1.0)
+		
+		current_stats.set(stat_name, new_value)
+	
+	# 打印圣遗物加成信息（调试用）
+	if not bonuses.is_empty():
+		var bonus_summary = []
+		for stat_name in bonuses:
+			bonus_summary.append("%s: %+.1f" % [stat_name, bonuses[stat_name]])
+		print("圣遗物加成已应用：", ", ".join(bonus_summary))
+
+## 获取圣遗物管理器
+func get_artifact_manager() -> ArtifactManager:
+	return artifact_manager
+
+## 装备圣遗物到指定槽位
+func equip_artifact(slot: ArtifactSlot.SlotType, artifact: ArtifactData) -> bool:
+	if not artifact_manager:
+		return false
+	
+	var success = artifact_manager.equip_artifact(slot, artifact)
+	if success:
+		# 通过RunManager重新应用所有升级（包括圣遗物）
+		if RunManager:
+			apply_upgrades(RunManager)
+		else:
+			# 如果没有RunManager，直接重新应用圣遗物加成
+			_apply_artifact_bonuses()
+			_sync_stats_to_character()
+	return success
+
+## 卸载指定槽位的圣遗物
+func unequip_artifact(slot: ArtifactSlot.SlotType) -> bool:
+	if not artifact_manager:
+		return false
+	
+	var success = artifact_manager.unequip_artifact(slot)
+	if success:
+		# 通过RunManager重新应用所有升级（包括圣遗物）
+		if RunManager:
+			apply_upgrades(RunManager)
+		else:
+			# 如果没有RunManager，直接重新应用圣遗物加成
+			if base_stats:
+				current_stats = base_stats.duplicate_stats()
+			_apply_artifact_bonuses()
+			_sync_stats_to_character()
+	return success

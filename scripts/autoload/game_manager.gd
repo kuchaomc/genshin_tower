@@ -33,6 +33,7 @@ const SCENE_EVENT = "res://scenes/ui/event.tscn"
 const SCENE_BOSS = "res://scenes/battle/boss_battle.tscn"
 const SCENE_RESULT = "res://scenes/ui/result_screen.tscn"
 const SCENE_UPGRADE_SELECTION = "res://scenes/ui/upgrade_selection.tscn"
+const SCENE_ARTIFACT_SELECTION = "res://scenes/ui/artifact_selection.tscn"
 
 # 存档路径
 const SAVE_FILE_PATH = "user://save_data.json"
@@ -86,12 +87,8 @@ func start_battle(_enemy_data: EnemyData = null) -> void:
 ## 打开宝箱
 func open_treasure() -> void:
 	current_state = GameState.TREASURE
-	# 宝箱直接给予奖励，然后返回地图
-	# TODO: 实现宝箱奖励逻辑
-	print("打开宝箱！获得奖励")
-	# 暂时直接返回地图
-	await get_tree().create_timer(1.0).timeout
-	go_to_map_view()
+	# 显示圣遗物选择界面
+	show_artifact_selection()
 
 ## 进入商店
 func enter_shop() -> void:
@@ -122,6 +119,11 @@ func show_result(_victory: bool = false) -> void:
 func show_upgrade_selection() -> void:
 	current_state = GameState.MAP_VIEW
 	change_scene_to(SCENE_UPGRADE_SELECTION)
+
+## 显示圣遗物选择界面
+func show_artifact_selection() -> void:
+	current_state = GameState.TREASURE
+	change_scene_to(SCENE_ARTIFACT_SELECTION)
 
 ## 游戏结束
 func game_over() -> void:

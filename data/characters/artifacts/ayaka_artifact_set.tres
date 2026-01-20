@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ArtifactSetData" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/characters/artifact_set_data.gd" id="1_set"]
+[ext_resource type="Resource" path="res://data/characters/artifacts/ayaka_flower.tres" id="2_flower"]
+[ext_resource type="Resource" path="res://data/characters/artifacts/ayaka_plume.tres" id="3_plume"]
+[ext_resource type="Resource" path="res://data/characters/artifacts/ayaka_sands.tres" id="4_sands"]
+[ext_resource type="Resource" path="res://data/characters/artifacts/ayaka_goblet.tres" id="5_goblet"]
+[ext_resource type="Resource" path="res://data/characters/artifacts/ayaka_circlet.tres" id="6_circlet"]
+
+[resource]
+script = ExtResource("1_set")
+character_id = "kamisato_ayaka"
+set_name = "冰华套装"
+set_description = "神里绫华专属圣遗物套装，蕴含着强大的冰之力量。"
+flower = ExtResource("2_flower")
+plume = ExtResource("3_plume")
+sands = ExtResource("4_sands")
+goblet = ExtResource("5_goblet")
+circlet = ExtResource("6_circlet")

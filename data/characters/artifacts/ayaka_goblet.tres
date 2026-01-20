@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ArtifactData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/characters/artifact_data.gd" id="1_artifact"]
+
+[resource]
+script = ExtResource("1_artifact")
+name = "空之冰盏"
+description = "神里绫华专属圣遗物·空之杯。盛满纯净冰晶的容器，散发着凛冽的寒气。"
+stat_bonuses = {
+"crit_rate": 0.08
+}
