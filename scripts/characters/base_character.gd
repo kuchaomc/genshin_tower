@@ -79,6 +79,26 @@ signal damage_dealt(damage: float, is_crit: bool, target: Node)
 @export var animator: AnimatedSprite2D
 @export var knockback_force: float = 150.0  # 对敌人造成击退的力度，可在角色数据中配置
 
+# ========== 移动拖尾特效 ==========
+@export_group("移动拖尾特效")
+@export var movement_trail_enabled: bool = true
+@export var movement_trail_tint: Color = Color(0.75, 0.92, 1.0, 0.9)
+@export var movement_trail_min_width: float = 2.0
+@export var movement_trail_max_width: float = 8.0
+@export var movement_trail_speed_for_max_strength: float = 220.0
+@export var movement_trail_fade_speed: float = 10.0
+@export var movement_trail_max_points: int = 18
+@export var movement_trail_min_distance: float = 4.0
+@export var movement_trail_tail_power: float = 1.6
+@export var movement_trail_z: int = 40
+@export_group("")
+const _MOVEMENT_TRAIL_SCRIPT: Script = preload("res://scripts/vfx/movement_trail.gd")
+const _MOVEMENT_TRAIL_OFFSET: Vector2 = Vector2(0.0, 15.0)
+const _SETTINGS_FILE_PATH: String = "user://settings.cfg"
+const _SETTINGS_SECTION_VFX: String = "vfx"
+const _SETTINGS_KEY_MOVEMENT_TRAIL_ENABLED: String = "movement_trail_enabled"
+var _movement_trail: Node
+
 # ========== 攻击按键追踪 ==========
 ## 鼠标左键按下的时间戳（毫秒）
 var _attack_button_press_time: int = 0
@@ -196,6 +216,10 @@ func _ready() -> void:
 	# 获取碰撞箱引用
 	collision_shape = get_node_or_null("CollisionShape2D") as CollisionShape2D
 	
+	add_to_group("characters")
+	_movement_trail_enabled_from_settings()
+	set_movement_trail_enabled(movement_trail_enabled)
+	
 	# 没有通过initialize赋值时，创建默认属性并使用当前速度作为基准
 	if current_stats == null:
 		current_stats = CharacterStats.new()
@@ -219,6 +243,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if is_game_over:
+		if is_instance_valid(_movement_trail):
+			_movement_trail.call("update_trail", global_position + _MOVEMENT_TRAIL_OFFSET, 0.0, delta)
 		return
 	
 	# 更新击退计时器
@@ -232,6 +258,42 @@ func _physics_process(delta: float) -> void:
 	
 	# 执行移动
 	move_and_slide()
+	
+	# 更新移动拖尾（在移动完成后采样位置，确保轨迹稳定）
+	if is_instance_valid(_movement_trail):
+		_movement_trail.call("update_trail", global_position + _MOVEMENT_TRAIL_OFFSET, velocity.length(), delta)
+
+func set_movement_trail_enabled(is_enabled: bool) -> void:
+	movement_trail_enabled = is_enabled
+	if not is_enabled:
+		if is_instance_valid(_movement_trail):
+			_movement_trail.queue_free()
+		_movement_trail = null
+		return
+	
+	if is_instance_valid(_movement_trail):
+		return
+	
+	_movement_trail = _MOVEMENT_TRAIL_SCRIPT.new()
+	_movement_trail.set("tint", movement_trail_tint)
+	_movement_trail.set("min_width", movement_trail_min_width)
+	_movement_trail.set("max_width", movement_trail_max_width)
+	_movement_trail.set("speed_for_max_strength", movement_trail_speed_for_max_strength)
+	_movement_trail.set("fade_speed", movement_trail_fade_speed)
+	_movement_trail.set("max_points", movement_trail_max_points)
+	_movement_trail.set("min_distance", movement_trail_min_distance)
+	_movement_trail.set("tail_power", movement_trail_tail_power)
+	_movement_trail.set("z", movement_trail_z)
+	add_child(_movement_trail)
+	_movement_trail.call("reset", global_position + _MOVEMENT_TRAIL_OFFSET)
+
+func _movement_trail_enabled_from_settings() -> void:
+	var config := ConfigFile.new()
+	var err: Error = config.load(_SETTINGS_FILE_PATH)
+	if err != OK:
+		return
+	var enabled: bool = bool(config.get_value(_SETTINGS_SECTION_VFX, _SETTINGS_KEY_MOVEMENT_TRAIL_ENABLED, movement_trail_enabled))
+	movement_trail_enabled = enabled
 
 ## 处理状态逻辑（主要控制循环）
 func _process_state_logic(delta: float) -> void:

@@ -77,7 +77,7 @@ func _load_resources_from_directory(dir_path: String, expected_script: Script, t
 			
 			if resource:
 				# 只处理指定类型的资源：导出后 Script 可能不是同一个实例，
-				# 直接用对象相等判断会导致误过滤；改为比较脚本路径更稳。
+				# 直接用对象相判断会导致误过滤；改为比较脚本路径更稳。
 				var res_script: Script = resource.get_script()
 				if res_script == null:
 					file_name = dir.get_next()

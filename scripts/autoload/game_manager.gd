@@ -5,6 +5,9 @@ extends Node
 
 signal scene_changed(scene_name: String)
 
+# 游戏对外显示名（用于窗口标题等不影响 user:// 数据目录的展示）
+const GAME_DISPLAY_NAME: String = "杀原戮神尖塔"
+
 # 开发者覆盖层（常驻顶层UI）
 var _dev_overlay: CanvasLayer = null
 
@@ -68,10 +71,20 @@ const SAVE_FILE_PATH = "user://save_data.json"
 var run_records: Array = []
 
 func _ready() -> void:
+	# 设置窗口标题（不修改 project.godot 的 config/name，避免影响 user:// 数据目录/日志路径）
+	# 注意：启动阶段窗口可能尚未完成初始化，这里延迟到下一帧应用更稳定。
+	call_deferred("_apply_window_title")
 	load_save_data()
 	_ensure_dev_overlay()
 	if DebugLogger:
 		DebugLogger.log_info("初始化完成", "GameManager")
+
+## 应用窗口标题（兼容编辑器运行/导出运行）
+func _apply_window_title() -> void:
+	DisplayServer.window_set_title(GAME_DISPLAY_NAME)
+	var root_window := get_tree().root
+	if root_window is Window:
+		(root_window as Window).title = GAME_DISPLAY_NAME
 
 func _ensure_dev_overlay() -> void:
 	# 只创建一次，跨场景常驻
@@ -131,6 +144,8 @@ func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 	if scene:
 		get_tree().change_scene_to_packed(scene)
 		emit_signal("scene_changed", scene_path)
+		# 场景切换后可能出现标题被恢复为 project.godot 的 config/name 的情况，延迟补一次更稳。
+		call_deferred("_apply_window_title")
 		if DebugLogger:
 			DebugLogger.log_info("切换到场景：%s" % scene_path, "GameManager")
 		

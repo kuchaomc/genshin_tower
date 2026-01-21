@@ -241,9 +241,11 @@ animations = [{
 script = ExtResource("1_sword_char")
 sword_tip = NodePath("SwordArea/SwordTip")
 phase1_trail_width = 4.0
-phase1_trail_start_color = Color(1, 0.87200505, 0.6465043, 0.9019608)
+phase1_trail_start_color = Color(0.9999998, 0.7745967, 0.34343365, 1)
+phase1_trail_end_color = Color(1, 0.87058824, 0.6745098, 0.6392157)
 sword_area = NodePath("SwordArea")
 sword_pivot_offset = Vector2(0, 20)
+flower_attack_duration = 0.6
 charged_effect = NodePath("ChargedEffect")
 charged_area = NodePath("ChargedArea")
 skill_area = NodePath("SkillArea")
@@ -252,6 +254,11 @@ skill_damage = 75.0
 hurt_speed_boost_multiplier = 1.5
 animator = NodePath("AnimatedSprite2D")
 knockback_force = 50.0
+movement_trail_min_width = 0.5
+movement_trail_max_width = 10.0
+movement_trail_speed_for_max_strength = 400.0
+movement_trail_max_points = 8
+movement_trail_tail_power = 3.0
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_fjrip")

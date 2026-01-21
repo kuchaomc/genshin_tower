@@ -1,0 +1,25 @@
+[gd_scene load_steps=3 format=3 uid="uid://motion_blur_canvas_001"]
+
+[ext_resource type="Shader" path="res://shaders/motion_blur_canvas.gdshader" id="1_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_MotionBlur"]
+shader = ExtResource("1_shader")
+shader_parameter/enabled = 1.0
+shader_parameter/strength = 0.0
+shader_parameter/direction = Vector2(1, 0)
+shader_parameter/max_blur_pixels = 18.0
+
+[node name="MotionBlurCanvas" type="CanvasLayer"]
+layer = 0
+
+[node name="BackBufferCopy" type="BackBufferCopy" parent="."]
+copy_mode = 2
+
+[node name="ColorRect" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_MotionBlur")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

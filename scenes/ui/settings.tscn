@@ -169,6 +169,38 @@ custom_minimum_size = Vector2(80, 40)
 theme_override_font_sizes/font_size = 18
 text = ""
 
+[node name="SpacerMovementTrail" type="Control" parent="MainContainer"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="MovementTrailContainer" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="MovementTrailLabel" type="Label" parent="MainContainer/MovementTrailContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "角色移动拖尾"
+horizontal_alignment = 1
+
+[node name="SwitchContainerMovementTrail" type="HBoxContainer" parent="MainContainer/MovementTrailContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="StatusLabelMovementTrail" type="Label" parent="MainContainer/MovementTrailContainer/SwitchContainerMovementTrail"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "开启"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MovementTrailSwitch" type="CheckButton" parent="MainContainer/MovementTrailContainer/SwitchContainerMovementTrail"]
+layout_mode = 2
+custom_minimum_size = Vector2(80, 40)
+theme_override_font_sizes/font_size = 18
+text = ""
+
 [node name="SpacerAudio" type="Control" parent="MainContainer"]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2

@@ -13,6 +13,9 @@ extends Control
 @onready var burst_effect_switch: CheckButton = $MainContainer/BurstEffectContainer/SwitchContainerBurst/BurstEffectSwitch
 @onready var burst_status_label: Label = $MainContainer/BurstEffectContainer/SwitchContainerBurst/StatusLabelBurst
 
+@onready var movement_trail_switch: CheckButton = $MainContainer/MovementTrailContainer/SwitchContainerMovementTrail/MovementTrailSwitch
+@onready var movement_trail_status_label: Label = $MainContainer/MovementTrailContainer/SwitchContainerMovementTrail/StatusLabelMovementTrail
+
 @onready var bgm_volume_slider: HSlider = $MainContainer/AudioBGMContainer/SliderContainerBGM/BGMVolumeSlider
 @onready var bgm_value_label: Label = $MainContainer/AudioBGMContainer/SliderContainerBGM/BGMValueLabel
 @onready var sfx_volume_slider: HSlider = $MainContainer/AudioSFXContainer/SliderContainerSFX/SFXVolumeSlider
@@ -33,6 +36,9 @@ const CONFIG_KEY_BLOOM_ENABLED = "bloom_enabled"
 const CONFIG_SECTION_UI = "ui"
 const CONFIG_KEY_BURST_READY_EFFECT_ENABLED = "burst_ready_effect_enabled"
 
+const CONFIG_SECTION_VFX = "vfx"
+const CONFIG_KEY_MOVEMENT_TRAIL_ENABLED = "movement_trail_enabled"
+
 const CONFIG_SECTION_AUDIO = "audio"
 const CONFIG_KEY_BGM_VOLUME = "bgm_volume"
 const CONFIG_KEY_SFX_VOLUME = "sfx_volume"
@@ -43,6 +49,7 @@ const TARGET_RESOLUTION = Vector2i(1920, 1080)
 var _crt_enabled: bool = true
 var _bloom_enabled: bool = true
 var _burst_ready_effect_enabled: bool = true
+var _movement_trail_enabled: bool = true
 
 var _bgm_volume_linear: float = 1.0
 var _sfx_volume_linear: float = 1.0
@@ -62,6 +69,8 @@ func _ready() -> void:
 		bloom_switch.toggled.connect(_on_bloom_toggled)
 	if burst_effect_switch:
 		burst_effect_switch.toggled.connect(_on_burst_effect_toggled)
+	if movement_trail_switch:
+		movement_trail_switch.toggled.connect(_on_movement_trail_toggled)
 	if bgm_volume_slider:
 		bgm_volume_slider.value_changed.connect(_on_bgm_volume_changed)
 	if sfx_volume_slider:
@@ -105,6 +114,9 @@ func update_ui_state() -> void:
 	if burst_effect_switch and burst_status_label:
 		burst_effect_switch.button_pressed = _burst_ready_effect_enabled
 		_update_burst_effect_status_display(_burst_ready_effect_enabled)
+	if movement_trail_switch and movement_trail_status_label:
+		movement_trail_switch.button_pressed = _movement_trail_enabled
+		_update_movement_trail_status_display(_movement_trail_enabled)
 	if bgm_volume_slider and bgm_value_label:
 		bgm_volume_slider.set_value_no_signal(_bgm_volume_linear)
 		_update_volume_label(bgm_value_label, _bgm_volume_linear)
@@ -130,6 +142,9 @@ func load_settings() -> void:
 		# 读取大招充能特效设置
 		var burst_effect_enabled: bool = bool(config.get_value(CONFIG_SECTION_UI, CONFIG_KEY_BURST_READY_EFFECT_ENABLED, true))
 		_apply_burst_ready_effect(burst_effect_enabled)
+		# 读取移动拖尾设置
+		var movement_trail_enabled: bool = bool(config.get_value(CONFIG_SECTION_VFX, CONFIG_KEY_MOVEMENT_TRAIL_ENABLED, true))
+		_apply_movement_trail(movement_trail_enabled)
 		# 读取音量设置
 		var bgm_volume: float = float(config.get_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_BGM_VOLUME, 1.0))
 		var sfx_volume: float = float(config.get_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_SFX_VOLUME, 1.0))
@@ -143,6 +158,7 @@ func load_settings() -> void:
 		_apply_crt(true)
 		_apply_bloom(true)
 		_apply_burst_ready_effect(true)
+		_apply_movement_trail(true)
 		_apply_audio_volumes(1.0, 1.0)
 		update_ui_state()
 
@@ -162,6 +178,8 @@ func save_settings() -> void:
 	config.set_value(CONFIG_SECTION_POSTPROCESS, CONFIG_KEY_BLOOM_ENABLED, _bloom_enabled)
 	# 保存大招充能特效设置
 	config.set_value(CONFIG_SECTION_UI, CONFIG_KEY_BURST_READY_EFFECT_ENABLED, _burst_ready_effect_enabled)
+	# 保存移动拖尾设置
+	config.set_value(CONFIG_SECTION_VFX, CONFIG_KEY_MOVEMENT_TRAIL_ENABLED, _movement_trail_enabled)
 	# 保存音量设置
 	config.set_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_BGM_VOLUME, _bgm_volume_linear)
 	config.set_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_SFX_VOLUME, _sfx_volume_linear)
@@ -244,6 +262,16 @@ func _update_burst_effect_status_display(is_enabled: bool) -> void:
 			burst_status_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.2))
 	# 仅使用 StatusLabel 显示状态，避免与 CheckButton.text 重复显示
 
+## 更新移动拖尾状态显示
+func _update_movement_trail_status_display(is_enabled: bool) -> void:
+	if movement_trail_status_label:
+		if is_enabled:
+			movement_trail_status_label.text = "开启"
+			movement_trail_status_label.add_theme_color_override("font_color", Color(0.2, 1.0, 0.2))
+		else:
+			movement_trail_status_label.text = "关闭"
+			movement_trail_status_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.2))
+
 ## 全屏开关切换
 func _on_fullscreen_toggled(button_pressed: bool) -> void:
 	apply_fullscreen(button_pressed)
@@ -262,6 +290,11 @@ func _on_bloom_toggled(button_pressed: bool) -> void:
 ## 大招充能特效开关切换
 func _on_burst_effect_toggled(button_pressed: bool) -> void:
 	_apply_burst_ready_effect(button_pressed)
+	save_settings()
+
+## 移动拖尾开关切换
+func _on_movement_trail_toggled(button_pressed: bool) -> void:
+	_apply_movement_trail(button_pressed)
 	save_settings()
 
 func _on_bgm_volume_changed(value: float) -> void:
@@ -295,6 +328,22 @@ func _apply_burst_ready_effect(is_enabled: bool) -> void:
 	_burst_ready_effect_enabled = is_enabled
 	_update_burst_effect_status_display(is_enabled)
 	_apply_burst_effect_to_all_skill_ui(is_enabled)
+
+func _apply_movement_trail(is_enabled: bool) -> void:
+	_movement_trail_enabled = is_enabled
+	_update_movement_trail_status_display(is_enabled)
+	_apply_movement_trail_to_all_characters(is_enabled)
+
+## 将设置同步给当前场景中的所有角色（实时生效）
+func _apply_movement_trail_to_all_characters(is_enabled: bool) -> void:
+	var tree := get_tree()
+	if not tree:
+		return
+	var nodes := tree.get_nodes_in_group("characters")
+	for n in nodes:
+		var c := n as Node
+		if c and c.has_method("set_movement_trail_enabled"):
+			c.call("set_movement_trail_enabled", is_enabled)
 
 ## 将设置同步给当前场景中的所有 SkillUI（实时生效）
 func _apply_burst_effect_to_all_skill_ui(is_enabled: bool) -> void:
