@@ -128,13 +128,17 @@ func _get_character_portrait_path(character_id: String) -> String:
 	# 根据角色ID构建立绘路径
 	match character_id:
 		"kamisato_ayaka":
-			return "res://textures/characters/ayaka角色立绘.png"
+			return "res://textures/characters/kamisato_ayaka/portraits/ayaka角色立绘.png"
 		_:
 			return ""
 
 ## 角色被选中
 func _on_character_selected(character: CharacterData) -> void:
 	selected_character = character
+	
+	# 播放选中角色语音
+	if BGMManager and character and not character.id.is_empty():
+		BGMManager.play_character_voice(character.id, "选中角色", 0.0, 0.2, true)
 	
 	# 更新描述
 	if description_label:

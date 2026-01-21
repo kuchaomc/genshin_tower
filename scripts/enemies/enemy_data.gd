@@ -24,6 +24,11 @@ class_name EnemyData
 # 击杀分值（每击杀一个敌人获得的分数）
 @export var score_value: int = 1
 
+# 刷怪权重（仅用于普通战斗刷怪池的随机选择）：
+# - 值越大越容易被刷出
+# - 0 表示不会被刷出
+@export var spawn_weight: float = 1.0
+
 # 敌人场景路径
 @export var scene_path: String = "res://scenes/enemies/enemy.tscn"
 

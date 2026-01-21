@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_enemy_data")
 id = "normal_enemy"
-display_name = "普通敌人"
+display_name = "普通丘丘人"
 description = "基础的敌人，会追逐玩家"
 stats = ExtResource("2_stats")
 warning_duration = 2.0

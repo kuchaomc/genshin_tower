@@ -70,6 +70,8 @@ const _DODGE_PLAYER_COLLISION_LAYER: int = 1 << 4
 
 # 血量变化信号
 signal health_changed(current: float, maximum: float)
+# 角色受击信号（用于UI表现等）
+signal damaged(damage: float)
 signal character_died
 # 伤害事件信号（用于伤害数字显示等）
 signal damage_dealt(damage: float, is_crit: bool, target: Node)
@@ -662,10 +664,31 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 
 ## 检查方法是否支持指定数量的参数
 func _can_call_with_params(obj: Object, method_name: String, param_count: int) -> bool:
+	# 性能：get_method_list() 会构造完整的方法信息数组，在战斗高频命中时容易造成掉帧尖峰。
+	# 这里按“脚本资源路径/类名 + 方法名”缓存一次参数数量（最大参数个数），后续直接 O(1) 查询。
+	if obj == null:
+		return false
+	
+	var script := obj.get_script() as Script
+	var owner_key: String
+	if script and script.resource_path != "":
+		owner_key = script.resource_path
+	else:
+		owner_key = obj.get_class()
+	
+	var cache_key := owner_key + ":" + method_name
+	if _method_param_count_cache.has(cache_key):
+		return int(_method_param_count_cache[cache_key]) >= param_count
+	
+	var max_args := -1
 	for method in obj.get_method_list():
 		if method["name"] == method_name:
-			return method["args"].size() >= param_count
-	return false
+			max_args = int(method["args"].size())
+			break
+	_method_param_count_cache[cache_key] = max_args
+	return max_args >= param_count
+
+static var _method_param_count_cache: Dictionary = {}
 
 ## 获取当前攻击力
 func get_attack() -> float:
@@ -723,6 +746,10 @@ func take_damage(damage_amount: float, knockback_direction: Vector2 = Vector2.ZE
 	if current_stats:
 		actual_damage = current_stats.calculate_damage_taken(damage_amount)
 	
+	# 播放受伤语音（带节流，避免连续受伤时刷屏）
+	if BGMManager and character_data and not character_data.id.is_empty():
+		BGMManager.play_character_voice(character_data.id, "受伤", 0.0, 0.8)
+	
 	current_health -= actual_damage
 	current_health = max(0, current_health)
 	
@@ -733,6 +760,8 @@ func take_damage(damage_amount: float, knockback_direction: Vector2 = Vector2.ZE
 	# 更新RunManager
 	if RunManager:
 		RunManager.take_damage(actual_damage)
+	
+	damaged.emit(actual_damage)
 	
 	emit_signal("health_changed", current_health, max_health)
 	print("角色受到伤害: ", actual_damage, "点（原始: ", damage_amount, "），剩余血量: ", current_health, "/", max_health)
@@ -795,6 +824,9 @@ func get_max_health() -> float:
 ## 死亡处理
 func on_death() -> void:
 	print("角色死亡")
+	# 播放死亡语音
+	if BGMManager and character_data and not character_data.id.is_empty():
+		BGMManager.play_character_voice(character_data.id, "死亡")
 	is_game_over = true
 	emit_signal("character_died")
 	

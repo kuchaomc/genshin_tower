@@ -31,6 +31,9 @@ var collision_shape: CollisionShape2D
 var knockback_tween: Tween
 var is_knockback_active: bool = false
 
+# 警告贴图缓存：避免每个敌人生成时重复取资源
+static var _cached_warning_texture: Texture2D = null
+
 # ========== 僵直系统 ==========
 var is_stunned: bool = false
 var stun_timer: float = 0.0
@@ -44,6 +47,17 @@ var _recently_damaged_bodies: Dictionary = {}
 var is_spawned: bool = false
 var is_dead: bool = false
 
+# 首次入树标记：用于对象池（预热实例第一次入树时避免重复启动生成流程）
+var _has_ready_run: bool = false
+
+# 玩家引用缓存：避免每帧 get_node/get_tree 的全树查找
+var _cached_player: CharacterBody2D = null
+var _player_lookup_timer: float = 0.0
+const _PLAYER_LOOKUP_INTERVAL: float = 0.5
+
+# 方法参数数量缓存：避免 get_method_list 在高频碰撞伤害中造成尖峰
+static var _method_param_count_cache: Dictionary = {}
+
 ## 初始化敌人
 func initialize(data: EnemyData) -> void:
 	enemy_data = data
@@ -56,7 +70,8 @@ func initialize(data: EnemyData) -> void:
 	_apply_stats_to_enemy()
 	warning_duration = data.warning_duration
 	
-	print("敌人初始化：", data.display_name, " | ", current_stats.get_summary())
+	if OS.is_debug_build():
+		print("敌人初始化：", data.display_name, " | ", current_stats.get_summary())
 
 ## 从当前属性应用到敌人实际数值
 func _apply_stats_to_enemy() -> void:
@@ -107,22 +122,28 @@ func _ready() -> void:
 	# 启动警告计时器
 	var timer = get_tree().create_timer(warning_duration)
 	timer.timeout.connect(_on_warning_finished)
+	_has_ready_run = true
 
 ## 创建警告图标
 func _create_warning_sprite() -> void:
 	warning_sprite = Sprite2D.new()
-	var warning_texture: Texture2D = null
-	if DataManager:
-		warning_texture = DataManager.get_texture("res://textures/effects/warning.png")
-	else:
-		warning_texture = load("res://textures/effects/warning.png") as Texture2D
+	var warning_texture: Texture2D = _get_warning_texture()
 	
 	if warning_texture:
 		warning_sprite.texture = warning_texture
 		warning_sprite.z_index = 10
 		add_child(warning_sprite)
 	else:
-		print("警告：无法加载warning.png")
+		push_warning("警告：无法加载 warning.png")
+
+func _get_warning_texture() -> Texture2D:
+	if _cached_warning_texture:
+		return _cached_warning_texture
+	if DataManager:
+		_cached_warning_texture = DataManager.get_texture("res://textures/effects/warning.png")
+	else:
+		_cached_warning_texture = load("res://textures/effects/warning.png") as Texture2D
+	return _cached_warning_texture
 
 ## 设置敌人本体可见性
 func _set_enemy_visible(visible_state: bool) -> void:
@@ -133,7 +154,8 @@ func _set_enemy_visible(visible_state: bool) -> void:
 	if hp_bar_container:
 		hp_bar_container.visible = visible_state
 	if collision_shape:
-		collision_shape.disabled = not visible_state
+		# 可能在物理查询刷新期间（flushing queries）被调用，必须使用 set_deferred
+		collision_shape.set_deferred("disabled", not visible_state)
 
 ## 警告结束回调
 func _on_warning_finished() -> void:
@@ -146,7 +168,8 @@ func _on_warning_finished() -> void:
 	_set_enemy_visible(true)
 	update_hp_display()
 	
-	print("敌人生成，生命值: ", current_health, "/", max_health)
+	if OS.is_debug_build():
+		print("敌人生成，生命值: ", current_health, "/", max_health)
 
 func _physics_process(delta: float) -> void:
 	if not is_spawned or is_dead:
@@ -215,35 +238,51 @@ func chase_player(delta: float) -> void:
 		velocity = Vector2.ZERO
 		return
 	
-	# 尝试多种方式查找玩家节点
-	var player = get_node_or_null("../player") as CharacterBody2D
-	if not player:
-		player = get_tree().current_scene.get_node_or_null("player") as CharacterBody2D
-	if not player:
-		# 尝试通过BattleManager获取
-		var battle_manager = get_tree().get_first_node_in_group("battle_manager")
-		if battle_manager and battle_manager.has_method("get_player"):
-			player = battle_manager.get_player() as CharacterBody2D
-	
-	if player:
-		var direction = (player.global_position - global_position).normalized()
+	# 玩家引用缓存：降低敌人数量较多时的树查找开销
+	_player_lookup_timer -= delta
+	if not is_instance_valid(_cached_player) or _player_lookup_timer <= 0.0:
+		_cached_player = _find_player()
+		_player_lookup_timer = _PLAYER_LOOKUP_INTERVAL
+
+	if _cached_player:
+		var direction = (_cached_player.global_position - global_position).normalized()
 		var speed = get_move_speed()
 		
 		# 根据移动方向翻转精灵图
 		if animated_sprite:
 			if direction.x < 0:
-				animated_sprite.flip_h = true
-			else:
 				animated_sprite.flip_h = false
+			else:
+				animated_sprite.flip_h = true
 		elif sprite_2d:
 			if direction.x < 0:
-				sprite_2d.flip_h = true
-			else:
 				sprite_2d.flip_h = false
+			else:
+				sprite_2d.flip_h = true
 		
 		velocity = direction * speed
 	else:
 		velocity = Vector2.ZERO
+
+func _find_player() -> CharacterBody2D:
+	# 优先使用相对路径（敌人通常与 player 同级）
+	var p := get_node_or_null("../player") as CharacterBody2D
+	if p:
+		return p
+	
+	# 兜底：从当前场景根查找（避免每帧调用，外层有间隔）
+	var tree := get_tree()
+	if tree and tree.current_scene:
+		p = tree.current_scene.get_node_or_null("player") as CharacterBody2D
+		if p:
+			return p
+	
+	# 最后兜底：通过 BattleManager 获取
+	if tree:
+		var battle_manager = tree.get_first_node_in_group("battle_manager")
+		if battle_manager and battle_manager.has_method("get_player"):
+			return battle_manager.get_player() as CharacterBody2D
+	return null
 
 ## 碰撞到玩家时造成伤害（带冷却，避免每帧重复结算）
 func _handle_body_collision(body: Node) -> void:
@@ -256,6 +295,10 @@ func _handle_body_collision(body: Node) -> void:
 		return
 	if not body.has_method("take_damage"):
 		return
+	
+	# 记录最后伤害来源：用于玩家死亡后展示“被某某击败”CG
+	if RunManager and enemy_data:
+		RunManager.set_last_defeated_by_enemy(enemy_data.id, enemy_data.display_name)
 	
 	if _recently_damaged_bodies.has(body):
 		return
@@ -276,10 +319,27 @@ func _handle_body_collision(body: Node) -> void:
 
 ## 检查方法是否支持指定数量的参数
 func _can_call_with_params(obj: Object, method_name: String, param_count: int) -> bool:
+	if obj == null:
+		return false
+	
+	var script := obj.get_script() as Script
+	var owner_key: String
+	if script and script.resource_path != "":
+		owner_key = script.resource_path
+	else:
+		owner_key = obj.get_class()
+	
+	var cache_key := owner_key + ":" + method_name
+	if _method_param_count_cache.has(cache_key):
+		return int(_method_param_count_cache[cache_key]) >= param_count
+	
+	var max_args := -1
 	for method in obj.get_method_list():
 		if method["name"] == method_name:
-			return method["args"].size() >= param_count
-	return false
+			max_args = int(method["args"].size())
+			break
+	_method_param_count_cache[cache_key] = max_args
+	return max_args >= param_count
 
 ## 获取移动速度（子类可重写）
 func get_move_speed() -> float:
@@ -312,7 +372,8 @@ func take_damage(damage_amount: float, knockback: Vector2 = Vector2.ZERO, apply_
 	
 	update_hp_display()
 	
-	print("敌人受到伤害: ", actual_damage, "点（原始: ", damage_amount, "），剩余生命值: ", current_health, "/", max_health)
+	if OS.is_debug_build():
+		print("敌人受到伤害: ", actual_damage, "点（原始: ", damage_amount, "），剩余生命值: ", current_health, "/", max_health)
 	
 	# 应用击退效果（如果提供）
 	if knockback != Vector2.ZERO:
@@ -360,7 +421,8 @@ func apply_stun_effect(duration: float = -1.0) -> void:
 	
 	is_stunned = true
 	stun_timer = duration
-	print("敌人被僵直，持续时间: ", duration, "秒")
+	if OS.is_debug_build():
+		print("敌人被僵直，持续时间: ", duration, "秒")
 
 ## 死亡处理
 func on_death() -> void:
@@ -380,21 +442,93 @@ func on_death() -> void:
 	if enemy_data:
 		score = enemy_data.score_value
 	
-	var battle_managers = get_tree().get_nodes_in_group("battle_manager")
-	if not battle_managers.is_empty():
-		var battle_manager = battle_managers[0] as BattleManager
-		if battle_manager and battle_manager.has_method("on_enemy_killed"):
-			battle_manager.on_enemy_killed(score)
+	var battle_manager: Node = null
+	var tree := get_tree()
+	if tree:
+		var battle_managers = tree.get_nodes_in_group("battle_manager")
+		if not battle_managers.is_empty():
+			battle_manager = battle_managers[0]
 	
-	# 掉落摩拉
+	# 掉落摩拉（必须在 on_enemy_killed 之前：胜利时可能清场导致本节点先被移出树）
 	if enemy_data and enemy_data.drop_gold > 0:
 		_drop_gold(enemy_data.drop_gold)
 	
-	# 删除敌人节点
+	# 通知战斗管理器计分/胜利逻辑
+	if battle_manager and battle_manager.has_method("on_enemy_killed"):
+		battle_manager.call("on_enemy_killed", score)
+	
+	# 对象池回收：使用 call_deferred，避免在物理回调中立刻改碰撞/移除节点
+	if battle_manager and battle_manager.has_method("recycle_enemy"):
+		battle_manager.call_deferred("recycle_enemy", self)
+		return
+	
+	# 兜底：未接入对象池时按原逻辑释放
 	queue_free()
+
+## 对象池：准备回收（从树上移除前调用）
+func prepare_for_pool() -> void:
+	# 彻底禁用本体
+	is_spawned = false
+	is_dead = true
+	velocity = Vector2.ZERO
+	
+	# 结束击退 tween，避免复用后残留
+	if knockback_tween:
+		knockback_tween.kill()
+		knockback_tween = null
+	is_knockback_active = false
+	
+	# 复位僵直/碰撞伤害状态
+	is_stunned = false
+	stun_timer = 0.0
+	_recently_damaged_bodies.clear()
+	
+	# 清理警告图标（复用时会重新创建）
+	if warning_sprite:
+		warning_sprite.queue_free()
+		warning_sprite = null
+	
+	_set_enemy_visible(false)
+
+## 对象池：复用重置（从池中取出并 add_child 后调用）
+func reset_for_reuse() -> void:
+	# 预热实例首次入树时 _ready 会负责启动“警告-生成”流程
+	if not _has_ready_run:
+		return
+	
+	# 标记为“未生成”，重新走警告流程
+	is_dead = false
+	is_spawned = false
+	velocity = Vector2.ZERO
+	
+	# 复位状态
+	is_stunned = false
+	stun_timer = 0.0
+	_recently_damaged_bodies.clear()
+	
+	# 复位血量（initialize 可能刚刚改过 stats/max_health）
+	if current_stats:
+		max_health = current_stats.max_health
+	current_health = max_health
+	update_hp_display()
+	
+	# 重建警告图标并启动警告计时器
+	if warning_sprite:
+		warning_sprite.queue_free()
+		warning_sprite = null
+	_create_warning_sprite()
+	_set_enemy_visible(false)
+	var timer = get_tree().create_timer(warning_duration)
+	timer.timeout.connect(_on_warning_finished)
 
 ## 掉落摩拉
 func _drop_gold(amount: int) -> void:
+	# 如果节点已不在场景树中（例如胜利清场/对象池回收），无法实例化掉落，直接给金币
+	if not is_inside_tree() or get_tree() == null:
+		if RunManager:
+			RunManager.add_gold(amount)
+		return
+	
 	# 加载摩拉场景（使用DataManager缓存）
 	var gold_pickup_scene: PackedScene = null
 	if DataManager:
@@ -434,6 +568,9 @@ func _on_body_entered(body: Node2D) -> void:
 		print("敌人撞到玩家")
 		if body.has_method("take_damage"):
 			var damage = get_damage()
+			# 兼容旧版碰撞伤害入口：同样记录最后伤害来源
+			if RunManager and enemy_data:
+				RunManager.set_last_defeated_by_enemy(enemy_data.id, enemy_data.display_name)
 			body.take_damage(damage)
 
 ## 获取伤害值（子类可重写）

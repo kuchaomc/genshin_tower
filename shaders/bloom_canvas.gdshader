@@ -44,8 +44,10 @@ void fragment() {
 	vec3 blurred = textureLod(screen_texture, SCREEN_UV, lod).rgb;
 
 	// 在模糊图上做亮部提取，会让泛光向外扩散更明显
-	float b = soft_threshold(luma(blurred), threshold, soft_knee);
-	vec3 bloom = (luma(blurred) > 1e-5) ? blurred * (b / luma(blurred)) : vec3(0.0);
+	float lum = luma(blurred);
+	float b = soft_threshold(lum, threshold, soft_knee);
+	float inv_lum = 1.0 / max(lum, 1e-5);
+	vec3 bloom = blurred * (b * inv_lum);
 
 	int dbg = int(debug_mode + 0.5);
 

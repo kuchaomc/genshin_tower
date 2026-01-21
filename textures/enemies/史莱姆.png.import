@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bc3cgn2g32xk5"
-path="res://.godot/imported/神里move.png-32a52971d77bc2b2d8c3a3390e1c75df.ctex"
+uid="uid://qp3668fb3hgh"
+path="res://.godot/imported/史莱姆.png-7e8e05e1f49719ae1b9875a3f093cbf2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/characters/神里move.png"
-dest_files=["res://.godot/imported/神里move.png-32a52971d77bc2b2d8c3a3390e1c75df.ctex"]
+source_file="res://textures/enemies/史莱姆.png"
+dest_files=["res://.godot/imported/史莱姆.png-7e8e05e1f49719ae1b9875a3f093cbf2.ctex"]
 
 [params]
 

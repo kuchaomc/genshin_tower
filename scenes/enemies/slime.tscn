@@ -1,0 +1,105 @@
+[gd_scene load_steps=12 format=3 uid="uid://dgq5tyrjqohac"]
+
+[ext_resource type="Script" uid="uid://nmqhhehlh7di" path="res://scripts/enemies/base_enemy.gd" id="1_base_enemy"]
+[ext_resource type="Texture2D" uid="uid://qp3668fb3hgh" path="res://textures/enemies/史莱姆.png" id="2_slime_tex"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0"]
+atlas = ExtResource("2_slime_tex")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1"]
+atlas = ExtResource("2_slime_tex")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2"]
+atlas = ExtResource("2_slime_tex")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3"]
+atlas = ExtResource("2_slime_tex")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4"]
+atlas = ExtResource("2_slime_tex")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5"]
+atlas = ExtResource("2_slime_tex")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6"]
+atlas = ExtResource("2_slime_tex")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_move"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6")
+}],
+"loop": true,
+"name": &"move",
+"speed": 12.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ahq63"]
+radius = 13.96
+
+[node name="Area2D" type="CharacterBody2D" groups=["enemies"]]
+script = ExtResource("1_base_enemy")
+contact_damage_cooldown = 5.0
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_move")
+animation = &"move"
+autoplay = "move"
+frame_progress = 0.1856466
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -5)
+scale = Vector2(1.825, 1.825)
+shape = SubResource("CircleShape2D_ahq63")
+
+[node name="HPBar" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = -24.0
+offset_top = -41.25
+offset_right = 24.0
+offset_bottom = -29.25
+mouse_filter = 2
+
+[node name="ProgressBar" type="ProgressBar" parent="HPBar"]
+layout_mode = 0
+offset_right = 48.0
+offset_bottom = 12.0
+value = 100.0
+fill_mode = 1
+show_percentage = false
+
+[node name="Label" type="Label" parent="HPBar"]
+layout_mode = 0
+offset_right = 48.0
+offset_bottom = 12.0
+theme_override_font_sizes/font_size = 10
+text = "100/100"
+horizontal_alignment = 1
+vertical_alignment = 1

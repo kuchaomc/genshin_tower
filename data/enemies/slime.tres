@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/enemy_data.gd" id="1_enemy_data"]
+[ext_resource type="Resource" path="res://data/enemies/slime_stats.tres" id="2_stats"]
+
+[resource]
+script = ExtResource("1_enemy_data")
+id = "slime"
+display_name = "史莱姆"
+description = "贴身冲撞的普通敌人"
+stats = ExtResource("2_stats")
+warning_duration = 2.0
+behavior_type = "chase"
+drop_gold = 20
+drop_exp = 1
+score_value = 1
+spawn_weight = 0.25
+scene_path = "res://scenes/enemies/slime.tscn"
+enemy_type = "normal"

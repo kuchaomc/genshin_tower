@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3 uid="uid://kajn3tpfiucq"]
 
 [ext_resource type="Script" uid="uid://ckydb5bw2at8j" path="res://scripts/projectiles/burst_projectile.gd" id="1_burst"]
-[ext_resource type="Texture2D" uid="uid://dtx0qd7ekwbej" path="res://textures/characters/ayaka大招特效精灵表.png" id="2_burst_sheet"]
+[ext_resource type="Texture2D" uid="uid://dtx0qd7ekwbej" path="res://textures/characters/kamisato_ayaka/effects/ayaka大招特效精灵表.png" id="2_burst_sheet"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_burst_1"]
 atlas = ExtResource("2_burst_sheet")

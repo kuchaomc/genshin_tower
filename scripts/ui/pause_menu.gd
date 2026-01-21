@@ -4,23 +4,77 @@ extends Control
 ## 显示暂停菜单，包含功能按钮和角色信息展示
 
 # UI节点引用
-@onready var continue_button: Button = $MainContainer/LeftPanel/ContinueButton
-@onready var settings_button: Button = $MainContainer/LeftPanel/SettingsButton
-@onready var main_menu_button: Button = $MainContainer/LeftPanel/MainMenuButton
-@onready var character_portrait: TextureRect = $MainContainer/RightPanel/PortraitContainer/CharacterPortrait
-@onready var character_name_label: Label = $MainContainer/RightPanel/CharacterName
-@onready var gold_label: Label = $MainContainer/RightPanel/GoldDisplay/GoldLabel
-@onready var stats_container: VBoxContainer = $MainContainer/RightPanel/StatsContainer
-@onready var upgrades_container: VBoxContainer = $MainContainer/RightPanel/UpgradesScrollContainer/UpgradesContainer
-@onready var artifacts_container: HBoxContainer = $MainContainer/RightPanel/ArtifactsContainer
+@onready var continue_button: Button = get_node_or_null("LeftLayout/VBox/MenuBox/ContinueRow/ContinueButton") as Button
+@onready var settings_button: Button = get_node_or_null("LeftLayout/VBox/MenuBox/SettingsRow/SettingsButton") as Button
+@onready var main_menu_button: Button = get_node_or_null("LeftLayout/VBox/MenuBox/QuitRow/MainMenuButton") as Button
+
+# 入场/退场动画相关节点引用（与主界面同款：offset滑入）
+@onready var _left_layout: Control = get_node_or_null("LeftLayout") as Control
+@onready var _left_background: ColorRect = get_node_or_null("LeftBackground") as ColorRect
+@onready var _left_divider_line: ColorRect = get_node_or_null("LeftDividerLine") as ColorRect
+@onready var _right_area: Control = get_node_or_null("RightArea") as Control
+@onready var _right_background: ColorRect = get_node_or_null("RightBackground") as ColorRect
+
+# 兼容旧版本暂停菜单（已改为主菜单同款风格后默认不会再有右侧角色信息面板）
+@onready var character_portrait: TextureRect = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/PortraitPanel/Margin/VBox/CharacterPortrait") as TextureRect
+@onready var character_name_label: Label = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/CharacterName") as Label
+@onready var gold_label: Label = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/GoldDisplay/GoldLabel") as Label
+@onready var stats_container: VBoxContainer = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/StatsContainer") as VBoxContainer
+@onready var upgrades_container: VBoxContainer = get_node_or_null("RightArea/RightMargin/VBox/TopRow/UpgradesPanel/Margin/VBox/UpgradesScrollContainer/UpgradesContainer") as VBoxContainer
+@onready var artifacts_container: HBoxContainer = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/ArtifactsContainer") as HBoxContainer
+@onready var artifacts_button: Button = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/ArtifactsButton") as Button
+
+@onready var _portrait_column: VBoxContainer = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn") as VBoxContainer
+
+@onready var _minimap_viewport_container: SubViewportContainer = get_node_or_null("RightArea/RightMargin/VBox/MiniMapPanel/Margin/MiniMapViewportContainer") as SubViewportContainer
+@onready var _minimap_viewport: SubViewport = get_node_or_null("RightArea/RightMargin/VBox/MiniMapPanel/Margin/MiniMapViewportContainer/MiniMapViewport") as SubViewport
+
+var _minimap_map_view: Node = null
+
+var _artifacts_title_label: Label = null
 
 # 设置界面引用
 var settings_menu: Control = null
+
+# 设置侧滑状态（暂停菜单内：从右侧滑入/滑出）
+var _settings_overlay_open: bool = false
+
+var _right_area_prev_visible: bool = true
+var _right_background_prev_visible: bool = true
+
+# 记录悬停Tween（与主界面保持一致的交互反馈）
+var _hover_tweens: Dictionary = {}
+
+# 入场/退场动画Tween
+var _menu_tween: Tween = null
+
+# 记录布局最终状态（用于反复打开/关闭时复位）
+var _anim_cached: bool = false
+var _final_modulate: Color = Color(1, 1, 1, 1)
+var _left_layout_final_offsets: Vector2 = Vector2.ZERO
+var _left_background_final_offsets: Vector2 = Vector2.ZERO
+var _left_divider_final_offsets: Vector2 = Vector2.ZERO
+var _right_area_final_offsets: Vector2 = Vector2.ZERO
+var _right_background_final_offsets: Vector2 = Vector2.ZERO
+
+# 关闭动画结束后是否需要发出resume_game信号（仅“继续游戏”使用）
+var _pending_emit_resume: bool = false
+
+# 关闭动画结束后是否需要返回主菜单
+var _pending_go_to_main_menu: bool = false
 
 # 信号
 signal resume_game
 signal open_settings
 signal return_to_main_menu
+
+func _has_property(obj: Object, prop: StringName) -> bool:
+	if obj == null:
+		return false
+	for p in obj.get_property_list():
+		if p.has("name") and StringName(p["name"]) == prop:
+			return true
+	return false
 
 func _ready() -> void:
 	# 设置process_mode为ALWAYS，确保暂停时仍能响应输入
@@ -32,15 +86,141 @@ func _ready() -> void:
 		settings_button.pressed.connect(_on_settings_pressed)
 	if main_menu_button:
 		main_menu_button.pressed.connect(_on_main_menu_pressed)
+	# 右侧“至遗物”按钮已废弃：不显示也不占位
+	if artifacts_button:
+		artifacts_button.queue_free()
+	
+	# 悬停/焦点高亮（与主界面一致）
+	_setup_menu_hover_effects()
 	
 	# 初始隐藏
 	visible = false
+	# 预缓存动画所需的最终布局（避免首次打开时出现偏移抖动）
+	call_deferred("_cache_animation_layout")
 	
 	# 加载设置界面
 	_load_settings_menu()
+	# 小地图需要等待布局完成（size不为0）再初始化，否则会出现裁切/偏移
+	# 预热：把小地图的实例化/地图生成提前做掉，避免第一次打开暂停菜单卡顿
+	call_deferred("_prewarm_minimap")
+	_relocate_artifacts_ui()
 	
-	# 更新角色信息
-	update_character_info()
+	# 右侧角色信息面板在当前风格下默认不存在，这里不再主动刷新，避免空引用
+
+func _setup_minimap() -> void:
+	if _minimap_viewport == null or _minimap_viewport_container == null:
+		return
+	# 运行时强制开启交互（避免tscn属性不一致导致无法拖动/缩放）
+	_minimap_viewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
+	_minimap_viewport.gui_disable_input = false
+	_minimap_viewport.handle_input_locally = true
+	# 先确保SubViewport尺寸有效：隐藏状态下container可能为0，给一个默认尺寸便于预热生成
+	_update_minimap_viewport_size()
+	if _minimap_viewport.size.x < 4 or _minimap_viewport.size.y < 4:
+		_minimap_viewport.size = Vector2i(640, 360)
+	# 避免重复创建
+	if is_instance_valid(_minimap_map_view):
+		_update_minimap_viewport_size()
+		return
+
+	var packed: PackedScene = null
+	if DataManager and DataManager.has_method("get_packed_scene"):
+		packed = DataManager.get_packed_scene("res://scenes/ui/map_view.tscn")
+	else:
+		packed = load("res://scenes/ui/map_view.tscn") as PackedScene
+	if packed == null:
+		return
+
+	_minimap_map_view = packed.instantiate()
+	if _minimap_map_view == null:
+		return
+	# 缩略图模式：不允许MapView修改RunManager的地图种子/进度
+	if _has_property(_minimap_map_view, &"minimap_mode"):
+		_minimap_map_view.set("minimap_mode", true)
+	# 暂停时也能初始化/显示
+	_minimap_map_view.process_mode = Node.PROCESS_MODE_ALWAYS
+	_minimap_viewport.add_child(_minimap_map_view)
+
+	# 隐藏地图界面原本的UI（楼层、提示、顶部UI等）
+	var map_canvas := _minimap_map_view.get_node_or_null("CanvasLayer") as CanvasLayer
+	if map_canvas:
+		map_canvas.visible = false
+
+	# 调整缩放范围，让缩略图可以更小
+	if _has_property(_minimap_map_view, &"min_zoom"):
+		_minimap_map_view.set("min_zoom", 0.6)
+	if _has_property(_minimap_map_view, &"max_zoom"):
+		_minimap_map_view.set("max_zoom", 3.0)
+	if _has_property(_minimap_map_view, &"zoom_level"):
+		_minimap_map_view.set("zoom_level", 1.2)
+
+	_update_minimap_viewport_size()
+	if not _minimap_viewport_container.resized.is_connected(_update_minimap_viewport_size):
+		_minimap_viewport_container.resized.connect(_update_minimap_viewport_size)
+	# 等一帧让MapView跑完_ready后，再把相机设为当前并应用缩放
+	call_deferred("_finish_minimap_setup")
+
+func _relocate_artifacts_ui() -> void:
+	if not is_instance_valid(artifacts_container) or not is_instance_valid(_portrait_column):
+		return
+
+	# 插入标题（只创建一次）
+	if not is_instance_valid(_artifacts_title_label):
+		_artifacts_title_label = Label.new()
+		_artifacts_title_label.text = "圣遗物"
+		_artifacts_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_artifacts_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	# 已经在目标列中则只调整顺序
+	var target_parent: Node = _portrait_column
+	if artifacts_container.get_parent() != target_parent:
+		var old_parent := artifacts_container.get_parent()
+		if old_parent:
+			old_parent.remove_child(artifacts_container)
+		target_parent.add_child(artifacts_container)
+	if _artifacts_title_label.get_parent() != target_parent:
+		var old_title_parent := _artifacts_title_label.get_parent()
+		if old_title_parent:
+			old_title_parent.remove_child(_artifacts_title_label)
+		target_parent.add_child(_artifacts_title_label)
+
+	# 放在立绘面板下方、按钮上方
+	var portrait_panel := target_parent.get_node_or_null("PortraitPanel")
+	var insert_idx := 0
+	if portrait_panel:
+		insert_idx = target_parent.get_children().find(portrait_panel) + 1
+	if insert_idx < 0:
+		insert_idx = 0
+	# 标题在上，图标在下
+	target_parent.move_child(_artifacts_title_label, clampi(insert_idx, 0, target_parent.get_child_count() - 1))
+	# move_child 会改变子列表，因此图标插入点需要 +1
+	var icons_idx := clampi(insert_idx + 1, 0, target_parent.get_child_count() - 1)
+	target_parent.move_child(artifacts_container, icons_idx)
+	# “至遗物”按钮已移除
+
+func _finish_minimap_setup() -> void:
+	if _minimap_map_view == null or _minimap_viewport == null:
+		return
+	var cam := _minimap_map_view.get_node_or_null("Camera2D") as Camera2D
+	if cam:
+		cam.make_current()
+		# 直接设置相机缩放，避免依赖_map_view.gd的输入缩放逻辑
+		cam.zoom = Vector2(1.2, 1.2)
+
+func _prewarm_minimap() -> void:
+	# 预热只负责提前构建一次，避免首次打开菜单时才生成地图导致卡顿
+	# 注意：此处不改变 paused 状态
+	await get_tree().process_frame
+	_setup_minimap()
+
+func _update_minimap_viewport_size() -> void:
+	if _minimap_viewport == null or _minimap_viewport_container == null:
+		return
+	var size := _minimap_viewport_container.size
+	# 避免0尺寸时创建无效渲染目标
+	if size.x < 4 or size.y < 4:
+		return
+	_minimap_viewport.size = Vector2i(int(size.x), int(size.y))
 
 ## 加载设置界面
 func _load_settings_menu() -> void:
@@ -55,10 +235,62 @@ func _load_settings_menu() -> void:
 			else:
 				# 如果没有父节点，添加到场景根节点
 				get_tree().current_scene.add_child(settings_menu)
+			# 暂停菜单内的设置界面：由暂停菜单接管返回/ESC，设置自身不处理ESC
+			if settings_menu.has_method("set_esc_close_enabled"):
+				settings_menu.call("set_esc_close_enabled", false)
+			# 暂停菜单内不需要“返回”按钮
+			if settings_menu.has_method("set_back_button_visible"):
+				settings_menu.call("set_back_button_visible", false)
+			# 背景使用暂停菜单右侧同款渐变面板
+			if settings_menu.has_method("set_background_visible"):
+				settings_menu.call("set_background_visible", true)
+			var settings_bg := settings_menu.get_node_or_null("Background") as ColorRect
+			if settings_bg:
+				settings_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				if is_instance_valid(_right_background):
+					settings_bg.color = _right_background.color
+					if _right_background.material:
+						settings_bg.material = _right_background.material.duplicate()
+			# 暂停菜单内：允许点击设置面板外区域穿透到暂停菜单（继续游戏等）
+			# - 根节点忽略鼠标，避免全屏挡住左侧按钮
+			# - 主面板本体仍需拦截鼠标，保证设置项可交互
+			settings_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var main_container := settings_menu.get_node_or_null("MainContainer") as Control
+			if main_container:
+				main_container.mouse_filter = Control.MOUSE_FILTER_STOP
 			# 连接设置界面关闭信号
 			if settings_menu.has_signal("settings_closed"):
 				settings_menu.settings_closed.connect(_on_settings_closed)
 			print("设置界面已加载到暂停菜单")
+
+func _open_settings_overlay() -> void:
+	_settings_overlay_open = true
+	if is_instance_valid(_right_area):
+		_right_area_prev_visible = _right_area.visible
+		_right_area.visible = false
+	if is_instance_valid(_right_background):
+		_right_background_prev_visible = _right_background.visible
+		_right_background.visible = false
+	if settings_menu == null:
+		return
+	if settings_menu.has_method("show_settings_slide_from_right"):
+		settings_menu.call("show_settings_slide_from_right")
+	elif settings_menu.has_method("show_settings"):
+		settings_menu.call("show_settings")
+
+func _close_settings_overlay() -> void:
+	_settings_overlay_open = false
+	if visible:
+		if is_instance_valid(_right_area):
+			_right_area.visible = _right_area_prev_visible
+		if is_instance_valid(_right_background):
+			_right_background.visible = _right_background_prev_visible
+	if settings_menu == null:
+		return
+	if settings_menu.has_method("hide_settings_slide_to_right"):
+		settings_menu.call("hide_settings_slide_to_right")
+	elif settings_menu.has_method("hide_settings"):
+		settings_menu.call("hide_settings")
 
 ## 显示暂停菜单
 func show_menu() -> void:
@@ -72,15 +304,198 @@ func show_menu() -> void:
 	# - 角色的攻击、移动、伤害判定等所有逻辑
 	# - 敌人的AI、移动、伤害判定等所有逻辑
 	get_tree().paused = true
+	# 播放入场动画（Tween设置为暂停时仍处理）
+	call_deferred("_play_show_animation")
+	# 显示时再初始化/刷新小地图（此时容器尺寸已稳定）
+	call_deferred("_setup_minimap")
 	# 确保重击动画在暂停时保持可见（不会被隐藏）
 	_preserve_charged_effect_visibility()
-	update_character_info()
+	# 右侧信息面板为可选结构，仅在存在时才刷新
+	if is_instance_valid(character_name_label) or is_instance_valid(stats_container) or is_instance_valid(upgrades_container) or is_instance_valid(artifacts_container):
+		update_character_info()
+	# 圣遗物槽位区域：无论是否有角色节点，都刷新一次（至少显示空槽位）
+	if is_instance_valid(artifacts_container):
+		_update_artifacts_display()
 
 ## 隐藏暂停菜单
-func hide_menu() -> void:
-	visible = false
-	# 恢复游戏树，所有暂停的内容会自动恢复
-	get_tree().paused = false
+func hide_menu(emit_resume: bool = false) -> void:
+	if not visible:
+		return
+	# 如果设置侧滑仍处于打开态，关闭暂停菜单时必须先强制隐藏设置界面，避免残留在游戏中
+	if _settings_overlay_open:
+		_settings_overlay_open = false
+		if is_instance_valid(_right_area):
+			_right_area.visible = _right_area_prev_visible
+		if is_instance_valid(_right_background):
+			_right_background.visible = _right_background_prev_visible
+		if settings_menu and settings_menu.has_method("hide_settings"):
+			settings_menu.call("hide_settings")
+	_pending_emit_resume = emit_resume
+	# 播放退场动画；动画结束后再解除暂停并隐藏菜单
+	_play_hide_animation()
+
+func _cache_animation_layout() -> void:
+	if _anim_cached:
+		return
+	await get_tree().process_frame
+	_final_modulate = modulate
+	if is_instance_valid(_left_layout):
+		_left_layout_final_offsets = Vector2(_left_layout.offset_left, _left_layout.offset_right)
+	if is_instance_valid(_left_background):
+		_left_background_final_offsets = Vector2(_left_background.offset_left, _left_background.offset_right)
+	if is_instance_valid(_left_divider_line):
+		_left_divider_final_offsets = Vector2(_left_divider_line.offset_left, _left_divider_line.offset_right)
+	if is_instance_valid(_right_area):
+		_right_area_final_offsets = Vector2(_right_area.offset_left, _right_area.offset_right)
+	if is_instance_valid(_right_background):
+		_right_background_final_offsets = Vector2(_right_background.offset_left, _right_background.offset_right)
+	_anim_cached = true
+
+func _kill_menu_tween() -> void:
+	if _menu_tween and _menu_tween.is_running():
+		_menu_tween.kill()
+	_menu_tween = null
+
+func _restore_final_layout_for_animation() -> void:
+	if not _anim_cached:
+		return
+	modulate = _final_modulate
+	if is_instance_valid(_left_layout):
+		_left_layout.offset_left = _left_layout_final_offsets.x
+		_left_layout.offset_right = _left_layout_final_offsets.y
+	if is_instance_valid(_left_background):
+		_left_background.offset_left = _left_background_final_offsets.x
+		_left_background.offset_right = _left_background_final_offsets.y
+	if is_instance_valid(_left_divider_line):
+		_left_divider_line.offset_left = _left_divider_final_offsets.x
+		_left_divider_line.offset_right = _left_divider_final_offsets.y
+	if is_instance_valid(_right_area):
+		_right_area.offset_left = _right_area_final_offsets.x
+		_right_area.offset_right = _right_area_final_offsets.y
+	if is_instance_valid(_right_background):
+		_right_background.offset_left = _right_background_final_offsets.x
+		_right_background.offset_right = _right_background_final_offsets.y
+
+func _get_left_group_shift() -> float:
+	# 左侧整体滑入距离：优先用左背景宽度（与主界面逻辑一致）
+	var shift := 0.0
+	if is_instance_valid(_left_background):
+		shift = _left_background.size.x
+	if shift <= 0.0 and _left_background_final_offsets != Vector2.ZERO:
+		shift = absf(_left_background_final_offsets.y - _left_background_final_offsets.x)
+	if shift <= 0.0 and is_instance_valid(_left_layout):
+		shift = _left_layout.size.x
+	if shift <= 0.0:
+		shift = 620.0
+	return shift
+
+func _play_show_animation() -> void:
+	# 等一帧确保Control布局尺寸稳定
+	await get_tree().process_frame
+	if not _anim_cached:
+		await _cache_animation_layout()
+	if not visible:
+		return
+
+	_kill_menu_tween()
+	_restore_final_layout_for_animation()
+
+	# 初始状态：整体淡出+左侧整体移出屏幕
+	modulate = Color(_final_modulate.r, _final_modulate.g, _final_modulate.b, 0.0)
+	var left_shift := _get_left_group_shift()
+	if is_instance_valid(_left_layout):
+		_left_layout.offset_left = _left_layout_final_offsets.x - left_shift
+		_left_layout.offset_right = _left_layout_final_offsets.y - left_shift
+	if is_instance_valid(_left_background):
+		_left_background.offset_left = _left_background_final_offsets.x - left_shift
+		_left_background.offset_right = _left_background_final_offsets.y - left_shift
+	if is_instance_valid(_left_divider_line):
+		_left_divider_line.offset_left = _left_divider_final_offsets.x - left_shift
+		_left_divider_line.offset_right = _left_divider_final_offsets.y - left_shift
+
+	# 右侧给一个轻微的“回位”动效（不影响布局逻辑）
+	var right_shift := 120.0
+	if is_instance_valid(_right_area):
+		_right_area.offset_left = _right_area_final_offsets.x + right_shift
+		_right_area.offset_right = _right_area_final_offsets.y + right_shift
+	if is_instance_valid(_right_background):
+		_right_background.offset_left = _right_background_final_offsets.x + right_shift
+		_right_background.offset_right = _right_background_final_offsets.y + right_shift
+
+	_menu_tween = create_tween()
+	_menu_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_menu_tween.set_trans(Tween.TRANS_CUBIC)
+	_menu_tween.set_ease(Tween.EASE_OUT)
+	# 透明度时长必须不短于右侧滑入时长，避免“还在滑动就先出现/先消失”
+	_menu_tween.parallel().tween_property(self, "modulate", _final_modulate, 0.40)
+	if is_instance_valid(_left_layout):
+		_menu_tween.parallel().tween_property(_left_layout, "offset_left", _left_layout_final_offsets.x, 0.45)
+		_menu_tween.parallel().tween_property(_left_layout, "offset_right", _left_layout_final_offsets.y, 0.45)
+	if is_instance_valid(_left_background):
+		_menu_tween.parallel().tween_property(_left_background, "offset_left", _left_background_final_offsets.x, 0.45)
+		_menu_tween.parallel().tween_property(_left_background, "offset_right", _left_background_final_offsets.y, 0.45)
+	if is_instance_valid(_left_divider_line):
+		_menu_tween.parallel().tween_property(_left_divider_line, "offset_left", _left_divider_final_offsets.x, 0.45)
+		_menu_tween.parallel().tween_property(_left_divider_line, "offset_right", _left_divider_final_offsets.y, 0.45)
+	if is_instance_valid(_right_area):
+		_menu_tween.parallel().tween_property(_right_area, "offset_left", _right_area_final_offsets.x, 0.40)
+		_menu_tween.parallel().tween_property(_right_area, "offset_right", _right_area_final_offsets.y, 0.40)
+	if is_instance_valid(_right_background):
+		_menu_tween.parallel().tween_property(_right_background, "offset_left", _right_background_final_offsets.x, 0.40)
+		_menu_tween.parallel().tween_property(_right_background, "offset_right", _right_background_final_offsets.y, 0.40)
+	_menu_tween.finished.connect(func() -> void:
+		if is_instance_valid(continue_button):
+			continue_button.grab_focus()
+	)
+
+func _play_hide_animation() -> void:
+	if not visible:
+		return
+	# 确保布局缓存已就绪，避免首次打开后立刻关闭导致offset为0的跳动
+	await get_tree().process_frame
+	if not _anim_cached:
+		await _cache_animation_layout()
+
+	_kill_menu_tween()
+	_restore_final_layout_for_animation()
+
+	var left_shift := _get_left_group_shift()
+	var right_shift := 120.0
+	_menu_tween = create_tween()
+	_menu_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_menu_tween.set_trans(Tween.TRANS_CUBIC)
+	_menu_tween.set_ease(Tween.EASE_IN)
+	# 透明度时长必须不短于右侧滑出时长，避免滑动过程中提前消失
+	_menu_tween.parallel().tween_property(self, "modulate", Color(_final_modulate.r, _final_modulate.g, _final_modulate.b, 0.0), 0.30)
+	if is_instance_valid(_left_layout):
+		_menu_tween.parallel().tween_property(_left_layout, "offset_left", _left_layout_final_offsets.x - left_shift, 0.24)
+		_menu_tween.parallel().tween_property(_left_layout, "offset_right", _left_layout_final_offsets.y - left_shift, 0.24)
+	if is_instance_valid(_left_background):
+		_menu_tween.parallel().tween_property(_left_background, "offset_left", _left_background_final_offsets.x - left_shift, 0.24)
+		_menu_tween.parallel().tween_property(_left_background, "offset_right", _left_background_final_offsets.y - left_shift, 0.24)
+	if is_instance_valid(_left_divider_line):
+		_menu_tween.parallel().tween_property(_left_divider_line, "offset_left", _left_divider_final_offsets.x - left_shift, 0.24)
+		_menu_tween.parallel().tween_property(_left_divider_line, "offset_right", _left_divider_final_offsets.y - left_shift, 0.24)
+	if is_instance_valid(_right_area):
+		_menu_tween.parallel().tween_property(_right_area, "offset_left", _right_area_final_offsets.x + right_shift, 0.30)
+		_menu_tween.parallel().tween_property(_right_area, "offset_right", _right_area_final_offsets.y + right_shift, 0.30)
+	if is_instance_valid(_right_background):
+		_menu_tween.parallel().tween_property(_right_background, "offset_left", _right_background_final_offsets.x + right_shift, 0.30)
+		_menu_tween.parallel().tween_property(_right_background, "offset_right", _right_background_final_offsets.y + right_shift, 0.30)
+	_menu_tween.finished.connect(func() -> void:
+		visible = false
+		# 恢复游戏树，所有暂停的内容会自动恢复
+		get_tree().paused = false
+		_restore_final_layout_for_animation()
+		if _pending_emit_resume:
+			_pending_emit_resume = false
+			resume_game.emit()
+		if _pending_go_to_main_menu:
+			_pending_go_to_main_menu = false
+			return_to_main_menu.emit()
+			if GameManager:
+				GameManager.go_to_main_menu()
+	)
 
 ## 确保重击动画在暂停时保持可见
 func _preserve_charged_effect_visibility() -> void:
@@ -160,7 +575,7 @@ func _get_character_portrait_path(character_id: String) -> String:
 	# 根据角色ID构建立绘路径
 	match character_id:
 		"kamisato_ayaka":
-			return "res://textures/characters/ayaka角色立绘.png"
+			return "res://textures/characters/kamisato_ayaka/portraits/ayaka角色立绘.png"
 		_:
 			return ""
 
@@ -171,6 +586,8 @@ func _update_gold_display() -> void:
 
 ## 更新属性显示
 func _update_stats_display() -> void:
+	if not is_instance_valid(stats_container):
+		return
 	if not RunManager or not RunManager.current_character:
 		return
 	
@@ -210,7 +627,7 @@ func _update_stats_display() -> void:
 
 ## 更新已选择升级显示
 func _update_upgrades_display() -> void:
-	if not upgrades_container:
+	if not is_instance_valid(upgrades_container):
 		return
 	
 	# 清空现有升级显示
@@ -221,7 +638,7 @@ func _update_upgrades_display() -> void:
 	if not RunManager or RunManager.upgrades.is_empty():
 		var empty_label = Label.new()
 		empty_label.text = "暂无升级"
-		empty_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		empty_label.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		upgrades_container.add_child(empty_label)
 		return
@@ -239,16 +656,16 @@ func _update_upgrades_display() -> void:
 		
 		# 设置背景样式
 		var style_box = StyleBoxFlat.new()
-		style_box.bg_color = Color(0.2, 0.2, 0.2, 0.8)
-		style_box.border_color = Color(0.4, 0.4, 0.4, 0.5)
+		style_box.bg_color = Color(1, 1, 1, 0.96)
+		style_box.border_color = Color(0, 0, 0, 0.75)
 		style_box.border_width_left = 2
 		style_box.border_width_right = 2
 		style_box.border_width_top = 2
 		style_box.border_width_bottom = 2
-		style_box.corner_radius_top_left = 4
-		style_box.corner_radius_top_right = 4
-		style_box.corner_radius_bottom_left = 4
-		style_box.corner_radius_bottom_right = 4
+		style_box.corner_radius_top_left = 12
+		style_box.corner_radius_top_right = 12
+		style_box.corner_radius_bottom_left = 12
+		style_box.corner_radius_bottom_right = 12
 		upgrade_item.add_theme_stylebox_override("panel", style_box)
 		
 		var vbox = VBoxContainer.new()
@@ -269,6 +686,7 @@ func _update_upgrades_display() -> void:
 		var name_label = Label.new()
 		name_label.text = upgrade_id
 		name_label.add_theme_font_size_override("font_size", 18)
+		name_label.add_theme_color_override("font_color", Color(0, 0, 0, 1))
 		name_hbox.add_child(name_label)
 		
 		# 如果有 UpgradeRegistry，获取详细信息
@@ -288,27 +706,27 @@ func _update_upgrades_display() -> void:
 				if upgrade_data.max_level > 0:
 					level_label.text += "/%d" % upgrade_data.max_level
 				level_label.add_theme_font_size_override("font_size", 16)
-				level_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+				level_label.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
 				name_hbox.add_child(level_label)
 				
 				# 添加描述标签
 				var desc_label = Label.new()
 				desc_label.text = upgrade_data.get_formatted_description(level)
 				desc_label.add_theme_font_size_override("font_size", 14)
-				desc_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
+				desc_label.add_theme_color_override("font_color", Color(0.1, 0.1, 0.1))
 				desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				vbox.add_child(desc_label)
 			else:
 				# 如果没有找到升级数据，显示ID和等级
 				var level_label = Label.new()
 				level_label.text = " (Lv.%d)" % level
-				level_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+				level_label.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
 				name_hbox.add_child(level_label)
 		else:
 			# 如果没有 UpgradeRegistry，只显示ID和等级
 			var level_label = Label.new()
 			level_label.text = " (Lv.%d)" % level
-			level_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+			level_label.add_theme_color_override("font_color", Color(0.2, 0.2, 0.2))
 			name_hbox.add_child(level_label)
 		
 		# 添加间距
@@ -317,9 +735,16 @@ func _update_upgrades_display() -> void:
 		upgrades_container.add_child(upgrade_item)
 		upgrades_container.add_child(spacer)
 
+func _on_artifacts_pressed() -> void:
+	# 进入其它界面前必须解除暂停，否则新场景会被 paused 卡住无法输入
+	get_tree().paused = false
+	visible = false
+	if GameManager and GameManager.has_method("show_artifact_selection"):
+		GameManager.show_artifact_selection()
+
 ## 更新圣遗物显示
 func _update_artifacts_display() -> void:
-	if not artifacts_container:
+	if not is_instance_valid(artifacts_container):
 		return
 	
 	# 清空现有显示
@@ -354,10 +779,11 @@ func _create_artifact_slot_display(slot: ArtifactSlot.SlotType, artifact: Artifa
 	slot_container.custom_minimum_size = Vector2(80, 100)
 	slot_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	
-	# 创建图标按钮（用于显示和工具提示）
-	var icon_button = TextureButton.new()
-	icon_button.custom_minimum_size = Vector2(64, 64)
-	icon_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	# 创建图标（只展示，不处理点击；跳转只通过右侧“至遗物”按钮）
+	var icon_rect = TextureRect.new()
+	icon_rect.custom_minimum_size = Vector2(64, 64)
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_STOP
 	
 	# 设置图标
 	var icon_path = ""
@@ -367,6 +793,9 @@ func _create_artifact_slot_display(slot: ArtifactSlot.SlotType, artifact: Artifa
 	else:
 		# 未装备：显示槽位图标
 		icon_path = _get_slot_icon_path(slot)
+	# 已装备但没有专属图标时，回退显示槽位图标（避免空白）
+	if artifact and icon_path.is_empty():
+		icon_path = _get_slot_icon_path(slot)
 	
 	if icon_path:
 		var icon: Texture2D = null
@@ -375,16 +804,16 @@ func _create_artifact_slot_display(slot: ArtifactSlot.SlotType, artifact: Artifa
 		else:
 			icon = load(icon_path) as Texture2D
 		if icon:
-			icon_button.texture_normal = icon
+			icon_rect.texture = icon
 	
 	# 设置工具提示
 	var tooltip_text = _create_artifact_tooltip(slot, artifact, level)
-	icon_button.tooltip_text = tooltip_text
+	icon_rect.tooltip_text = tooltip_text
 	
 	# 鼠标悬停时改变光标
-	icon_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	icon_rect.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	
-	slot_container.add_child(icon_button)
+	slot_container.add_child(icon_rect)
 	
 	# 添加等级指示（如果已装备）
 	if artifact and level >= 0:
@@ -496,29 +925,108 @@ func _format_stat_value(stat_name: String, value: float) -> String:
 
 ## 继续游戏按钮
 func _on_continue_pressed() -> void:
-	hide_menu()
-	resume_game.emit()
+	hide_menu(true)
 
 ## 设置按钮
 func _on_settings_pressed() -> void:
 	open_settings.emit()
-	if settings_menu and settings_menu.has_method("show_settings"):
-		settings_menu.show_settings()
+	# 暂停菜单内：设置从右侧滑入/滑出（再次点击设置可关闭）
+	if _settings_overlay_open:
+		_close_settings_overlay()
+		return
+	_open_settings_overlay()
 
 ## 设置界面关闭回调
 func _on_settings_closed() -> void:
 	print("设置界面已关闭")
+	_settings_overlay_open = false
+	if is_instance_valid(settings_button):
+		settings_button.grab_focus()
 
 ## 返回主菜单按钮
 func _on_main_menu_pressed() -> void:
-	get_tree().paused = false
-	return_to_main_menu.emit()
-	if GameManager:
-		GameManager.go_to_main_menu()
+	_pending_go_to_main_menu = true
+	hide_menu(false)
+
+## 为菜单按钮添加鼠标悬停/键盘焦点动画（复用主界面交互风格）
+func _setup_menu_hover_effects() -> void:
+	if continue_button:
+		_bind_hover_for_button(continue_button)
+	if settings_button:
+		_bind_hover_for_button(settings_button)
+	if main_menu_button:
+		_bind_hover_for_button(main_menu_button)
+
+func _bind_hover_for_button(button: Button) -> void:
+	var row := button.get_parent() as Node
+	if row == null:
+		return
+	var indicator_space := row.get_node_or_null("IndicatorSpace") as Control
+	if indicator_space == null:
+		return
+	var indicator := indicator_space.get_node_or_null("CenterContainer/Indicator") as ColorRect
+	if indicator == null:
+		return
+
+	# 初始化为“未悬停”状态
+	indicator.visible = false
+	indicator.modulate = Color(1, 1, 1, 0)
+	indicator_space.custom_minimum_size = Vector2(0, 0)
+
+	if not button.mouse_entered.is_connected(_on_menu_button_mouse_entered.bind(row)):
+		button.mouse_entered.connect(_on_menu_button_mouse_entered.bind(row))
+	if not button.mouse_exited.is_connected(_on_menu_button_mouse_exited.bind(row)):
+		button.mouse_exited.connect(_on_menu_button_mouse_exited.bind(row))
+	if not button.focus_entered.is_connected(_on_menu_button_mouse_entered.bind(row)):
+		button.focus_entered.connect(_on_menu_button_mouse_entered.bind(row))
+	if not button.focus_exited.is_connected(_on_menu_button_mouse_exited.bind(row)):
+		button.focus_exited.connect(_on_menu_button_mouse_exited.bind(row))
+
+func _on_menu_button_mouse_entered(row: Node) -> void:
+	_play_hover_animation(row, true)
+
+func _on_menu_button_mouse_exited(row: Node) -> void:
+	_play_hover_animation(row, false)
+
+func _play_hover_animation(row: Node, hovered: bool) -> void:
+	var indicator_space := row.get_node_or_null("IndicatorSpace") as Control
+	if indicator_space == null:
+		return
+	var indicator := indicator_space.get_node_or_null("CenterContainer/Indicator") as ColorRect
+	if indicator == null:
+		return
+
+	# 打断旧Tween，避免快速移入移出时抖动
+	var old_tween: Tween = _hover_tweens.get(row)
+	if old_tween and old_tween.is_running():
+		old_tween.kill()
+
+	var tween := create_tween()
+	_hover_tweens[row] = tween
+	if hovered:
+		indicator.visible = true
+		tween.set_trans(Tween.TRANS_CUBIC)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.parallel().tween_property(indicator_space, "custom_minimum_size", Vector2(18, 0), 0.12)
+		tween.parallel().tween_property(indicator, "modulate", Color(1, 1, 1, 1), 0.12)
+	else:
+		tween.set_trans(Tween.TRANS_CUBIC)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.parallel().tween_property(indicator_space, "custom_minimum_size", Vector2(0, 0), 0.12)
+		tween.parallel().tween_property(indicator, "modulate", Color(1, 1, 1, 0), 0.12)
+		tween.finished.connect(func() -> void:
+			# 退出后隐藏Indicator，避免遮挡点击/影响布局
+			if is_instance_valid(indicator):
+				indicator.visible = false
+		)
 
 ## 处理ESC键（由外部调用或内部调用）
 func handle_esc_key() -> void:
 	if visible:
+		# 如果设置侧滑已打开，先关闭设置
+		if _settings_overlay_open:
+			_close_settings_overlay()
+			return
 		# 如果菜单已显示，关闭它
 		hide_menu()
 	else:
@@ -530,5 +1038,9 @@ func _input(event: InputEvent) -> void:
 	# 只有在菜单可见时才处理ESC键（关闭菜单）
 	# 打开菜单由battle_manager处理
 	if event.is_action_pressed("esc") and visible:
-		hide_menu()
+		# 设置界面打开时，ESC 先关闭设置（不直接关暂停菜单）
+		if _settings_overlay_open:
+			_close_settings_overlay()
+		else:
+			hide_menu()
 		get_viewport().set_input_as_handled()

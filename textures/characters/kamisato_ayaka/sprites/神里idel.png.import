@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://7ahk74we7y2c"
-path="res://.godot/imported/main_scene_background.png-33ac9dd56091a7300ca3f9549ecdb055.ctex"
+uid="uid://p5yv5ngfrcoo"
+path="res://.godot/imported/神里idel.png-172df17f953bc7838fb8c4739cf8d616.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/background/main_scene_background.png"
-dest_files=["res://.godot/imported/main_scene_background.png-33ac9dd56091a7300ca3f9549ecdb055.ctex"]
+source_file="res://textures/characters/kamisato_ayaka/sprites/神里idel.png"
+dest_files=["res://.godot/imported/神里idel.png-172df17f953bc7838fb8c4739cf8d616.ctex"]
 
 [params]
 

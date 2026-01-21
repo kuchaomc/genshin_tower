@@ -24,6 +24,8 @@ var damage_value: float = 0.0
 var is_crit: bool = false
 var is_heal: bool = false
 
+var _rng: RandomNumberGenerator
+
 func _ready() -> void:
 	# 如果没有label节点，创建一个
 	if not label:
@@ -31,6 +33,9 @@ func _ready() -> void:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		add_child(label)
+
+	_rng = RandomNumberGenerator.new()
+	_rng.randomize()
 	
 	# 设置初始状态
 	label.text = ""
@@ -86,14 +91,7 @@ func show_heal(position: Vector2, heal_amount: float) -> void:
 ## 播放飘字动画
 func _play_float_animation() -> void:
 	# 随机水平偏移，避免多个飘字重叠
-	var rng: RandomNumberGenerator = null
-	if RunManager:
-		rng = RunManager.get_rng()
-	if not rng:
-		push_warning("DamageNumber: RunManager 不可用，无法生成随机偏移")
-		rng = RandomNumberGenerator.new()
-		rng.randomize()
-	var random_offset_x: float = rng.randf_range(-20.0, 20.0)
+	var random_offset_x: float = _rng.randf_range(-20.0, 20.0)
 	var start_pos = global_position
 	var end_pos = start_pos + Vector2(random_offset_x, -float_distance)
 	
@@ -118,5 +116,11 @@ func _play_float_animation() -> void:
 	# 淡出动画（后半段开始淡出）
 	tween.tween_property(label, "modulate:a", 0.0, float_duration - fade_start_time).set_delay(fade_start_time)
 	
-	# 动画结束后销毁
-	tween.tween_callback(queue_free).set_delay(float_duration)
+	# 动画结束后回收（对象池）
+	tween.tween_callback(_recycle_self).set_delay(float_duration)
+
+func _recycle_self() -> void:
+	if DamageNumberManager and DamageNumberManager.has_method("recycle_damage_number"):
+		DamageNumberManager.call("recycle_damage_number", self)
+		return
+	queue_free()

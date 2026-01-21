@@ -26,16 +26,10 @@ uniform float vignette_intensity : hint_range(0.0, 1.0) = 0.25;
 
 float _hash(vec2 p) {
 	// 简单 hash：稳定、便宜、适合噪点。
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-}
-
-vec3 _sample_screen_rgb(vec2 uv, float ab) {
-	// 轻微色散：R/B 左右偏移，G 居中。
-	vec2 offs = vec2(ab, 0.0);
-	float r = texture(screen_texture, uv + offs).r;
-	float g = texture(screen_texture, uv).g;
-	float b = texture(screen_texture, uv - offs).b;
-	return vec3(r, g, b);
+	// 避免使用 sin，降低 ALU 开销。
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
 }
 
 void fragment() {
@@ -51,16 +45,22 @@ void fragment() {
 		vec2 viewport_size = vec2(1.0 / SCREEN_PIXEL_SIZE.x, 1.0 / SCREEN_PIXEL_SIZE.y);
 
 		// 基础采样（含色散）
-		vec3 col = _sample_screen_rgb(cuv, aberration * t);
+		vec3 col = base;
+		float ab = aberration * t;
+		if (ab > 0.000001) {
+			vec2 offs = vec2(ab, 0.0);
+			float r = texture(screen_texture, cuv + offs).r;
+			float b = texture(screen_texture, cuv - offs).b;
+			col = vec3(r, base.g, b);
+		}
 
 		// 栅格（RGB 三色条纹，按像素列）
 		float x = cuv.x * viewport_size.x;
-		float phase = x * (2.0 * PI / 3.0);
-		vec3 grille = vec3(
-			0.5 + 0.5 * sin(phase),
-			0.5 + 0.5 * sin(phase + 2.09439510239),
-			0.5 + 0.5 * sin(phase + 4.18879020479)
-		);
+		float idx = mod(floor(x), 3.0);
+		float m0 = 1.0 - step(0.5, idx);
+		float m1 = step(0.5, idx) - step(1.5, idx);
+		float m2 = step(1.5, idx);
+		vec3 grille = vec3(m0, m1, m2) * 0.7 + 0.3;
 		grille = mix(vec3(1.0), grille, grille_intensity * t);
 		col *= grille;
 

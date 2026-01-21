@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dcx7li7uvt85x"
-path="res://.godot/imported/ayaka技能精灵表.png-500204c24480e699c383b1cff0be44a4.ctex"
+uid="uid://byylf6xmwjkfh"
+path="res://.godot/imported/00161-1240093822.png-8b2b8b26ca99f7ed62f1ae6860798770.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/characters/ayaka技能精灵表.png"
-dest_files=["res://.godot/imported/ayaka技能精灵表.png-500204c24480e699c383b1cff0be44a4.ctex"]
+source_file="res://textures/background/00161-1240093822.png"
+dest_files=["res://.godot/imported/00161-1240093822.png-8b2b8b26ca99f7ed62f1ae6860798770.ctex"]
 
 [params]
 

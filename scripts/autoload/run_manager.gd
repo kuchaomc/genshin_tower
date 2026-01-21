@@ -64,6 +64,11 @@ var damage_dealt: float = 0.0
 var damage_taken: float = 0.0
 var start_time: float = 0.0
 
+# ========== CG系统：击败者记录 ==========
+## 记录最后一次对玩家造成伤害的敌人（用于死亡CG解锁/展示）
+var last_defeated_by_enemy_id: String = ""
+var last_defeated_by_enemy_name: String = ""
+
 # 防止重复结算标志
 var _run_ended: bool = false
 
@@ -80,6 +85,8 @@ func start_new_run(character: CharacterData) -> void:
 	current_character = character
 	current_floor = 0
 	current_node_id = ""
+	last_defeated_by_enemy_id = ""
+	last_defeated_by_enemy_name = ""
 	
 	# 清空圣遗物库存
 	artifact_inventory.clear()
@@ -109,6 +116,12 @@ func start_new_run(character: CharacterData) -> void:
 	emit_signal("gold_changed", gold)
 	if DebugLogger:
 		DebugLogger.log_info("开始新的一局游戏，角色：%s" % character.display_name, "RunManager")
+
+
+## 设置击败者（最后伤害来源）
+func set_last_defeated_by_enemy(enemy_id: String, enemy_name: String) -> void:
+	last_defeated_by_enemy_id = enemy_id
+	last_defeated_by_enemy_name = enemy_name
 
 ## 结束当前局
 func end_run(victory: bool = false) -> void:
