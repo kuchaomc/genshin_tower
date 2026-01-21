@@ -63,10 +63,71 @@ const SAVE_FILE_PATH = "user://save_data.json"
 
 # 结算记录
 var run_records: Array = []
+# CG解锁记录：enemy_id -> true
+var cg_unlocks: Dictionary = {}
+
+var _cg_unlock_overlay: CanvasLayer = null
+const CG_UNLOCK_OVERLAY_SCRIPT: Script = preload("res://scripts/ui/cg_unlock_overlay.gd")
+const _CG_TEXTURE_DIR: String = "res://textures/cg"
+const _CHARACTER_DEATH_CG_DIR: String = "res://textures/characters"
+
+const _SETTINGS_FILE_PATH: String = "user://settings.cfg"
+const _SETTINGS_SECTION_UI: String = "ui"
+const _SETTINGS_KEY_NSFW_ENABLED: String = "nsfw_enabled"
 
 func _ready() -> void:
 	load_save_data()
+<<<<<<< Updated upstream
 	print("游戏管理器初始化完成")
+=======
+	_ensure_dev_overlay()
+	_ensure_cg_unlock_overlay()
+	if DebugLogger:
+		DebugLogger.log_info("初始化完成", "GameManager")
+
+
+func _ensure_cg_unlock_overlay() -> void:
+	if is_instance_valid(_cg_unlock_overlay):
+		if _cg_unlock_overlay.is_inside_tree():
+			return
+		return
+	_cg_unlock_overlay = CG_UNLOCK_OVERLAY_SCRIPT.new() as CanvasLayer
+	if not _cg_unlock_overlay:
+		return
+	_cg_unlock_overlay.name = "CGUnlockOverlay"
+	get_tree().root.add_child.call_deferred(_cg_unlock_overlay)
+
+## 应用窗口标题（兼容编辑器运行/导出运行）
+func _apply_window_title() -> void:
+	DisplayServer.window_set_title(GAME_DISPLAY_NAME)
+	var root_window := get_tree().root
+	if root_window is Window:
+		(root_window as Window).title = GAME_DISPLAY_NAME
+
+func _ensure_dev_overlay() -> void:
+	# 只创建一次，跨场景常驻
+	if is_instance_valid(_dev_overlay):
+		# 已经在树上就不重复挂载
+		if _dev_overlay.is_inside_tree():
+			return
+		return
+	var scene_path := "res://scenes/ui/dev_overlay.tscn"
+	var packed: PackedScene = null
+	if DataManager and DataManager.has_method("get_packed_scene"):
+		packed = DataManager.get_packed_scene(scene_path)
+	else:
+		packed = load(scene_path) as PackedScene
+	if not packed:
+		return
+	_dev_overlay = packed.instantiate() as CanvasLayer
+	if not _dev_overlay:
+		return
+	_dev_overlay.name = "DevOverlay"
+	# 加到根节点，保证跨 change_scene 持久存在
+	# 注意：_ready() 阶段 root 可能仍在搭建子节点，直接 add_child 会报 “Parent node is busy…”
+	# 用 call_deferred 延迟到下一帧更稳。
+	get_tree().root.add_child.call_deferred(_dev_overlay)
+>>>>>>> Stashed changes
 
 func _get_bgm_track_for_state(state: GameState) -> StringName:
 	match state:
@@ -102,7 +163,19 @@ func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 	if scene:
 		get_tree().change_scene_to_packed(scene)
 		emit_signal("scene_changed", scene_path)
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 		print("切换到场景：", scene_path)
+=======
+=======
+>>>>>>> Stashed changes
+		if OS.is_debug_build():
+			call_deferred("_debug_after_scene_change", scene_path)
+		# 场景切换后可能出现标题被恢复为 project.godot 的 config/name 的情况，延迟补一次更稳。
+		call_deferred("_apply_window_title")
+		if DebugLogger:
+			DebugLogger.log_info("切换到场景：%s" % scene_path, "GameManager")
+>>>>>>> Stashed changes
 		
 		# 场景切换完成后切换BGM（同时保存/恢复各曲目的播放进度）
 		if _pending_bgm_track.is_empty():
@@ -113,6 +186,35 @@ func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 		# 如果场景加载失败，返回主菜单
 		if scene_path != SCENE_MAIN_MENU:
 			go_to_main_menu()
+
+func _debug_after_scene_change(scene_path: String) -> void:
+	# 等一帧，确保 change_scene 后 current_scene/节点树已稳定
+	await get_tree().process_frame
+	var root := get_tree().root
+	var current := get_tree().current_scene
+	var current_path := ""
+	if current:
+		current_path = current.scene_file_path
+	print("[SceneDebug] change_scene_to: ", scene_path)
+	print("[SceneDebug] current_scene: ", (current.name if current else "<null>"), " | ", current_path)
+	print("[SceneDebug] root children:")
+	for n in root.get_children():
+		var pm := ""
+		if n is Node:
+			pm = str((n as Node).process_mode)
+		var vis := ""
+		if n is CanvasItem:
+			vis = " visible=" + str((n as CanvasItem).visible)
+		print("  - ", n.name, " (", n.get_class(), ") process_mode=", pm, vis)
+	print("[SceneDebug] node_count(current_scene)=", _count_nodes(current))
+
+func _count_nodes(node: Node) -> int:
+	if not node:
+		return 0
+	var count := 1
+	for child in node.get_children():
+		count += _count_nodes(child)
+	return count
 
 ## 通用场景切换方法（根据状态切换）
 func _change_scene_by_state(state: GameState) -> void:
@@ -193,9 +295,183 @@ func game_over() -> void:
 	if RunManager:
 		RunManager.end_run(false)
 	
+	# 若存在对应CG，则先展示CG（并解锁），由玩家手动进入结算
+	if _is_nsfw_enabled_from_settings():
+		if await _try_show_death_cg_unlock_overlay():
+			show_result(false)
+			return
+	
 	# 延迟后显示结算
 	await get_tree().create_timer(2.0).timeout
 	show_result(false)
+
+
+func _try_show_death_cg_unlock_overlay() -> bool:
+	if not RunManager:
+		if OS.is_debug_build():
+			print("[DeathCG] skip: RunManager is null")
+		return false
+	var enemy_id: String = str(RunManager.last_defeated_by_enemy_id)
+	if enemy_id.is_empty():
+		if OS.is_debug_build():
+			print("[DeathCG] skip: last_defeated_by_enemy_id is empty")
+		return false
+	var enemy_name: String = str(RunManager.last_defeated_by_enemy_name)
+	var character_id: String = ""
+	var character_name: String = ""
+	if RunManager.current_character:
+		character_id = str(RunManager.current_character.id)
+		character_name = str(RunManager.current_character.display_name)
+	if character_id.is_empty():
+		if OS.is_debug_build():
+			print("[DeathCG] skip: character_id is empty")
+		return false
+	if enemy_name.is_empty() and DataManager and DataManager.has_method("get_enemy"):
+		var ed = DataManager.get_enemy(enemy_id)
+		if ed:
+			enemy_name = ed.display_name
+	
+	var tex: Texture2D = get_death_cg_texture(character_id, enemy_id, enemy_name)
+	if tex == null:
+		if OS.is_debug_build():
+			print("[DeathCG] skip: texture is null. character_id=", character_id, " enemy_id=", enemy_id, " enemy_name=", enemy_name)
+		return false
+	
+	unlock_death_cg(character_id, enemy_id)
+	
+	if not is_instance_valid(_cg_unlock_overlay):
+		_ensure_cg_unlock_overlay()
+	if not is_instance_valid(_cg_unlock_overlay):
+		return false
+	# overlay 可能通过 call_deferred 挂载，等一帧确保已入树再显示
+	if not _cg_unlock_overlay.is_inside_tree():
+		await get_tree().process_frame
+	
+	if _cg_unlock_overlay.has_method("show_cg"):
+		_cg_unlock_overlay.call("show_cg", character_id, character_name, enemy_id, enemy_name)
+	
+	if _cg_unlock_overlay.has_signal("exit_to_result_requested"):
+		await _cg_unlock_overlay.exit_to_result_requested
+		return true
+	return false
+
+
+func _is_nsfw_enabled_from_settings() -> bool:
+	var config := ConfigFile.new()
+	var err: Error = config.load(_SETTINGS_FILE_PATH)
+	if err != OK:
+		return false
+	return bool(config.get_value(_SETTINGS_SECTION_UI, _SETTINGS_KEY_NSFW_ENABLED, false))
+
+
+func is_cg_unlocked(enemy_id: String) -> bool:
+	return cg_unlocks.has(enemy_id)
+
+
+func is_death_cg_unlocked(character_id: String, enemy_id: String) -> bool:
+	if character_id.is_empty() or enemy_id.is_empty():
+		return false
+	var key := _make_death_cg_key(character_id, enemy_id)
+	# 兼容旧存档：只按 enemy_id 存过一次
+	return cg_unlocks.has(key) or cg_unlocks.has(enemy_id)
+
+
+func unlock_cg(enemy_id: String) -> void:
+	if enemy_id.is_empty():
+		return
+	if cg_unlocks.has(enemy_id):
+		return
+	cg_unlocks[enemy_id] = true
+	save_data()
+
+
+func unlock_death_cg(character_id: String, enemy_id: String) -> void:
+	if character_id.is_empty() or enemy_id.is_empty():
+		return
+	var key := _make_death_cg_key(character_id, enemy_id)
+	if cg_unlocks.has(key):
+		return
+	cg_unlocks[key] = true
+	save_data()
+
+
+func get_unlocked_cg_ids() -> Array:
+	var ids: Array = cg_unlocks.keys()
+	ids.sort()
+	return ids
+
+
+func get_unlocked_death_cg_entries() -> Array:
+	var entries: Array = []
+	for k in cg_unlocks.keys():
+		var key_str := str(k)
+		var character_id := ""
+		var enemy_id := ""
+		if key_str.contains(":"):
+			var parts := key_str.split(":", false)
+			if parts.size() >= 2:
+				character_id = str(parts[0])
+				enemy_id = str(parts[1])
+		else:
+			# 旧存档条目：只有 enemy_id
+			enemy_id = key_str
+		var character_name := ""
+		if not character_id.is_empty() and DataManager and DataManager.has_method("get_character"):
+			var cd = DataManager.get_character(character_id)
+			if cd:
+				character_name = cd.display_name
+		var enemy_name := ""
+		if not enemy_id.is_empty() and DataManager and DataManager.has_method("get_enemy"):
+			var ed = DataManager.get_enemy(enemy_id)
+			if ed:
+				enemy_name = ed.display_name
+		entries.append({
+			"key": key_str,
+			"character_id": character_id,
+			"character_name": character_name,
+			"enemy_id": enemy_id,
+			"enemy_name": enemy_name,
+		})
+	return entries
+
+
+func get_death_cg_texture(character_id: String, enemy_id: String, enemy_name: String) -> Texture2D:
+	var candidates := _get_death_cg_candidate_paths(character_id, enemy_id, enemy_name)
+	for path in candidates:
+		var tex: Texture2D = null
+		if DataManager:
+			tex = DataManager.get_texture(path)
+		else:
+			tex = load(path) as Texture2D
+		if tex:
+			return tex
+	if OS.is_debug_build():
+		print("[DeathCG] texture not found. character_id=", character_id, " enemy_id=", enemy_id, " enemy_name=", enemy_name, " candidates=", candidates)
+	return null
+
+
+func _make_death_cg_key(character_id: String, enemy_id: String) -> String:
+	return "%s:%s" % [character_id, enemy_id]
+
+
+func _get_death_cg_candidate_paths(character_id: String, enemy_id: String, enemy_name: String) -> Array[String]:
+	var paths: Array[String] = []
+	if not character_id.is_empty():
+		# 1) 你当前的命名规则：被<敌人名>击败.png
+		if not enemy_name.is_empty():
+			paths.append("%s/%s/death/被%s击败.png" % [_CHARACTER_DEATH_CG_DIR, character_id, enemy_name])
+		# 1.1) 备用：被<enemy_id>击败.png（当 display_name 与文件命名不一致时可用）
+		if not enemy_id.is_empty():
+			paths.append("%s/%s/death/被%s击败.png" % [_CHARACTER_DEATH_CG_DIR, character_id, enemy_id])
+		# 2) 备用：按 enemy_id
+		if not enemy_id.is_empty():
+			paths.append("%s/%s/death/%s.png" % [_CHARACTER_DEATH_CG_DIR, character_id, enemy_id])
+		# 3) 默认图
+		paths.append("%s/%s/death/default.png" % [_CHARACTER_DEATH_CG_DIR, character_id])
+	# 4) 兼容旧全局CG
+	if not enemy_id.is_empty():
+		paths.append("%s/%s.png" % [_CG_TEXTURE_DIR, enemy_id])
+	return paths
 
 ## 保存结算记录
 func save_run_record(record: Dictionary) -> void:
@@ -221,6 +497,7 @@ func get_latest_record() -> Dictionary:
 func save_data() -> void:
 	var save_dict = {
 		"run_records": run_records,
+		"cg_unlocks": cg_unlocks.keys(),
 		"version": "1.0"
 	}
 	
@@ -245,10 +522,24 @@ func load_save_data() -> void:
 		if error == OK:
 			var data = json.data
 			run_records = data.get("run_records", [])
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 			print("存档加载成功，记录数：", run_records.size())
+=======
+=======
+>>>>>>> Stashed changes
+			cg_unlocks.clear()
+			var unlocked: Array = data.get("cg_unlocks", [])
+			for k in unlocked:
+				cg_unlocks[str(k)] = true
+			if DebugLogger:
+				DebugLogger.log_info("存档加载成功，记录数：%d" % run_records.size(), "GameManager")
+>>>>>>> Stashed changes
 		else:
 			print("错误：无法解析存档JSON")
 			run_records = []
+			cg_unlocks.clear()
 	else:
 		print("存档文件不存在，使用默认值")
 		run_records = []
+		cg_unlocks.clear()

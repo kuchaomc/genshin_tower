@@ -1,11 +1,11 @@
 [gd_scene load_steps=34 format=3 uid="uid://lp22f4lydf4p"]
 
 [ext_resource type="Script" uid="uid://d11ele5x3lbm1" path="res://scripts/characters/kamisato_ayaka_character.gd" id="1_sword_char"]
-[ext_resource type="Texture2D" uid="uid://p5yv5ngfrcoo" path="res://textures/characters/神里idel.png" id="2_sd6lh"]
-[ext_resource type="Texture2D" uid="uid://bc3cgn2g32xk5" path="res://textures/characters/神里move.png" id="3_sd6lh"]
+[ext_resource type="Texture2D" uid="uid://p5yv5ngfrcoo" path="res://textures/characters/kamisato_ayaka/sprites/神里idel.png" id="2_sd6lh"]
+[ext_resource type="Texture2D" uid="uid://bc3cgn2g32xk5" path="res://textures/characters/kamisato_ayaka/sprites/神里move.png" id="3_sd6lh"]
 [ext_resource type="Texture2D" uid="uid://dx8q3hoy4l72j" path="res://textures/effects/无锋剑.png" id="4_sword"]
-[ext_resource type="Texture2D" uid="uid://dcx7li7uvt85x" path="res://textures/characters/ayaka技能精灵表.png" id="5_skill"]
-[ext_resource type="Texture2D" uid="uid://5wufjb0nyssl" path="res://textures/characters/ayaka重击精灵表.png" id="6_charged"]
+[ext_resource type="Texture2D" uid="uid://dcx7li7uvt85x" path="res://textures/characters/kamisato_ayaka/effects/ayaka技能精灵表.png" id="5_skill"]
+[ext_resource type="Texture2D" uid="uid://5wufjb0nyssl" path="res://textures/characters/kamisato_ayaka/effects/ayaka重击精灵表.png" id="6_charged"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_rj564"]
 atlas = ExtResource("2_sd6lh")
@@ -204,6 +204,17 @@ skill_damage = 75.0
 hurt_speed_boost_multiplier = 1.5
 animator = NodePath("AnimatedSprite2D")
 knockback_force = 50.0
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+=======
+>>>>>>> Stashed changes
+movement_trail_min_width = 15.0
+movement_trail_max_width = 30.0
+movement_trail_speed_for_max_strength = 400.0
+movement_trail_max_points = 8
+movement_trail_tail_power = 3.0
+>>>>>>> Stashed changes
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_fjrip")

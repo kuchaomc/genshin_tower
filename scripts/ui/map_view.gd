@@ -3,6 +3,8 @@ extends Node2D
 ## 地图界面脚本
 ## 地图从下往上显示，玩家从底部开始向上攀升
 
+@export var minimap_mode: bool = false
+
 @onready var map_container: Node2D = $MapContainer
 @onready var floor_label: Label = $CanvasLayer/VBoxContainer/FloorLabel
 @onready var camera: Camera2D = $Camera2D
@@ -66,8 +68,20 @@ func _ready() -> void:
 	
 	# 如果是新游戏（current_node_id为空且没有地图种子），生成新地图种子
 	# 否则重用现有地图（通过固定种子）
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	if RunManager.current_node_id.is_empty() and RunManager.map_seed == -1:
 		RunManager.map_seed = randi()
+=======
+=======
+>>>>>>> Stashed changes
+	if RunManager.map_seed == -1:
+		# 缩略图模式：只展示“已有地图”的缩略视图，不允许在战斗中意外生成/修改地图种子
+		if minimap_mode:
+			return
+		var rng := RunManager.get_rng()
+		RunManager.map_seed = rng.randi()
+>>>>>>> Stashed changes
 		print("生成新地图，种子：", RunManager.map_seed)
 	else:
 		print("重用现有地图，种子：", RunManager.map_seed)
@@ -160,11 +174,25 @@ func _setup_camera() -> void:
 	if camera:
 		var viewport_size = get_viewport().get_visible_rect().size
 		
+		# 优先定位到当前节点（用于缩略图默认居中）
+		var current_node_id := RunManager.current_node_id
+		if not current_node_id.is_empty():
+			var current_view: MapNodeView = node_instances.get(current_node_id) as MapNodeView
+			if current_view:
+				var button_size = Vector2(64, 64)
+				var button_center_offset = button_size / 2.0
+				var node_local_pos = current_view.position + button_center_offset
+				var node_global_pos = map_container.to_global(node_local_pos)
+				camera.position = node_global_pos
+				camera.zoom = Vector2(zoom_level, zoom_level)
+				_clamp_camera_position()
+				return
+		
 		# 优先定位到当前可选择的节点
 		if not selectable_nodes.is_empty():
 			# 获取第一个可选择的节点
 			var first_selectable_id = selectable_nodes[0]
-			var node_instance = node_instances.get(first_selectable_id)
+			var node_instance: MapNodeView = node_instances.get(first_selectable_id) as MapNodeView
 			if node_instance:
 				# 节点按钮的中心位置
 				var button_size = Vector2(64, 64)
@@ -266,6 +294,9 @@ func display_map() -> void:
 			node_view.position = Vector2(node_x, floor_y)
 			node_view.z_index = 5
 			node_view.visible = true
+			# 缩略图模式下只展示，不允许点选节点（避免拖动误触）
+			if minimap_mode and node_view.button:
+				node_view.button.disabled = true
 			# 先添加到场景树，确保 @onready 节点初始化
 			map_container.add_child(node_view)
 			# 然后绑定数据（此时节点已准备好）

@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bwlkkwfk4bcuy" path="res://scripts/battle/battle_manager.gd" id="1_battle"]
 [ext_resource type="Texture2D" uid="uid://bnoahwud6qeff" path="res://textures/effects/战斗场景.png" id="2_3ma01"]
 [ext_resource type="Script" uid="uid://tuf8sc1sf5gd" path="res://scripts/camera/camera_follower.gd" id="3_0d42y"]
-[ext_resource type="PackedScene" path="res://scenes/ui/skill_ui.tscn" id="4_skill_ui"]
+[ext_resource type="PackedScene" uid="uid://bbaivxavraxtf" path="res://scenes/ui/skill_ui.tscn" id="4_skill_ui"]
 [ext_resource type="PackedScene" path="res://scenes/boundaries/ellipse_boundary.tscn" id="5_boundary"]
 [ext_resource type="Script" uid="uid://cf2cxfxf21emy" path="res://scripts/ui/enemy_indicator_manager.gd" id="6_indicator_manager"]
 [ext_resource type="PackedScene" uid="uid://b8k3j2h4m5n6p" path="res://scenes/ui/enemy_indicator.tscn" id="7_indicator"]
@@ -78,6 +78,20 @@ text = "1"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="FaceDisplay" type="TextureRect" parent="CanvasLayer"]
+visible = false
+custom_minimum_size = Vector2(128, 128)
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -170.0
+offset_right = 148.0
+offset_bottom = -42.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
 [node name="PlayerHPBar" type="Control" parent="CanvasLayer"]
 layout_mode = 3
 anchors_preset = 7
@@ -139,13 +153,6 @@ theme_override_colors/font_color = Color(1, 0.84, 0, 1)
 theme_override_font_sizes/font_size = 32
 text = "0"
 vertical_alignment = 1
-
-[node name="DebugToggle" type="CheckButton" parent="CanvasLayer"]
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 140.0
-offset_bottom = 60.0
-text = "显示判定"
 
 [node name="SkillUIContainer" type="Control" parent="CanvasLayer"]
 layout_mode = 3

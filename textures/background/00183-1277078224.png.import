@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://5wufjb0nyssl"
-path="res://.godot/imported/ayaka重击精灵表.png-46305376663e61756d67212d25486750.ctex"
+uid="uid://dg8mea17ik4k5"
+path="res://.godot/imported/00183-1277078224.png-339c9f2194b4ccfce6b591e8cc4c9521.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/characters/ayaka重击精灵表.png"
-dest_files=["res://.godot/imported/ayaka重击精灵表.png-46305376663e61756d67212d25486750.ctex"]
+source_file="res://textures/background/00183-1277078224.png"
+dest_files=["res://.godot/imported/00183-1277078224.png-339c9f2194b4ccfce6b591e8cc4c9521.ctex"]
 
 [params]
 

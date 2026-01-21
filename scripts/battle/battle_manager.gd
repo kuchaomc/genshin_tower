@@ -12,6 +12,19 @@ const VICTORY_TRANSITION_SECONDS: float = 1.0
 # 战斗场景准星贴图
 const CROSSHAIR_TEXTURE := preload("res://textures/effects/mouse.png")
 
+<<<<<<< Updated upstream
+=======
+const SETTINGS_FILE_PATH = "user://settings.cfg"
+const CONFIG_SECTION_POSTPROCESS = "postprocess"
+const CONFIG_KEY_BLOOM_ENABLED = "bloom_enabled"
+
+const CONFIG_SECTION_UI = "ui"
+const CONFIG_KEY_NSFW_ENABLED = "nsfw_enabled"
+
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 enum GameState {
 	PLAYING,
 	GAME_OVER
@@ -49,6 +62,19 @@ var gold_icon: TextureRect
 var skill_ui: SkillUI
 # 大招UI引用
 var burst_ui: SkillUI
+# NSFW表情展示UI引用
+var face_display: TextureRect
+
+const _FACE_SUBFOLDER: String = "face"
+const _FACE_NORMAL_FILE: String = "正常.png"
+const _FACE_SCARED_FILE: String = "害怕.png"
+const _FACE_CRYING_FILE: String = "哭泣.png"
+const _FACE_ORGASM_FILE: String = "高潮.png"
+
+var _nsfw_enabled: bool = false
+var _face_hit_override_active: bool = false
+var _face_hit_override_timer: Timer
+var _last_hp_ratio: float = 1.0
 # 调试：显示判定/碰撞箱开关
 var debug_toggle_button: Button
 var debug_show_hitboxes: bool = false
@@ -63,6 +89,16 @@ var floor_notification_timer: Timer
 
 # 敌人注册表：避免 get_nodes_in_group("enemies") 全树扫描
 var _active_enemies: Array[Node] = []
+# 普通敌人数据缓存：避免每次生成都遍历 DataManager.enemies
+var _normal_enemy_types: Array = []
+# 敌人生成队列：分帧实例化，降低同帧尖峰
+var _pending_enemy_spawns: int = 0
+var _is_processing_enemy_spawn_queue: bool = false
+
+# 敌人对象池：复用已实例化的敌人，减少刷怪时 instantiate 卡顿
+const ENEMY_POOL_PREWARM_COUNT: int = 6
+const ENEMY_POOL_MAX_SIZE: int = 24
+var _enemy_pool: Array[Node] = []
 
 func _ready() -> void:
 	# 检查是否为BOSS战场景
@@ -75,6 +111,14 @@ func _ready() -> void:
 	_connect_signals()
 	_initialize_pause_menu()
 	_apply_crosshair_cursor()
+<<<<<<< Updated upstream
+=======
+	_apply_bloom_enabled_from_settings()
+	_apply_nsfw_enabled_from_settings()
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 	
 	# 播放转场淡入动画（如果TransitionManager存在）
 	# 同时在转场期间显示“正在进入第N层”提示（居中显示）
@@ -95,6 +139,31 @@ func _ready() -> void:
 	
 	print("战斗管理器已初始化")
 
+<<<<<<< Updated upstream
+=======
+func _apply_bloom_enabled_from_settings() -> void:
+	var config := ConfigFile.new()
+	var err: Error = config.load(SETTINGS_FILE_PATH)
+	var enabled: bool = true
+	if err == OK:
+		enabled = bool(config.get_value(CONFIG_SECTION_POSTPROCESS, CONFIG_KEY_BLOOM_ENABLED, true))
+	set_bloom_enabled(enabled)
+
+func _apply_nsfw_enabled_from_settings() -> void:
+	var config := ConfigFile.new()
+	var err: Error = config.load(SETTINGS_FILE_PATH)
+	var enabled: bool = false
+	if err == OK:
+		enabled = bool(config.get_value(CONFIG_SECTION_UI, CONFIG_KEY_NSFW_ENABLED, false))
+	set_nsfw_enabled(enabled)
+
+func set_bloom_enabled(is_enabled: bool) -> void:
+	_bloom_enabled = is_enabled
+	var bloom_layer := get_node_or_null("BloomLayer") as CanvasLayer
+	if bloom_layer:
+		bloom_layer.visible = is_enabled
+
+>>>>>>> Stashed changes
 ## 初始化UI组件
 func _initialize_ui_components() -> void:
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
@@ -103,6 +172,7 @@ func _initialize_ui_components() -> void:
 	enemy_kill_counter_label = get_node_or_null("CanvasLayer/EnemyKillCounter/Label") as Label
 	skill_ui = get_node_or_null("CanvasLayer/SkillUIContainer/SkillUI") as SkillUI
 	burst_ui = get_node_or_null("CanvasLayer/BurstUIContainer/BurstUI") as SkillUI
+	face_display = get_node_or_null("CanvasLayer/FaceDisplay") as TextureRect
 	gold_label = get_node_or_null("CanvasLayer/GoldDisplay/Label") as Label
 	gold_icon = get_node_or_null("CanvasLayer/GoldDisplay/Icon") as TextureRect
 	debug_toggle_button = get_node_or_null("CanvasLayer/DebugToggle") as Button
@@ -151,6 +221,48 @@ func _initialize_battle_conditions() -> void:
 func _initialize_enemy_spawning() -> void:
 	if enemy_scene == null:
 		enemy_scene = preload("res://scenes/enemies/enemy.tscn")
+	_refresh_enemy_type_cache()
+	# 方案A：普通敌人按 EnemyData.scene_path 实例化，单一对象池会导致不同敌人场景混用复用，先禁用预热。
+	if DataManager and DataManager.has_signal("data_loaded"):
+		if not DataManager.data_loaded.is_connected(_on_data_loaded):
+			DataManager.data_loaded.connect(_on_data_loaded)
+
+func _on_data_loaded() -> void:
+	_refresh_enemy_type_cache()
+
+func _refresh_enemy_type_cache() -> void:
+	if not DataManager:
+		return
+	_normal_enemy_types = DataManager.get_enemies_by_type("normal")
+
+func _prewarm_enemy_pool(count: int) -> void:
+	if count <= 0:
+		return
+	if enemy_scene == null:
+		return
+	# 预热阶段只 instantiate，不入树，避免触发 _ready/计时器
+	while _enemy_pool.size() < min(ENEMY_POOL_MAX_SIZE, count):
+		var inst := enemy_scene.instantiate() as Node
+		if inst:
+			_enemy_pool.append(inst)
+		else:
+			break
+
+func _acquire_enemy_instance() -> Node:
+	if not _enemy_pool.is_empty():
+		return _enemy_pool.pop_back() as Node
+	if enemy_scene == null:
+		return null
+	return enemy_scene.instantiate() as Node
+
+func recycle_enemy(enemy) -> void:
+	if not is_instance_valid(enemy):
+		return
+	# 方案A：禁用普通敌人对象池回收（普通敌人可能来自不同 scene_path）。
+	# 这里保留 prepare_for_pool 的调用，用于停止残留状态，随后直接释放。
+	if enemy.has_method("prepare_for_pool"):
+		enemy.call("prepare_for_pool")
+	enemy.queue_free()
 
 ## 初始化计时器
 func _initialize_timers() -> void:
@@ -173,10 +285,11 @@ func _initialize_timers() -> void:
 	enemy_spawn_timer.wait_time = _calculate_enemy_spawn_time(current_floor)
 	var spawn_count = _calculate_enemy_spawn_count(current_floor)
 	var multipliers = _calculate_enemy_stat_multipliers(current_floor)
-	print("当前楼层：", current_floor)
-	print("  - 怪物生成间隔：", enemy_spawn_timer.wait_time, "秒")
-	print("  - 每波生成数量：", spawn_count, "个")
-	print("  - 血量倍率：x%.2f，攻击倍率：x%.2f" % [multipliers[0], multipliers[1]])
+	if OS.is_debug_build():
+		print("当前楼层：", current_floor)
+		print("  - 怪物生成间隔：", enemy_spawn_timer.wait_time, "秒")
+		print("  - 每波生成数量：", spawn_count, "个")
+		print("  - 血量倍率：x%.2f，攻击倍率：x%.2f" % [multipliers[0], multipliers[1]])
 	enemy_spawn_timer.timeout.connect(_on_enemy_spawn_timer_timeout)
 	add_child(enemy_spawn_timer)
 	enemy_spawn_timer.start()
@@ -358,6 +471,10 @@ func connect_player_signals() -> void:
 		if player.has_method("get_current_health") and player.has_method("get_max_health"):
 			_on_player_health_changed(player.get_current_health(), player.get_max_health())
 		
+		# 连接受击事件（用于NSFW表情：害怕1秒）
+		if player.has_signal("damaged"):
+			player.damaged.connect(_on_player_damaged)
+		
 		# 初始化技能UI（根据角色ID动态加载图标）
 		if skill_ui and RunManager and RunManager.current_character:
 			var skill_icon_path = _get_skill_icon_path(RunManager.current_character.id)
@@ -379,9 +496,27 @@ func _on_enemy_spawn_timer_timeout() -> void:
 	if current_state == GameState.PLAYING and not is_boss_battle:
 		var current_floor = RunManager.current_floor if RunManager else 1
 		var spawn_count = _calculate_enemy_spawn_count(current_floor)
-		for i in range(spawn_count):
-			spawn_enemy()
-		print("本波生成敌人数量：", spawn_count)
+		_enqueue_enemy_spawns(spawn_count)
+		if OS.is_debug_build():
+			print("本波生成敌人数量：", spawn_count)
+
+func _enqueue_enemy_spawns(count: int) -> void:
+	if count <= 0:
+		return
+	_pending_enemy_spawns += count
+	if not _is_processing_enemy_spawn_queue:
+		_process_enemy_spawn_queue()
+
+func _process_enemy_spawn_queue() -> void:
+	_is_processing_enemy_spawn_queue = true
+	while _pending_enemy_spawns > 0:
+		if current_state != GameState.PLAYING or is_boss_battle:
+			break
+		_pending_enemy_spawns -= 1
+		spawn_enemy()
+		# 每帧最多生成 1 个，避免 instantiate/add_child 同帧尖峰
+		await get_tree().process_frame
+	_is_processing_enemy_spawn_queue = false
 
 ## 生成BOSS（BOSS战模式专用）
 func spawn_boss() -> void:
@@ -447,25 +582,71 @@ func spawn_boss() -> void:
 
 ## 生成敌人函数
 func spawn_enemy() -> void:
-	if enemy_scene == null:
-		print("错误：敌人场景未加载")
+	# 随机选择一个敌人类型（权重随机）
+	if _normal_enemy_types.is_empty():
+		_refresh_enemy_type_cache()
+	var enemy_types = _normal_enemy_types
+	if OS.is_debug_build():
+		print("获取敌人类型列表，数量：", enemy_types.size())
+	if enemy_types.is_empty():
+		print("警告：没有找到敌人类型数据，敌人可能无法正常掉落摩拉")
 		return
 	
-	# 实例化敌人场景
-	var enemy_instance = enemy_scene.instantiate()
+	var rng := RunManager.get_rng()
+	var enemy_data: EnemyData = null
+	var total_weight: float = 0.0
+	for e in enemy_types:
+		var data := e as EnemyData
+		if data == null:
+			continue
+		total_weight += max(0.0, data.spawn_weight)
+	if total_weight <= 0.0:
+		enemy_data = enemy_types[0] as EnemyData
+	else:
+		var pick: float = rng.randf() * total_weight
+		for e in enemy_types:
+			var data := e as EnemyData
+			if data == null:
+				continue
+			pick -= max(0.0, data.spawn_weight)
+			if pick <= 0.0:
+				enemy_data = data
+				break
+		if enemy_data == null:
+			enemy_data = enemy_types.back() as EnemyData
 	
-	# 如果敌人有initialize方法，使用RunManager的数据初始化
+	# 方案A：按 EnemyData.scene_path 实例化对应敌人场景
+	var enemy_scene_path: String = enemy_data.scene_path
+	var enemy_packed: PackedScene = null
+	if DataManager:
+		enemy_packed = DataManager.get_packed_scene(enemy_scene_path)
+	else:
+		enemy_packed = load(enemy_scene_path) as PackedScene
+	if not enemy_packed:
+		print("错误：无法加载敌人场景：", enemy_scene_path)
+		return
+	var enemy_instance := enemy_packed.instantiate()
+	if not enemy_instance:
+		print("错误：无法实例化敌人场景：", enemy_scene_path)
+		return
+	
 	if enemy_instance.has_method("initialize"):
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 		# 随机选择一个敌人类型
 		var enemy_types = DataManager.get_enemies_by_type("normal")
 		print("获取敌人类型列表，数量：", enemy_types.size())
 		
 		if not enemy_types.is_empty():
 			var enemy_data = enemy_types[randi() % enemy_types.size()]
+=======
+		if OS.is_debug_build():
+>>>>>>> Stashed changes
+=======
+		if OS.is_debug_build():
+>>>>>>> Stashed changes
 			print("初始化敌人，类型：", enemy_data.display_name, "，drop_gold：", enemy_data.drop_gold)
-			enemy_instance.initialize(enemy_data)
-		else:
-			print("警告：没有找到敌人类型数据，敌人可能无法正常掉落摩拉")
+		enemy_instance.initialize(enemy_data)
 	
 	# 应用楼层属性缩放
 	var current_floor = RunManager.current_floor if RunManager else 1
@@ -485,26 +666,44 @@ func spawn_enemy() -> void:
 		b = max(0.0, b - margin)
 		
 		# 采样均匀分布在椭圆内部的随机点
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 		var angle: float = randf() * TAU
 		var r: float = sqrt(randf())  # 保证在圆内均匀分布
+=======
+=======
+>>>>>>> Stashed changes
+		var angle: float = rng.randf() * TAU
+		var r: float = sqrt(rng.randf())  # 保证在圆内均匀分布
+>>>>>>> Stashed changes
 		var local: Vector2 = Vector2(cos(angle) * a * r, sin(angle) * b * r)
 		spawn_pos = center + local
 	else:
 		# 兜底：如果没有找到空气墙，就按屏幕范围随机生成
 		var screen_size = get_viewport().get_visible_rect().size
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 		var spawn_x = randf_range(100, screen_size.x - 100)
 		var spawn_y = randf_range(100, screen_size.y - 100)
+=======
+=======
+>>>>>>> Stashed changes
+		var spawn_x = rng.randf_range(100.0, screen_size.x - 100.0)
+		var spawn_y = rng.randf_range(100.0, screen_size.y - 100.0)
+>>>>>>> Stashed changes
 		spawn_pos = Vector2(spawn_x, spawn_y)
 	
 	# 设置敌人位置（使用全局坐标，保证与空气墙一致）
 	enemy_instance.global_position = spawn_pos
 	
 	# 添加到场景树中
-	add_child(enemy_instance)
+	if enemy_instance.get_parent() == null:
+		add_child(enemy_instance)
 	_register_enemy(enemy_instance)
 	_apply_hitbox_visibility_to_enemy(enemy_instance)
 	
-	print("生成新敌人，位置：", enemy_instance.position)
+	if OS.is_debug_build():
+		print("生成新敌人，位置：", enemy_instance.position)
 
 ## 更新敌人击杀计数器显示
 func update_enemy_kill_counter_display() -> void:
@@ -524,7 +723,8 @@ func on_enemy_killed(score: int = 1) -> void:
 		return
 	
 	current_score += score  # 累加敌人的分值
-	print("敌人被击杀！获得 ", score, " 分，当前得分：", current_score, "/", required_score)
+	if OS.is_debug_build():
+		print("敌人被击杀！获得 ", score, " 分，当前得分：", current_score, "/", required_score)
 	
 	# 更新得分显示
 	update_enemy_kill_counter_display()
@@ -568,9 +768,10 @@ func clear_all_enemies() -> void:
 	var enemies := _active_enemies.duplicate()
 	for enemy in enemies:
 		if is_instance_valid(enemy):
-			enemy.queue_free()
+			recycle_enemy(enemy)
 	_active_enemies.clear()
-	print("已清除场上所有敌人，共 ", enemies.size(), " 个")
+	if OS.is_debug_build():
+		print("已清除场上所有敌人，共 ", enemies.size(), " 个")
 
 ## 游戏结束方法（玩家死亡）
 func game_over() -> void:
@@ -668,6 +869,77 @@ func _restore_floor_notification_from_transition_layer() -> void:
 ## 玩家血量变化回调
 func _on_player_health_changed(current: float, maximum: float) -> void:
 	update_player_hp_display(current, maximum)
+	_update_face_by_health(current, maximum)
+
+func _on_player_damaged(_damage: float) -> void:
+	if not _nsfw_enabled:
+		return
+	if not face_display:
+		return
+	_face_hit_override_active = true
+	_set_face_texture_by_name(_FACE_SCARED_FILE)
+	if _face_hit_override_timer == null:
+		_face_hit_override_timer = Timer.new()
+		_face_hit_override_timer.one_shot = true
+		add_child(_face_hit_override_timer)
+		_face_hit_override_timer.timeout.connect(_on_face_hit_override_timeout)
+	_face_hit_override_timer.stop()
+	_face_hit_override_timer.wait_time = 1.0
+	_face_hit_override_timer.start()
+
+func _on_face_hit_override_timeout() -> void:
+	_face_hit_override_active = false
+	if player and is_instance_valid(player):
+		_update_face_by_health(player.current_health, player.max_health)
+	else:
+		_update_face_by_health(1.0, 1.0)
+
+func set_nsfw_enabled(is_enabled: bool) -> void:
+	_nsfw_enabled = is_enabled
+	if face_display:
+		face_display.visible = is_enabled
+	if not is_enabled:
+		_face_hit_override_active = false
+		if _face_hit_override_timer:
+			_face_hit_override_timer.stop()
+		return
+	# 立即刷新一次表情
+	if player:
+		_update_face_by_health(player.current_health, player.max_health)
+
+func _update_face_by_health(current: float, maximum: float) -> void:
+	if not _nsfw_enabled:
+		return
+	if not face_display:
+		return
+	if maximum <= 0.0:
+		return
+	var ratio := clampf(current / maximum, 0.0, 1.0)
+	_last_hp_ratio = ratio
+	if _face_hit_override_active:
+		_set_face_texture_by_name(_FACE_SCARED_FILE)
+		return
+	# 规则优先级：受击害怕（1秒） -> 25%以下高潮 -> 50%以下哭泣（血量恢复前不回正常） -> 正常
+	if ratio < 0.25:
+		_set_face_texture_by_name(_FACE_ORGASM_FILE)
+		return
+	if ratio < 0.5:
+		_set_face_texture_by_name(_FACE_CRYING_FILE)
+		return
+	_set_face_texture_by_name(_FACE_NORMAL_FILE)
+
+func _set_face_texture_by_name(file_name: String) -> void:
+	if not face_display:
+		return
+	if not RunManager or not RunManager.current_character:
+		return
+	var character_id: String = str(RunManager.current_character.id)
+	if character_id.is_empty():
+		return
+	var path := "res://textures/characters/%s/%s/%s" % [character_id, _FACE_SUBFOLDER, file_name]
+	var tex := _load_texture(path)
+	if tex:
+		face_display.texture = tex
 
 ## 更新玩家血量UI显示
 func update_player_hp_display(current: float, maximum: float) -> void:
@@ -679,7 +951,24 @@ func update_player_hp_display(current: float, maximum: float) -> void:
 
 ## 玩家死亡回调
 func _on_player_died() -> void:
-	game_over()
+	# 注意：玩家死亡后的场景跳转由 GameManager.game_over() 统一处理（CG展示 -> 结算）。
+	# BattleManager 这里只负责战斗内收尾，避免与全局流程冲突。
+	_on_player_death_cleanup()
+
+
+func _on_player_death_cleanup() -> void:
+	if current_state == GameState.GAME_OVER:
+		return
+	current_state = GameState.GAME_OVER
+	# 停止敌人生成计时器
+	if enemy_spawn_timer:
+		enemy_spawn_timer.stop()
+	# 停止队列生成
+	_pending_enemy_spawns = 0
+	_is_processing_enemy_spawn_queue = false
+	# 避免继续触发本地 game_over_timer 回调
+	if game_over_timer:
+		game_over_timer.stop()
 
 ## 金币变化回调
 func _on_gold_changed(gold: int) -> void:
@@ -713,8 +1002,14 @@ func _register_enemy(enemy: Node) -> void:
 		_active_enemies.append(enemy)
 	# 敌人退出树时自动移除
 	if enemy is Node:
-		if not enemy.tree_exited.is_connected(_on_enemy_tree_exited):
-			enemy.tree_exited.connect(_on_enemy_tree_exited.bind(enemy))
+		var cb: Callable
+		if enemy.has_meta("_bm_tree_exited_cb"):
+			cb = enemy.get_meta("_bm_tree_exited_cb") as Callable
+		else:
+			cb = Callable(self, "_on_enemy_tree_exited").bind(enemy)
+			enemy.set_meta("_bm_tree_exited_cb", cb)
+		if not enemy.tree_exited.is_connected(cb):
+			enemy.tree_exited.connect(cb)
 
 func _on_enemy_tree_exited(enemy: Node) -> void:
 	_active_enemies.erase(enemy)
@@ -755,10 +1050,11 @@ func _apply_floor_scaling_to_enemy(enemy_node: Node, health_multiplier: float, a
 		if "current_health" in enemy_node:
 			enemy_node.current_health = stats.max_health
 		
-		print("敌人属性缩放：HP x%.2f -> %.0f, ATK x%.2f -> %.0f" % [
-			health_multiplier, stats.max_health,
-			attack_multiplier, stats.attack
-		])
+		if OS.is_debug_build():
+			print("敌人属性缩放：HP x%.2f -> %.0f, ATK x%.2f -> %.0f" % [
+				health_multiplier, stats.max_health,
+				attack_multiplier, stats.attack
+			])
 
 ## 技能冷却时间变化回调
 func _on_skill_cooldown_changed(remaining_time: float, cooldown_time: float) -> void:

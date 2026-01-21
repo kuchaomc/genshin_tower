@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dtx0qd7ekwbej"
-path="res://.godot/imported/ayaka大招特效精灵表.png-979e130f635d71c43812afd262294f1b.ctex"
+path="res://.godot/imported/ayaka大招特效精灵表.png-fd094a66b8e446366fa152619fed41d8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/characters/ayaka大招特效精灵表.png"
-dest_files=["res://.godot/imported/ayaka大招特效精灵表.png-979e130f635d71c43812afd262294f1b.ctex"]
+source_file="res://textures/characters/kamisato_ayaka/effects/ayaka大招特效精灵表.png"
+dest_files=["res://.godot/imported/ayaka大招特效精灵表.png-fd094a66b8e446366fa152619fed41d8.ctex"]
 
 [params]
 

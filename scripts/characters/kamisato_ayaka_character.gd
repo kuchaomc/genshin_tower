@@ -651,6 +651,10 @@ func use_skill() -> void:
 	if not _is_skill_ready():
 		return
 	
+	# 播放技能语音
+	if BGMManager and character_data and not character_data.id.is_empty():
+		BGMManager.play_character_voice(character_data.id, "技能", 0.0, 0.2)
+	
 	# 计算实际冷却时间（应用升级加成）
 	var actual_cooldown = skill_cooldown * get_skill_cooldown_multiplier()
 	
@@ -789,6 +793,10 @@ func _is_burst_ready() -> bool:
 func use_burst() -> void:
 	if not _is_burst_ready():
 		return
+	
+	# 播放大招语音
+	if BGMManager and character_data and not character_data.id.is_empty():
+		BGMManager.play_character_voice(character_data.id, "大招", 0.0, 0.2)
 	
 	# 消耗所有充能
 	burst_current_energy = 0.0

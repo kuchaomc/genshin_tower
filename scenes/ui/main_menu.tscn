@@ -1,8 +1,53 @@
 [gd_scene load_steps=3 format=3 uid="uid://ckqkugmg6abgw"]
 
 [ext_resource type="Script" uid="uid://ci5nhsa7nvglw" path="res://scripts/ui/main_menu.gd" id="1_ki7t4"]
-[ext_resource type="Texture2D" uid="uid://7ahk74we7y2c" path="res://textures/background/main_scene_background.png" id="2_background"]
 
+<<<<<<< Updated upstream
+=======
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
+bg_color = Color(0.16, 0.16, 0.16, 0.85)
+
+[sub_resource type="Shader" id="Shader_1"]
+code = "shader_type canvas_item;
+
+uniform vec4 base_color : source_color = vec4(0.16, 0.16, 0.16, 0.85);
+uniform float cell_size = 6.0;
+uniform float jitter = 0.35;
+uniform float levels = 6.0;
+uniform float strength = 1.0;
+
+float _hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+void fragment() {
+	float fade = clamp(1.0 - UV.x, 0.0, 1.0);
+	vec2 cell = floor(FRAGCOORD.xy / max(cell_size, 1.0));
+	float rnd = _hash(cell);
+	float shifted = clamp((fade - rnd * jitter) / max(1.0 - jitter, 0.001), 0.0, 1.0);
+	float a = floor(shifted * levels) / max(levels, 1.0);
+	COLOR = vec4(base_color.rgb, base_color.a * a * clamp(strength, 0.0, 1.0));
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1"]
+shader = SubResource("Shader_1")
+shader_parameter/base_color = Color(0.16, 0.16, 0.16, 0.85)
+shader_parameter/cell_size = 6.0
+shader_parameter/jitter = 0.35
+shader_parameter/levels = 6.0
+shader_parameter/strength = 1.0
+<<<<<<< Updated upstream
+=======
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2"]
+bg_color = Color(0, 0, 0, 0)
+>>>>>>> Stashed changes
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2"]
+bg_color = Color(0, 0, 0, 0)
+
+>>>>>>> Stashed changes
 [node name="Node2D2" type="Node2D"]
 script = ExtResource("1_ki7t4")
 
@@ -16,9 +61,9 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("2_background")
 stretch_mode = 5
 
+<<<<<<< Updated upstream
 [node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
 anchors_preset = 8
 anchor_left = 0.5
@@ -29,15 +74,81 @@ offset_left = -151.5
 offset_top = -200.0
 offset_right = 151.5
 offset_bottom = 200.0
+=======
+[node name="LeftMenu" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 514.0
+grow_vertical = 2
+
+[node name="PanelBg" type="Panel" parent="CanvasLayer/LeftMenu"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -64.0
+>>>>>>> Stashed changes
 grow_horizontal = 2
 grow_vertical = 2
 
+<<<<<<< Updated upstream
 [node name="Label" type="Label" parent="CanvasLayer/VBoxContainer"]
+=======
+[node name="EdgeFade" type="ColorRect" parent="CanvasLayer/LeftMenu"]
+material = SubResource("ShaderMaterial_1")
+layout_mode = 0
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -64.0
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/LeftMenu"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -64.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 64
+theme_override_constants/margin_top = 48
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 48
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer"]
+>>>>>>> Stashed changes
 layout_mode = 2
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 50
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 text = "杀原戮神尖塔 v2.0 测试版"
 horizontal_alignment = 1
+=======
+text = "杀原戮神尖塔
+v2.1 R18分支
+=======
+text = "杀原戮神尖塔
+v2.1 R18分支
+
+本次密码
+kuchao
+nsfw在设置中
+左上角开发者
+可调试角色属性
+
+"
+>>>>>>> Stashed changes
+
+本次密码
+kuchao
+nsfw在设置中
+左上角开发者
+可调试角色属性
+
+"
+>>>>>>> Stashed changes
 
 [node name="Button" type="Button" parent="CanvasLayer/VBoxContainer"]
 custom_minimum_size = Vector2(150, 60)
@@ -54,11 +165,70 @@ custom_minimum_size = Vector2(150, 60)
 layout_mode = 2
 text = "设置"
 
+<<<<<<< Updated upstream
 [node name="Button3" type="Button" parent="CanvasLayer/VBoxContainer"]
 custom_minimum_size = Vector2(150, 60)
+=======
+[node name="CGRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow"]
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="Button5" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "CG回想"
+flat = true
+
+[node name="CGRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow"]
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="Button5" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "CG回想"
+flat = true
+
+[node name="QuitRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+>>>>>>> Stashed changes
 layout_mode = 2
 text = "退出游戏"
 
+<<<<<<< Updated upstream
 [node name="Panel" type="Panel" parent="CanvasLayer"]
 anchors_preset = 8
 anchor_left = 0.5
@@ -71,6 +241,52 @@ offset_right = 200.0
 offset_bottom = 150.0
 grow_horizontal = 2
 grow_vertical = 2
+=======
+[node name="RightOverlay" type="Control" parent="CanvasLayer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Drawer" type="Control" parent="CanvasLayer/RightOverlay"]
+anchors_preset = 0
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 860.0
+grow_vertical = 2
+
+[node name="Mask" type="ColorRect" parent="CanvasLayer/RightOverlay/Drawer"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.16, 0.16, 0.16, 0.92)
+
+[node name="ContentHolder" type="MarginContainer" parent="CanvasLayer/RightOverlay/Drawer"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 48
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 48
+
+[node name="Panel" type="Panel" parent="CanvasLayer/RightOverlay/Drawer/ContentHolder"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_2")
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 
 [node name="Label" type="Label" parent="CanvasLayer/Panel"]
 layout_mode = 1

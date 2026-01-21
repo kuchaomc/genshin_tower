@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b3cr0858s317w"
-path="res://.godot/imported/ayaka角色立绘.png-9eeb7968417d7594595410ebcaf2c206.ctex"
+uid="uid://sdpqqtg3exgp"
+path="res://.godot/imported/ayaka大招动画图片.png-1257ba19ba3bcf0a01ced7c5fd61995b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/characters/ayaka角色立绘.png"
-dest_files=["res://.godot/imported/ayaka角色立绘.png-9eeb7968417d7594595410ebcaf2c206.ctex"]
+source_file="res://textures/characters/kamisato_ayaka/effects/ayaka大招动画图片.png"
+dest_files=["res://.godot/imported/ayaka大招动画图片.png-1257ba19ba3bcf0a01ced7c5fd61995b.ctex"]
 
 [params]
 

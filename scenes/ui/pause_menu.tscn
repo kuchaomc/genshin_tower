@@ -1,7 +1,60 @@
-[gd_scene load_steps=3 format=3 uid="uid://pause_menu_scene"]
+[gd_scene load_steps=7 format=3 uid="uid://b0yo5ramkje68"]
 
-[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="1_pause"]
-[ext_resource type="Texture2D" path="res://textures/ui/摩拉.png" id="2_gold"]
+[ext_resource type="Script" uid="uid://dv6hx34y7vcc7" path="res://scripts/ui/pause_menu.gd" id="1_pause"]
+
+[sub_resource type="Shader" id="Shader_LeftBackgroundGradient"]
+code = "shader_type canvas_item;
+uniform vec4 left_color : source_color = vec4(0.12, 0.12, 0.12, 0.92);
+uniform vec4 right_color : source_color = vec4(0.0, 0.0, 0.0, 0.92);
+uniform float power = 1.4;
+
+void fragment() {
+	float t = pow(UV.x, power);
+	COLOR = mix(left_color, right_color, t);
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_LeftBackgroundGradient"]
+shader = SubResource("Shader_LeftBackgroundGradient")
+shader_parameter/left_color = Color(0.12, 0.12, 0.12, 0.92)
+shader_parameter/right_color = Color(0, 0, 0, 0.92)
+shader_parameter/power = 1.4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_WhitePanel"]
+bg_color = Color(1, 1, 1, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0, 0, 0.75)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_RoundedPortrait"]
+bg_color = Color(1, 1, 1, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0, 0, 0.75)
+corner_radius_top_left = 34
+corner_radius_top_right = 34
+corner_radius_bottom_right = 34
+corner_radius_bottom_left = 34
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_MapPanel"]
+bg_color = Color(1, 1, 1, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0, 0, 0.75)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
 
 [node name="PauseMenu" type="Control"]
 layout_mode = 3
@@ -10,212 +63,386 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
 script = ExtResource("1_pause")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="LeftLayout" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 620.0
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 110
+theme_override_constants/margin_top = 64
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 64
+
+[node name="VBox" type="VBoxContainer" parent="LeftLayout"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="LeftLayout/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 50
+text = "暂停"
+
+[node name="Spacer" type="Control" parent="LeftLayout/VBox"]
+custom_minimum_size = Vector2(0, 240)
+layout_mode = 2
+
+[node name="MenuBox" type="VBoxContainer" parent="LeftLayout/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="ContinueRow" type="HBoxContainer" parent="LeftLayout/VBox/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="LeftLayout/VBox/MenuBox/ContinueRow"]
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="LeftLayout/VBox/MenuBox/ContinueRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="LeftLayout/VBox/MenuBox/ContinueRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="ContinueButton" type="Button" parent="LeftLayout/VBox/MenuBox/ContinueRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "继续游戏"
+flat = true
+
+[node name="SettingsRow" type="HBoxContainer" parent="LeftLayout/VBox/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="LeftLayout/VBox/MenuBox/SettingsRow"]
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="LeftLayout/VBox/MenuBox/SettingsRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="LeftLayout/VBox/MenuBox/SettingsRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="SettingsButton" type="Button" parent="LeftLayout/VBox/MenuBox/SettingsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "设置"
+flat = true
+
+[node name="QuitRow" type="HBoxContainer" parent="LeftLayout/VBox/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="LeftLayout/VBox/MenuBox/QuitRow"]
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="LeftLayout/VBox/MenuBox/QuitRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="LeftLayout/VBox/MenuBox/QuitRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="MainMenuButton" type="Button" parent="LeftLayout/VBox/MenuBox/QuitRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "返回主菜单"
+flat = true
+
+[node name="LeftBackground" type="ColorRect" parent="."]
+z_index = -10
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 620.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.12, 0.12, 0.12, 0.92)
+
+[node name="RightBackground" type="ColorRect" parent="."]
+z_index = -10
+material = SubResource("ShaderMaterial_LeftBackgroundGradient")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 620.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.92)
+
+[node name="LeftDividerLine" type="ColorRect" parent="."]
+z_index = -9
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 618.0
+offset_right = 620.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.9)
+
+[node name="RightArea" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 620.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RightMargin" type="MarginContainer" parent="RightArea"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.7)
+mouse_filter = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 28
 
-[node name="MainContainer" type="HBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -650.0
-offset_top = -450.0
-offset_right = 650.0
-offset_bottom = 450.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="LeftPanel" type="VBoxContainer" parent="MainContainer"]
+[node name="VBox" type="VBoxContainer" parent="RightArea/RightMargin"]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
+theme_override_constants/separation = 18
 
-[node name="Title" type="Label" parent="MainContainer/LeftPanel"]
+[node name="TopRow" type="HBoxContainer" parent="RightArea/RightMargin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 48
-text = "暂停菜单"
-horizontal_alignment = 1
+size_flags_vertical = 3
+theme_override_constants/separation = 18
 
-[node name="Spacer1" type="Control" parent="MainContainer/LeftPanel"]
-custom_minimum_size = Vector2(0, 40)
+[node name="UpgradesPanel" type="PanelContainer" parent="RightArea/RightMargin/VBox/TopRow"]
+custom_minimum_size = Vector2(480, 0)
 layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_WhitePanel")
 
-[node name="ContinueButton" type="Button" parent="MainContainer/LeftPanel"]
-custom_minimum_size = Vector2(250, 60)
+[node name="Margin" type="MarginContainer" parent="RightArea/RightMargin/VBox/TopRow/UpgradesPanel"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "继续游戏"
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 22
 
-[node name="Spacer2" type="Control" parent="MainContainer/LeftPanel"]
-custom_minimum_size = Vector2(0, 20)
+[node name="VBox" type="VBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/UpgradesPanel/Margin"]
 layout_mode = 2
+theme_override_constants/separation = 14
 
-[node name="SettingsButton" type="Button" parent="MainContainer/LeftPanel"]
-custom_minimum_size = Vector2(250, 60)
+[node name="UpgradesTitle" type="Label" parent="RightArea/RightMargin/VBox/TopRow/UpgradesPanel/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "设置"
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 28
+text = "已选择的升级"
 
-[node name="Spacer3" type="Control" parent="MainContainer/LeftPanel"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-
-[node name="MainMenuButton" type="Button" parent="MainContainer/LeftPanel"]
-custom_minimum_size = Vector2(250, 60)
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "返回主菜单"
-
-[node name="Spacer4" type="Control" parent="MainContainer/LeftPanel"]
+[node name="UpgradesScrollContainer" type="ScrollContainer" parent="RightArea/RightMargin/VBox/TopRow/UpgradesPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 260)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="RightPanel" type="VBoxContainer" parent="MainContainer"]
+[node name="UpgradesContainer" type="VBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/UpgradesPanel/Margin/VBox/UpgradesScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 4
 
-[node name="CharacterTitle" type="Label" parent="MainContainer/RightPanel"]
+[node name="DividerV" type="ColorRect" parent="RightArea/RightMargin/VBox/TopRow"]
+custom_minimum_size = Vector2(2, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 36
-text = "角色信息"
-horizontal_alignment = 1
+mouse_filter = 2
+color = Color(0, 0, 0, 0.75)
 
-[node name="Spacer5" type="Control" parent="MainContainer/RightPanel"]
-custom_minimum_size = Vector2(0, 15)
+[node name="CharacterPanel" type="Control" parent="RightArea/RightMargin/VBox/TopRow"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
 
-[node name="PortraitContainer" type="CenterContainer" parent="MainContainer/RightPanel"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 350)
+[node name="HBox" type="HBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel"]
+layout_mode = 0
+theme_override_constants/separation = 18
 
-[node name="CharacterPortrait" type="TextureRect" parent="MainContainer/RightPanel/PortraitContainer"]
+[node name="StatsColumn" type="VBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox"]
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
-custom_minimum_size = Vector2(280, 350)
-stretch_mode = 5
-expand_mode = 1
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
 
-[node name="Spacer6" type="Control" parent="MainContainer/RightPanel"]
-custom_minimum_size = Vector2(0, 15)
+[node name="StatsTitle" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn"]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 22
+text = "角色的
+详细
+属性
+信息"
 
-[node name="CharacterName" type="Label" parent="MainContainer/RightPanel"]
+[node name="CharacterName" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 22
 text = "角色名称"
-horizontal_alignment = 1
 
-[node name="Spacer7" type="Control" parent="MainContainer/RightPanel"]
-custom_minimum_size = Vector2(0, 10)
+[node name="GoldDisplay" type="HBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn"]
 layout_mode = 2
+theme_override_constants/separation = 8
 
-[node name="GoldDisplay" type="HBoxContainer" parent="MainContainer/RightPanel"]
+[node name="GoldLabel" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/GoldDisplay"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 40)
-
-[node name="GoldIcon" type="TextureRect" parent="MainContainer/RightPanel/GoldDisplay"]
-layout_mode = 2
-custom_minimum_size = Vector2(32, 32)
-texture = ExtResource("2_gold")
-
-[node name="GoldLabel" type="Label" parent="MainContainer/RightPanel/GoldDisplay"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-theme_override_colors/font_color = Color(1, 0.84, 0, 1)
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
 text = "摩拉: 0"
 
-[node name="SpacerGold" type="Control" parent="MainContainer/RightPanel"]
-custom_minimum_size = Vector2(0, 15)
+[node name="StatsContainer" type="VBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn"]
 layout_mode = 2
+theme_override_constants/separation = 6
 
-[node name="StatsContainer" type="VBoxContainer" parent="MainContainer/RightPanel"]
+[node name="HPStat" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/StatsContainer"]
 layout_mode = 2
-size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "生命值: 0/0"
 
-[node name="HPStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+[node name="AttackStat" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/StatsContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "生命值: 100/100"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "攻击力: 0"
 
-[node name="AttackStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+[node name="DefenseStat" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/StatsContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "攻击力: 25"
-
-[node name="DefenseStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
 text = "防御: 0%"
 
-[node name="MoveSpeedStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+[node name="MoveSpeedStat" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/StatsContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "移动速度: 100"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "移动速度: 0"
 
-[node name="CritRateStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+[node name="CritRateStat" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/StatsContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "暴击率: 5%"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "暴击率: 0%"
 
-[node name="CritDamageStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+[node name="CritDamageStat" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/StatsContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "暴击伤害: +50%"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "暴击伤害: +0%"
 
-[node name="AttackSpeedStat" type="Label" parent="MainContainer/RightPanel/StatsContainer"]
+[node name="AttackSpeedStat" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/StatsContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "攻击速度: 1.0x"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "攻击速度: 0.0x"
 
-[node name="Spacer8" type="Control" parent="MainContainer/RightPanel"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-
-[node name="ArtifactsTitle" type="Label" parent="MainContainer/RightPanel"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "圣遗物"
-horizontal_alignment = 1
-
-[node name="SpacerArtifacts" type="Control" parent="MainContainer/RightPanel"]
-custom_minimum_size = Vector2(0, 10)
-layout_mode = 2
-
-[node name="ArtifactsContainer" type="HBoxContainer" parent="MainContainer/RightPanel"]
-layout_mode = 2
-size_flags_horizontal = 4
-alignment = 1
-
-[node name="SpacerArtifacts2" type="Control" parent="MainContainer/RightPanel"]
-custom_minimum_size = Vector2(0, 20)
-layout_mode = 2
-
-[node name="UpgradesTitle" type="Label" parent="MainContainer/RightPanel"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "已选择升级"
-horizontal_alignment = 1
-
-[node name="Spacer9" type="Control" parent="MainContainer/RightPanel"]
-custom_minimum_size = Vector2(0, 10)
-layout_mode = 2
-
-[node name="UpgradesScrollContainer" type="ScrollContainer" parent="MainContainer/RightPanel"]
-layout_mode = 2
-size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 200)
-
-[node name="UpgradesContainer" type="VBoxContainer" parent="MainContainer/RightPanel/UpgradesScrollContainer"]
+[node name="ArtifactsContainer" type="HBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn"]
+custom_minimum_size = Vector2(0, 104)
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="PortraitColumn" type="VBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox"]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="PortraitPanel" type="PanelContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn"]
+custom_minimum_size = Vector2(360, 420)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_RoundedPortrait")
+
+[node name="Margin" type="MarginContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/PortraitPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/PortraitPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PortraitTitle" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/PortraitPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0, 0, 1)
+theme_override_font_sizes/font_size = 22
+text = "角色立绘"
+horizontal_alignment = 1
+
+[node name="CharacterPortrait" type="TextureRect" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/PortraitPanel/Margin/VBox"]
+custom_minimum_size = Vector2(388.23, 493.58)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DividerH" type="ColorRect" parent="RightArea/RightMargin/VBox"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.75)
+
+[node name="MiniMapPanel" type="PanelContainer" parent="RightArea/RightMargin/VBox"]
+custom_minimum_size = Vector2(0, 280)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_MapPanel")
+
+[node name="Margin" type="MarginContainer" parent="RightArea/RightMargin/VBox/MiniMapPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="MiniMapViewportContainer" type="SubViewportContainer" parent="RightArea/RightMargin/VBox/MiniMapPanel/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+stretch = true
+
+[node name="MiniMapViewport" type="SubViewport" parent="RightArea/RightMargin/VBox/MiniMapPanel/Margin/MiniMapViewportContainer"]
+transparent_bg = true
+handle_input_locally = false
+gui_disable_input = true
+size = Vector2i(1184, 240)
+render_target_update_mode = 4
