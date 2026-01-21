@@ -1,0 +1,31 @@
+Genshin Roguelike Game
+Copyright 2026 kuchao
+
+本项目包含由 Genshin Roguelike Game Contributors 开发的软件。
+
+第三方 IP / 商标声明（重要）
+
+本项目为同人游戏项目，涉及并可能包含与米哈游/HoYoverse 及其游戏《原神》（Genshin Impact）相关的名称、角色设定、世界观等内容。
+
+上述名称、商标、著作权作品及其它知识产权均归其权利人所有。
+
+本项目不代表获得任何官方授权或背书，也不暗示与权利人存在合作关系。
+
+任何第三方 IP/商标/素材均不在本仓库 Apache License 2.0 的授权范围内。
+
+美术资源风险提示
+
+本仓库中的部分美术资源可能为占位/测试/来源不明或仅供学习交流使用。
+在进行发行、商业化或公开传播前，请自行核查并替换为具有明确授权的资源。
+
+Godot 引擎声明
+
+本项目使用 Godot Engine (https://godotengine.org/) 构建。
+Godot Engine 为开源引擎，其自身采用 MIT License 授权；使用 Godot 并不改变本仓库代码的许可证，但 Godot 引擎仍需遵循其自身许可证条款。
+
+---
+
+English (non-authoritative)
+
+This is a fan-made (doujin) project and may reference miHoYo/HoYoverse and "Genshin Impact" (原神). All related trademarks and IP belong to their respective owners.
+No official authorization or endorsement is implied. Third-party IP/assets are NOT licensed under the Apache License 2.0 of this repository.

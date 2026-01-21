@@ -3,7 +3,7 @@
 一个使用 Godot 引擎开发的类杀戮尖塔风格的 Roguelike 动作游戏。
 
 ![Godot Version](https://img.shields.io/badge/Godot-4.5-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Mobile-lightgrey.svg)
 
 ## 📚 文档导航
@@ -178,7 +178,9 @@ genshin_tower/
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+本项目代码采用 Apache License 2.0 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+第三方 IP/商标（如米哈游/原神）与可能存在的美术资源来源风险不在 Apache License 2.0 的授权范围内，详见 [NOTICE](NOTICE)。
 
 ## 👥 作者
 
