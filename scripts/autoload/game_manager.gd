@@ -5,6 +5,9 @@ extends Node
 
 signal scene_changed(scene_name: String)
 
+# 开发者覆盖层（常驻顶层UI）
+var _dev_overlay: CanvasLayer = null
+
 # BGM曲目key（与 BGMManager.TRACK_* 保持一致）
 const BGM_TRACK_MAIN_MENU: StringName = &"main_menu"
 const BGM_TRACK_MAP: StringName = &"map"
@@ -66,8 +69,33 @@ var run_records: Array = []
 
 func _ready() -> void:
 	load_save_data()
+	_ensure_dev_overlay()
 	if DebugLogger:
 		DebugLogger.log_info("初始化完成", "GameManager")
+
+func _ensure_dev_overlay() -> void:
+	# 只创建一次，跨场景常驻
+	if is_instance_valid(_dev_overlay):
+		# 已经在树上就不重复挂载
+		if _dev_overlay.is_inside_tree():
+			return
+		return
+	var scene_path := "res://scenes/ui/dev_overlay.tscn"
+	var packed: PackedScene = null
+	if DataManager and DataManager.has_method("get_packed_scene"):
+		packed = DataManager.get_packed_scene(scene_path)
+	else:
+		packed = load(scene_path) as PackedScene
+	if not packed:
+		return
+	_dev_overlay = packed.instantiate() as CanvasLayer
+	if not _dev_overlay:
+		return
+	_dev_overlay.name = "DevOverlay"
+	# 加到根节点，保证跨 change_scene 持久存在
+	# 注意：_ready() 阶段 root 可能仍在搭建子节点，直接 add_child 会报 “Parent node is busy…”
+	# 用 call_deferred 延迟到下一帧更稳。
+	get_tree().root.add_child.call_deferred(_dev_overlay)
 
 func _get_bgm_track_for_state(state: GameState) -> StringName:
 	match state:
