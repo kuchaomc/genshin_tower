@@ -18,10 +18,15 @@ var current_cooldown: float = 0.0
 var _ready_particles: GPUParticles2D
 var _is_ready_particles_enabled: bool = false
 
+var _global_ready_particles_enabled: bool = true
+
 var _cooldown_radial_material: ShaderMaterial
 var _did_preload_ready_effects: bool = false
 
 func _ready() -> void:
+	add_to_group("skill_ui")
+	_global_ready_particles_enabled = _load_burst_ready_effect_enabled_from_settings()
+
 	if icon_texture:
 		if skill_icon:
 			icon_texture.texture = skill_icon
@@ -226,6 +231,8 @@ func _update_ready_particles_emission_ring(mat: ParticleProcessMaterial) -> void
 func _set_ready_particles_enabled(enabled: bool) -> void:
 	if not enable_ready_particles:
 		return
+	if not _global_ready_particles_enabled:
+		enabled = false
 	if enabled:
 		_ensure_ready_particles()
 		if not _ready_particles:
@@ -243,6 +250,9 @@ func _set_ready_particles_enabled(enabled: bool) -> void:
 	if enabled:
 		_update_ready_particles_transform()
 		_ready_particles.restart()
+	else:
+		# 关闭时清理状态，避免下次开启不触发
+		_is_ready_particles_enabled = false
 
 
 ## 创建雪花纹理（用于粒子，避免新增贴图资源）
@@ -357,3 +367,17 @@ func _update_overlay_transform() -> void:
 		return
 	cooldown_overlay.position = Vector2.ZERO
 	cooldown_overlay.size = icon_texture.size
+
+
+## 设置界面用于实时开关特效
+func set_global_ready_particles_enabled(is_enabled: bool) -> void:
+	_global_ready_particles_enabled = is_enabled
+	_set_ready_particles_enabled(false)
+
+
+func _load_burst_ready_effect_enabled_from_settings() -> bool:
+	var config := ConfigFile.new()
+	var err: Error = config.load("user://settings.cfg")
+	if err != OK:
+		return true
+	return bool(config.get_value("ui", "burst_ready_effect_enabled", true))

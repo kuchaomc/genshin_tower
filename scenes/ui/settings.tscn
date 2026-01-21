@@ -71,7 +71,7 @@ vertical_alignment = 1
 layout_mode = 2
 custom_minimum_size = Vector2(80, 40)
 theme_override_font_sizes/font_size = 18
-text = "关闭"
+text = ""
 
 [node name="SpacerCRT" type="Control" parent="MainContainer"]
 custom_minimum_size = Vector2(0, 24)
@@ -103,7 +103,71 @@ vertical_alignment = 1
 layout_mode = 2
 custom_minimum_size = Vector2(80, 40)
 theme_override_font_sizes/font_size = 18
+text = ""
+
+[node name="SpacerBloom" type="Control" parent="MainContainer"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="BloomContainer" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="BloomLabel" type="Label" parent="MainContainer/BloomContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Bloom泛光"
+horizontal_alignment = 1
+
+[node name="SwitchContainerBloom" type="HBoxContainer" parent="MainContainer/BloomContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="StatusLabelBloom" type="Label" parent="MainContainer/BloomContainer/SwitchContainerBloom"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
 text = "开启"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="BloomSwitch" type="CheckButton" parent="MainContainer/BloomContainer/SwitchContainerBloom"]
+layout_mode = 2
+custom_minimum_size = Vector2(80, 40)
+theme_override_font_sizes/font_size = 18
+text = ""
+
+[node name="SpacerBurst" type="Control" parent="MainContainer"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="BurstEffectContainer" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="BurstEffectLabel" type="Label" parent="MainContainer/BurstEffectContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "大招充能特效"
+horizontal_alignment = 1
+
+[node name="SwitchContainerBurst" type="HBoxContainer" parent="MainContainer/BurstEffectContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="StatusLabelBurst" type="Label" parent="MainContainer/BurstEffectContainer/SwitchContainerBurst"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "开启"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="BurstEffectSwitch" type="CheckButton" parent="MainContainer/BurstEffectContainer/SwitchContainerBurst"]
+layout_mode = 2
+custom_minimum_size = Vector2(80, 40)
+theme_override_font_sizes/font_size = 18
+text = ""
 
 [node name="Spacer2" type="Control" parent="MainContainer"]
 layout_mode = 2

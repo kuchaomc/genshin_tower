@@ -12,6 +12,10 @@ const VICTORY_TRANSITION_SECONDS: float = 1.0
 # 战斗场景准星贴图
 const CROSSHAIR_TEXTURE := preload("res://textures/effects/mouse.png")
 
+const SETTINGS_FILE_PATH = "user://settings.cfg"
+const CONFIG_SECTION_POSTPROCESS = "postprocess"
+const CONFIG_KEY_BLOOM_ENABLED = "bloom_enabled"
+
 enum GameState {
 	PLAYING,
 	GAME_OVER
@@ -35,6 +39,8 @@ var is_battle_victory: bool = false  # 标记是否通过得分获得胜利（�
 
 # BOSS战模式
 var is_boss_battle: bool = false  # 是否为BOSS战模式
+
+var _bloom_enabled: bool = true
 
 # 玩家血量UI引用
 var player_hp_bar: ProgressBar
@@ -75,6 +81,7 @@ func _ready() -> void:
 	_connect_signals()
 	_initialize_pause_menu()
 	_apply_crosshair_cursor()
+	_apply_bloom_enabled_from_settings()
 	
 	# 播放转场淡入动画（如果TransitionManager存在）
 	# 同时在转场期间显示“正在进入第N层”提示（居中显示）
@@ -94,6 +101,20 @@ func _ready() -> void:
 		show_floor_notification()
 	
 	print("战斗管理器已初始化")
+
+func _apply_bloom_enabled_from_settings() -> void:
+	var config := ConfigFile.new()
+	var err: Error = config.load(SETTINGS_FILE_PATH)
+	var enabled: bool = true
+	if err == OK:
+		enabled = bool(config.get_value(CONFIG_SECTION_POSTPROCESS, CONFIG_KEY_BLOOM_ENABLED, true))
+	set_bloom_enabled(enabled)
+
+func set_bloom_enabled(is_enabled: bool) -> void:
+	_bloom_enabled = is_enabled
+	var bloom_layer := get_node_or_null("BloomLayer") as CanvasLayer
+	if bloom_layer:
+		bloom_layer.visible = is_enabled
 
 ## 初始化UI组件
 func _initialize_ui_components() -> void:
