@@ -8,6 +8,17 @@ const TRACK_MAIN_MENU: StringName = &"main_menu"
 const TRACK_MAP: StringName = &"map"
 const TRACK_BATTLE: StringName = &"battle"
 
+# Audio Bus 相关
+const BUS_MASTER: StringName = &"Master"
+const BUS_BGM: StringName = &"BGM"
+const BUS_SFX: StringName = &"SFX"
+
+# 与设置界面共用的配置路径（Settings 使用 ConfigFile 写入该文件）
+const SETTINGS_FILE_PATH: String = "user://settings.cfg"
+const CONFIG_SECTION_AUDIO: String = "audio"
+const CONFIG_KEY_BGM_VOLUME: String = "bgm_volume"
+const CONFIG_KEY_SFX_VOLUME: String = "sfx_volume"
+
 const VOLUME_DB_NORMAL: float = 0.0
 const VOLUME_DB_SILENT: float = -60.0
 const FADE_OUT_SEC: float = 0.6
@@ -29,6 +40,9 @@ var _switching: bool = false
 var _queued_track: StringName = &""
 var _tween: Tween
 
+var _bgm_volume_linear: float = 1.0
+var _sfx_volume_linear: float = 1.0
+
 # ==============================
 # SFX Pool / Cache（减少频繁创建节点与 load 引发的卡顿）
 # ==============================
@@ -37,9 +51,14 @@ var _sfx_players: Array[AudioStreamPlayer] = []
 var _audio_stream_cache: Dictionary = {} # String -> AudioStream
 
 func _ready() -> void:
+	# 确保Audio Bus存在（避免项目未配置默认bus_layout时无法分离控制音量）
+	_ensure_audio_buses()
+	# 启动时读取并应用音量设置
+	_load_audio_settings_from_config()
+
 	_player = AudioStreamPlayer.new()
 	_player.name = "BGMPlayer"
-	_player.bus = "Master"
+	_player.bus = BUS_BGM
 	_player.volume_db = VOLUME_DB_NORMAL
 	add_child(_player)
 	if not _player.finished.is_connected(_on_player_finished):
@@ -56,9 +75,64 @@ func _init_sfx_pool() -> void:
 	for i in range(MAX_SFX_PLAYERS):
 		var p := AudioStreamPlayer.new()
 		p.name = "SFXPlayer_%d" % i
-		p.bus = "Master"
+		p.bus = BUS_SFX
 		add_child(p)
 		_sfx_players.append(p)
+
+func _ensure_audio_buses() -> void:
+	# Master 是引擎默认总线；BGM/SFX 可能不存在，需要运行时补齐
+	_ensure_bus(BUS_BGM, BUS_MASTER)
+	_ensure_bus(BUS_SFX, BUS_MASTER)
+
+func _ensure_bus(bus_name: StringName, send_to: StringName) -> void:
+	var idx := AudioServer.get_bus_index(bus_name)
+	if idx != -1:
+		return
+	AudioServer.add_bus(AudioServer.bus_count)
+	idx = AudioServer.bus_count - 1
+	AudioServer.set_bus_name(idx, bus_name)
+	AudioServer.set_bus_send(idx, send_to)
+
+func _load_audio_settings_from_config() -> void:
+	var config := ConfigFile.new()
+	var err: Error = config.load(SETTINGS_FILE_PATH)
+	if err != OK:
+		# 没有配置文件时使用默认音量
+		_apply_audio_volumes(1.0, 1.0)
+		return
+	var bgm_v: float = float(config.get_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_BGM_VOLUME, 1.0))
+	var sfx_v: float = float(config.get_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_SFX_VOLUME, 1.0))
+	_apply_audio_volumes(bgm_v, sfx_v)
+
+func _apply_audio_volumes(bgm_linear: float, sfx_linear: float) -> void:
+	set_bgm_volume_linear(bgm_linear)
+	set_sfx_volume_linear(sfx_linear)
+
+func set_bgm_volume_linear(value: float) -> void:
+	_bgm_volume_linear = clampf(value, 0.0, 1.0)
+	var idx := AudioServer.get_bus_index(BUS_BGM)
+	if idx == -1:
+		return
+	AudioServer.set_bus_volume_db(idx, _linear_to_bus_db(_bgm_volume_linear))
+
+func get_bgm_volume_linear() -> float:
+	return _bgm_volume_linear
+
+func set_sfx_volume_linear(value: float) -> void:
+	_sfx_volume_linear = clampf(value, 0.0, 1.0)
+	var idx := AudioServer.get_bus_index(BUS_SFX)
+	if idx == -1:
+		return
+	AudioServer.set_bus_volume_db(idx, _linear_to_bus_db(_sfx_volume_linear))
+
+func get_sfx_volume_linear() -> float:
+	return _sfx_volume_linear
+
+func _linear_to_bus_db(value: float) -> float:
+	# 线性音量转分贝：0 -> 极小（近似静音）；其余使用 Godot 内置 linear_to_db
+	if value <= 0.0:
+		return -80.0
+	return linear_to_db(value)
 
 func play_track(track: StringName) -> void:
 	if track.is_empty():

@@ -12,6 +12,12 @@ extends Control
 @onready var bloom_status_label: Label = $MainContainer/BloomContainer/SwitchContainerBloom/StatusLabelBloom
 @onready var burst_effect_switch: CheckButton = $MainContainer/BurstEffectContainer/SwitchContainerBurst/BurstEffectSwitch
 @onready var burst_status_label: Label = $MainContainer/BurstEffectContainer/SwitchContainerBurst/StatusLabelBurst
+
+@onready var bgm_volume_slider: HSlider = $MainContainer/AudioBGMContainer/SliderContainerBGM/BGMVolumeSlider
+@onready var bgm_value_label: Label = $MainContainer/AudioBGMContainer/SliderContainerBGM/BGMValueLabel
+@onready var sfx_volume_slider: HSlider = $MainContainer/AudioSFXContainer/SliderContainerSFX/SFXVolumeSlider
+@onready var sfx_value_label: Label = $MainContainer/AudioSFXContainer/SliderContainerSFX/SFXValueLabel
+
 @onready var back_button: Button = $MainContainer/BackButton
 
 # 信号
@@ -27,12 +33,19 @@ const CONFIG_KEY_BLOOM_ENABLED = "bloom_enabled"
 const CONFIG_SECTION_UI = "ui"
 const CONFIG_KEY_BURST_READY_EFFECT_ENABLED = "burst_ready_effect_enabled"
 
+const CONFIG_SECTION_AUDIO = "audio"
+const CONFIG_KEY_BGM_VOLUME = "bgm_volume"
+const CONFIG_KEY_SFX_VOLUME = "sfx_volume"
+
 # 目标分辨率
 const TARGET_RESOLUTION = Vector2i(1920, 1080)
 
 var _crt_enabled: bool = true
 var _bloom_enabled: bool = true
 var _burst_ready_effect_enabled: bool = true
+
+var _bgm_volume_linear: float = 1.0
+var _sfx_volume_linear: float = 1.0
 
 func _ready() -> void:
 	# 设置process_mode为ALWAYS，确保暂停时仍能响应输入
@@ -49,6 +62,10 @@ func _ready() -> void:
 		bloom_switch.toggled.connect(_on_bloom_toggled)
 	if burst_effect_switch:
 		burst_effect_switch.toggled.connect(_on_burst_effect_toggled)
+	if bgm_volume_slider:
+		bgm_volume_slider.value_changed.connect(_on_bgm_volume_changed)
+	if sfx_volume_slider:
+		sfx_volume_slider.value_changed.connect(_on_sfx_volume_changed)
 	
 	# 加载设置
 	load_settings()
@@ -88,6 +105,12 @@ func update_ui_state() -> void:
 	if burst_effect_switch and burst_status_label:
 		burst_effect_switch.button_pressed = _burst_ready_effect_enabled
 		_update_burst_effect_status_display(_burst_ready_effect_enabled)
+	if bgm_volume_slider and bgm_value_label:
+		bgm_volume_slider.set_value_no_signal(_bgm_volume_linear)
+		_update_volume_label(bgm_value_label, _bgm_volume_linear)
+	if sfx_volume_slider and sfx_value_label:
+		sfx_volume_slider.set_value_no_signal(_sfx_volume_linear)
+		_update_volume_label(sfx_value_label, _sfx_volume_linear)
 
 ## 加载设置
 func load_settings() -> void:
@@ -107,6 +130,10 @@ func load_settings() -> void:
 		# 读取大招充能特效设置
 		var burst_effect_enabled: bool = bool(config.get_value(CONFIG_SECTION_UI, CONFIG_KEY_BURST_READY_EFFECT_ENABLED, true))
 		_apply_burst_ready_effect(burst_effect_enabled)
+		# 读取音量设置
+		var bgm_volume: float = float(config.get_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_BGM_VOLUME, 1.0))
+		var sfx_volume: float = float(config.get_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_SFX_VOLUME, 1.0))
+		_apply_audio_volumes(bgm_volume, sfx_volume)
 		update_ui_state()
 		print("设置已加载")
 	else:
@@ -116,6 +143,7 @@ func load_settings() -> void:
 		_apply_crt(true)
 		_apply_bloom(true)
 		_apply_burst_ready_effect(true)
+		_apply_audio_volumes(1.0, 1.0)
 		update_ui_state()
 
 ## 保存设置
@@ -134,8 +162,26 @@ func save_settings() -> void:
 	config.set_value(CONFIG_SECTION_POSTPROCESS, CONFIG_KEY_BLOOM_ENABLED, _bloom_enabled)
 	# 保存大招充能特效设置
 	config.set_value(CONFIG_SECTION_UI, CONFIG_KEY_BURST_READY_EFFECT_ENABLED, _burst_ready_effect_enabled)
+	# 保存音量设置
+	config.set_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_BGM_VOLUME, _bgm_volume_linear)
+	config.set_value(CONFIG_SECTION_AUDIO, CONFIG_KEY_SFX_VOLUME, _sfx_volume_linear)
 	config.save(SETTINGS_FILE_PATH)
 	print("设置已保存")
+
+func _apply_audio_volumes(bgm_linear: float, sfx_linear: float) -> void:
+	_bgm_volume_linear = clampf(bgm_linear, 0.0, 1.0)
+	_sfx_volume_linear = clampf(sfx_linear, 0.0, 1.0)
+	if BGMManager:
+		if BGMManager.has_method("set_bgm_volume_linear"):
+			BGMManager.call("set_bgm_volume_linear", _bgm_volume_linear)
+		if BGMManager.has_method("set_sfx_volume_linear"):
+			BGMManager.call("set_sfx_volume_linear", _sfx_volume_linear)
+
+func _update_volume_label(label: Label, value_linear: float) -> void:
+	if not label:
+		return
+	var pct := int(round(clampf(value_linear, 0.0, 1.0) * 100.0))
+	label.text = "%d%%" % pct
 
 ## 应用全屏设置
 func apply_fullscreen(enabled: bool) -> void:
@@ -216,6 +262,22 @@ func _on_bloom_toggled(button_pressed: bool) -> void:
 ## 大招充能特效开关切换
 func _on_burst_effect_toggled(button_pressed: bool) -> void:
 	_apply_burst_ready_effect(button_pressed)
+	save_settings()
+
+func _on_bgm_volume_changed(value: float) -> void:
+	_bgm_volume_linear = clampf(float(value), 0.0, 1.0)
+	if bgm_value_label:
+		_update_volume_label(bgm_value_label, _bgm_volume_linear)
+	if BGMManager and BGMManager.has_method("set_bgm_volume_linear"):
+		BGMManager.call("set_bgm_volume_linear", _bgm_volume_linear)
+	save_settings()
+
+func _on_sfx_volume_changed(value: float) -> void:
+	_sfx_volume_linear = clampf(float(value), 0.0, 1.0)
+	if sfx_value_label:
+		_update_volume_label(sfx_value_label, _sfx_volume_linear)
+	if BGMManager and BGMManager.has_method("set_sfx_volume_linear"):
+		BGMManager.call("set_sfx_volume_linear", _sfx_volume_linear)
 	save_settings()
 
 func _apply_crt(is_enabled: bool) -> void:
