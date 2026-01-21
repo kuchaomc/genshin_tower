@@ -43,12 +43,20 @@ func _load_custom_upgrades() -> void:
 		return
 	
 	dir.list_dir_begin()
-	var file_name = dir.get_next()
+	var file_name: String = dir.get_next()
 	var loaded_count = 0
 	
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".tres"):
-			var file_path = upgrades_dir + file_name
+		if not dir.current_is_dir():
+			var is_tres := file_name.ends_with(".tres") or file_name.ends_with(".tres.remap")
+			var is_res := file_name.ends_with(".res") or file_name.ends_with(".res.remap")
+			if not (is_tres or is_res):
+				file_name = dir.get_next() as String
+				continue
+			var actual_file: String = file_name
+			if actual_file.ends_with(".remap"):
+				actual_file = actual_file.substr(0, actual_file.length() - 6)
+			var file_path = upgrades_dir + actual_file
 			var upgrade: UpgradeData = null
 			if DataManager:
 				var res := DataManager.load_cached(file_path)
@@ -67,7 +75,7 @@ func _load_custom_upgrades() -> void:
 					if DebugLogger:
 						DebugLogger.log_warning("跳过重复的升级ID '%s'" % upgrade.id, "UpgradeRegistry")
 		
-		file_name = dir.get_next()
+		file_name = dir.get_next() as String
 	
 	dir.list_dir_end()
 	
