@@ -3,6 +3,10 @@ extends Node
 ## 后处理管理器（AutoLoad）
 ## 管理全屏后处理效果，如受伤红屏、暗角等
 
+const SETTINGS_FILE_PATH = "user://settings.cfg"
+const CONFIG_SECTION_POSTPROCESS = "postprocess"
+const CONFIG_KEY_CRT_ENABLED = "crt_enabled"
+
 # ========== 受伤效果 ==========
 var hurt_vignette_scene: PackedScene = preload("res://scenes/vfx/hurt_vignette.tscn")
 var hurt_vignette_instance: CanvasLayer = null
@@ -24,8 +28,16 @@ func _ready() -> void:
 	_setup_hurt_vignette()
 	# 初始化 CRT 效果
 	_setup_crt()
-	# 默认开启 CRT（需要默认关闭的话，把 true 改成 false）
-	set_crt_enabled(true)
+	# 启动时读取设置并应用 CRT 开关
+	_apply_crt_enabled_from_settings()
+
+func _apply_crt_enabled_from_settings() -> void:
+	var config := ConfigFile.new()
+	var err := config.load(SETTINGS_FILE_PATH)
+	var is_enabled: bool = true
+	if err == OK:
+		is_enabled = bool(config.get_value(CONFIG_SECTION_POSTPROCESS, CONFIG_KEY_CRT_ENABLED, true))
+	set_crt_enabled(is_enabled)
 
 ## 设置受伤暗角效果
 func _setup_hurt_vignette() -> void:

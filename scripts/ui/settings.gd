@@ -6,6 +6,8 @@ extends Control
 # UI节点引用
 @onready var fullscreen_switch: CheckButton = $MainContainer/FullscreenContainer/SwitchContainer/FullscreenSwitch
 @onready var status_label: Label = $MainContainer/FullscreenContainer/SwitchContainer/StatusLabel
+@onready var crt_switch: CheckButton = $MainContainer/CRTContainer/SwitchContainerCRT/CRTSwitch
+@onready var crt_status_label: Label = $MainContainer/CRTContainer/SwitchContainerCRT/StatusLabelCRT
 @onready var back_button: Button = $MainContainer/BackButton
 
 # 信号
@@ -15,9 +17,13 @@ signal settings_closed
 const SETTINGS_FILE_PATH = "user://settings.cfg"
 const CONFIG_SECTION = "display"
 const CONFIG_KEY_FULLSCREEN = "fullscreen"
+const CONFIG_SECTION_POSTPROCESS = "postprocess"
+const CONFIG_KEY_CRT_ENABLED = "crt_enabled"
 
 # 目标分辨率
 const TARGET_RESOLUTION = Vector2i(1920, 1080)
+
+var _crt_enabled: bool = true
 
 func _ready() -> void:
 	# 设置process_mode为ALWAYS，确保暂停时仍能响应输入
@@ -28,6 +34,8 @@ func _ready() -> void:
 		back_button.pressed.connect(_on_back_button_pressed)
 	if fullscreen_switch:
 		fullscreen_switch.toggled.connect(_on_fullscreen_toggled)
+	if crt_switch:
+		crt_switch.toggled.connect(_on_crt_toggled)
 	
 	# 加载设置
 	load_settings()
@@ -58,6 +66,9 @@ func update_ui_state() -> void:
 		var is_fullscreen = _is_fullscreen_mode()
 		fullscreen_switch.button_pressed = is_fullscreen
 		_update_status_display(is_fullscreen)
+	if crt_switch and crt_status_label:
+		crt_switch.button_pressed = _crt_enabled
+		_update_crt_status_display(_crt_enabled)
 
 ## 加载设置
 func load_settings() -> void:
@@ -68,12 +79,16 @@ func load_settings() -> void:
 		# 读取全屏设置
 		var fullscreen = config.get_value(CONFIG_SECTION, CONFIG_KEY_FULLSCREEN, false)
 		apply_fullscreen(fullscreen)
+		# 读取CRT设置
+		var crt_enabled = config.get_value(CONFIG_SECTION_POSTPROCESS, CONFIG_KEY_CRT_ENABLED, true)
+		_apply_crt(bool(crt_enabled))
 		update_ui_state()
 		print("设置已加载")
 	else:
 		# 如果文件不存在，使用默认设置（窗口模式）
 		print("设置文件不存在，使用默认设置（窗口模式）")
 		apply_fullscreen(false)
+		_apply_crt(true)
 		update_ui_state()
 
 ## 保存设置
@@ -86,6 +101,8 @@ func save_settings() -> void:
 	# 保存全屏设置
 	var is_fullscreen = _is_fullscreen_mode()
 	config.set_value(CONFIG_SECTION, CONFIG_KEY_FULLSCREEN, is_fullscreen)
+	# 保存CRT设置
+	config.set_value(CONFIG_SECTION_POSTPROCESS, CONFIG_KEY_CRT_ENABLED, _crt_enabled)
 	config.save(SETTINGS_FILE_PATH)
 	print("设置已保存")
 
@@ -118,10 +135,33 @@ func _update_status_display(is_fullscreen: bool) -> void:
 	if fullscreen_switch:
 		fullscreen_switch.text = "开启" if is_fullscreen else "关闭"
 
+## 更新 CRT 状态显示
+func _update_crt_status_display(is_enabled: bool) -> void:
+	if crt_status_label:
+		if is_enabled:
+			crt_status_label.text = "开启"
+			crt_status_label.add_theme_color_override("font_color", Color(0.2, 1.0, 0.2))
+		else:
+			crt_status_label.text = "关闭"
+			crt_status_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.2))
+	if crt_switch:
+		crt_switch.text = "开启" if is_enabled else "关闭"
+
 ## 全屏开关切换
 func _on_fullscreen_toggled(button_pressed: bool) -> void:
 	apply_fullscreen(button_pressed)
 	save_settings()
+
+## CRT 开关切换
+func _on_crt_toggled(button_pressed: bool) -> void:
+	_apply_crt(button_pressed)
+	save_settings()
+
+func _apply_crt(is_enabled: bool) -> void:
+	_crt_enabled = is_enabled
+	_update_crt_status_display(is_enabled)
+	if PostProcessManager:
+		PostProcessManager.set_crt_enabled(is_enabled)
 
 ## 返回按钮
 func _on_back_button_pressed() -> void:

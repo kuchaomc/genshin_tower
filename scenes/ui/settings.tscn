@@ -73,6 +73,38 @@ custom_minimum_size = Vector2(80, 40)
 theme_override_font_sizes/font_size = 18
 text = "关闭"
 
+[node name="SpacerCRT" type="Control" parent="MainContainer"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="CRTContainer" type="VBoxContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="CRTLabel" type="Label" parent="MainContainer/CRTContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "CRT滤镜"
+horizontal_alignment = 1
+
+[node name="SwitchContainerCRT" type="HBoxContainer" parent="MainContainer/CRTContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="StatusLabelCRT" type="Label" parent="MainContainer/CRTContainer/SwitchContainerCRT"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "开启"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="CRTSwitch" type="CheckButton" parent="MainContainer/CRTContainer/SwitchContainerCRT"]
+layout_mode = 2
+custom_minimum_size = Vector2(80, 40)
+theme_override_font_sizes/font_size = 18
+text = "开启"
+
 [node name="Spacer2" type="Control" parent="MainContainer"]
 layout_mode = 2
 size_flags_vertical = 3
