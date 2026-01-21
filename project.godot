@@ -47,6 +47,12 @@ project/assembly_name="genshin"
 
 enabled=PackedStringArray("res://addons/agent/plugin.cfg")
 
+[gui]
+
+fonts/dynamic_fonts/use_oversampling=false
+theme/default_font_subpixel_positioning=0
+theme/custom_font="uid://cw1iaid0vdmo6"
+
 [input]
 
 left={

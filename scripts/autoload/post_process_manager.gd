@@ -8,6 +8,11 @@ var hurt_vignette_scene: PackedScene = preload("res://scenes/vfx/hurt_vignette.t
 var hurt_vignette_instance: CanvasLayer = null
 var hurt_vignette_material: ShaderMaterial = null
 
+# ========== CRT 效果（全局屏幕滤镜） ==========
+var crt_scene: PackedScene = preload("res://scenes/vfx/crt_canvas.tscn")
+var crt_instance: CanvasLayer = null
+var crt_material: ShaderMaterial = null
+
 # 动画参数
 var _hurt_tween: Tween = null
 var _hurt_effect_duration: float = 1.0  # 效果持续时间（秒）
@@ -17,6 +22,10 @@ var _hurt_fade_out_duration: float = 0.9  # 淡出时间
 func _ready() -> void:
 	# 初始化受伤效果
 	_setup_hurt_vignette()
+	# 初始化 CRT 效果
+	_setup_crt()
+	# 默认开启 CRT（需要默认关闭的话，把 true 改成 false）
+	set_crt_enabled(true)
 
 ## 设置受伤暗角效果
 func _setup_hurt_vignette() -> void:
@@ -32,6 +41,40 @@ func _setup_hurt_vignette() -> void:
 		hurt_vignette_material = color_rect.material as ShaderMaterial
 		# 确保初始状态为不可见
 		hurt_vignette_material.set_shader_parameter("intensity", 0.0)
+
+## 设置 CRT 后处理（全局屏幕滤镜）
+func _setup_crt() -> void:
+	if crt_instance:
+		return
+	
+	crt_instance = crt_scene.instantiate()
+	add_child(crt_instance)
+	
+	var color_rect := crt_instance.get_node("ColorRect") as ColorRect
+	if color_rect and color_rect.material:
+		crt_material = color_rect.material as ShaderMaterial
+		# 默认参数初始化（避免未赋值导致的异常效果）
+		crt_material.set_shader_parameter("enabled", 1.0)
+	else:
+		push_warning("PostProcessManager: crt_material 未初始化")
+
+## 开关 CRT
+func set_crt_enabled(is_enabled: bool) -> void:
+	if not crt_material:
+		return
+	crt_material.set_shader_parameter("enabled", 1.0 if is_enabled else 0.0)
+
+## 设置 CRT 总强度（0~1）
+func set_crt_strength(value: float) -> void:
+	if not crt_material:
+		return
+	crt_material.set_shader_parameter("strength", clamp(value, 0.0, 1.0))
+
+## 设置 CRT 色散（0~0.01）
+func set_crt_aberration(value: float) -> void:
+	if not crt_material:
+		return
+	crt_material.set_shader_parameter("aberration", clamp(value, 0.0, 0.01))
 
 ## 播放受伤效果
 ## intensity: 效果强度（0.0-1.0），默认1.0

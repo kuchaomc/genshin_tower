@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3 uid="uid://h3t1q9m8z7k2"]
+
+[ext_resource type="Shader" path="res://shaders/crt_canvas.gdshader" id="1_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_CRT"]
+shader = ExtResource("1_shader")
+shader_parameter/enabled = 1.0
+shader_parameter/strength = 0.5
+shader_parameter/aberration = 0.002
+shader_parameter/grille_intensity = 0.12
+shader_parameter/noise_intensity = 0.04
+shader_parameter/vignette_intensity = 0.28
+
+[node name="CRTCanvas" type="CanvasLayer"]
+layer = 150
+
+[node name="BackBufferCopy" type="BackBufferCopy" parent="."]
+copy_mode = 2
+
+[node name="ColorRect" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_CRT")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
