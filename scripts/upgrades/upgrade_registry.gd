@@ -416,12 +416,16 @@ func pick_random_upgrades(
 	var weights_copy = weights.duplicate()
 	var total_weight_copy = total_weight
 	var rng := RunManager.get_rng() if RunManager else null
+	if not rng:
+		push_warning("UpgradeRegistry: RunManager 不可用，创建临时 RNG")
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
 	
 	for i in range(count):
 		if available_copy.size() == 0:
 			break
 		
-		var random_value: float = (rng.randf() if rng else randf()) * total_weight_copy
+		var random_value: float = rng.randf() * total_weight_copy
 		var cumulative_weight: float = 0.0
 		var selected_index: int = 0
 		

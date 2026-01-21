@@ -229,7 +229,11 @@ func _show_random_event() -> void:
 	else:
 		# 默认随机选择一种类型
 		var rng := RunManager.get_rng() if RunManager else null
-		var random_type: int = (rng.randi_range(0, 2) if rng else (randi() % 3))
+		if not rng:
+			push_warning("EventUI: RunManager 不可用，创建临时 RNG")
+			rng = RandomNumberGenerator.new()
+			rng.randomize()
+		var random_type: int = rng.randi_range(0, 2)
 		match random_type:
 			0:
 				_show_reward_event()
@@ -244,7 +248,11 @@ func _show_weather_change_event() -> void:
 		return
 	
 	var rng := RunManager.get_rng() if RunManager else null
-	var random: float = rng.randf() if rng else randf()
+	if not rng:
+		push_warning("EventUI: RunManager 不可用，创建临时 RNG")
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	var random: float = rng.randf()
 	var result_label = Label.new()
 	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
@@ -255,7 +263,12 @@ func _show_weather_change_event() -> void:
 		var confirm_button = Button.new()
 		confirm_button.text = "确认"
 		confirm_button.custom_minimum_size = Vector2(200, 50)
-		confirm_button.pressed.connect(func(): _apply_reward(EventData.RewardType.HEALTH, -10, current_event); _complete_event())
+		# 注意：当前项目约定 HEALTH 负数用于“百分比回血”（见 _apply_reward），这里描述是扣血百分比，因此直接扣除
+		confirm_button.pressed.connect(func():
+			if RunManager:
+				RunManager.take_damage(RunManager.max_health * 0.10)
+			_complete_event()
+		)
 		content_container.add_child(result_label)
 		content_container.add_child(confirm_button)
 	elif random < 0.5:
@@ -285,7 +298,11 @@ func _show_fate_dice_event() -> void:
 		return
 	
 	var rng := RunManager.get_rng() if RunManager else null
-	var random: float = rng.randf() if rng else randf()
+	if not rng:
+		push_warning("EventUI: RunManager 不可用，创建临时 RNG")
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	var random: float = rng.randf()
 	var result_label = Label.new()
 	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
@@ -592,7 +609,11 @@ func _get_actual_reward_value(reward_type: EventData.RewardType, reward_value: V
 	if event_data.reward_min > 0 and event_data.reward_max > 0:
 		# 使用随机范围
 		var rng := RunManager.get_rng() if RunManager else null
-		var random_value = (rng.randi_range(int(event_data.reward_min), int(event_data.reward_max)) if rng else randi_range(int(event_data.reward_min), int(event_data.reward_max)))
+		if not rng:
+			push_warning("EventUI: RunManager 不可用，创建临时 RNG")
+			rng = RandomNumberGenerator.new()
+			rng.randomize()
+		var random_value = rng.randi_range(int(event_data.reward_min), int(event_data.reward_max))
 		return random_value
 	
 	# 检查reward_value是否是数组范围
@@ -600,7 +621,11 @@ func _get_actual_reward_value(reward_type: EventData.RewardType, reward_value: V
 		var min_val = reward_value[0]
 		var max_val = reward_value[1]
 		var rng := RunManager.get_rng() if RunManager else null
-		return (rng.randi_range(int(min_val), int(max_val)) if rng else randi_range(int(min_val), int(max_val)))
+		if not rng:
+			push_warning("EventUI: RunManager 不可用，创建临时 RNG")
+			rng = RandomNumberGenerator.new()
+			rng.randomize()
+		return rng.randi_range(int(min_val), int(max_val))
 	
 	return reward_value
 

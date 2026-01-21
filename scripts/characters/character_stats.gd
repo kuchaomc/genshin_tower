@@ -50,7 +50,11 @@ func calculate_damage(base_multiplier: float = 1.0, target_defense: float = 0.0,
 		is_crit = true
 	elif not force_no_crit:
 		var rng := RunManager.get_rng() if RunManager else null
-		is_crit = (rng.randf() if rng else randf()) < crit_rate
+		if not rng:
+			push_warning("CharacterStats: RunManager 不可用，创建临时 RNG")
+			rng = RandomNumberGenerator.new()
+			rng.randomize()
+		is_crit = rng.randf() < crit_rate
 	
 	# 暴击倍率
 	var crit_multiplier = 1.0
@@ -68,7 +72,11 @@ func calculate_damage(base_multiplier: float = 1.0, target_defense: float = 0.0,
 ## 判断是否触发暴击
 func is_critical_hit() -> bool:
 	var rng := RunManager.get_rng() if RunManager else null
-	return (rng.randf() if rng else randf()) < crit_rate
+	if not rng:
+		push_warning("CharacterStats: RunManager 不可用，创建临时 RNG")
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	return rng.randf() < crit_rate
 
 ## 计算受到的伤害（应用自身减伤）
 ## raw_damage: 原始伤害值
@@ -103,6 +111,12 @@ func apply_bonuses(bonuses: Dictionary) -> void:
 		return
 
 	var attack_percent_total := 0.0
+	var valid_props: Dictionary = {}
+	for p in get_property_list():
+		# property list entries are Dictionaries, "name" is the key we need
+		var prop_name: Variant = p.get("name")
+		if prop_name is StringName or prop_name is String:
+			valid_props[StringName(prop_name)] = true
 
 	for stat_name in bonuses:
 		var bonus_value: float = float(bonuses[stat_name])
@@ -113,17 +127,25 @@ func apply_bonuses(bonuses: Dictionary) -> void:
 			continue
 
 		# 忽略不存在的字段（保持兼容，避免硬崩）
-		if not stat_name in self:
+		# 优化：直接转换为 StringName，无需先转换为 String
+		var stat_key := StringName(stat_name) if stat_name is StringName else StringName(str(stat_name))
+		if not valid_props.has(stat_key):
 			push_warning("CharacterStats: 属性 '%s' 不存在，已忽略加成" % stat_name)
 			continue
 
-		var new_value: float = float(get(stat_name)) + bonus_value
+		var current_value := get(stat_key)
+		# 只对可数值化的属性做叠加，避免把非数值字段误改成 NaN
+		if not (current_value is int or current_value is float):
+			push_warning("CharacterStats: 属性 '%s' 不是数值类型，已忽略加成" % stat_name)
+			continue
+
+		var new_value: float = float(current_value) + bonus_value
 
 		# clamp 范围类属性
-		if stat_name == "defense_percent" or stat_name == "crit_rate":
+		if stat_key == &"defense_percent" or stat_key == &"crit_rate":
 			new_value = clamp(new_value, 0.0, 1.0)
 
-		set(stat_name, new_value)
+		set(stat_key, new_value)
 
 	# 应用攻击力百分比加成（基于“已叠加完固定攻击力后的 attack”）
 	if attack_percent_total != 0.0:

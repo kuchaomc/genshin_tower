@@ -4,7 +4,7 @@ class_name DamageNumber
 ## 伤害飘字组件
 ## 显示伤害数字，支持普通伤害和暴击伤害的不同样式
 
-@onready var label: Label = $Label
+@onready var label: Label = get_node_or_null("Label")
 
 # 飘字参数
 @export var float_distance: float = 50.0  # 飘字移动距离
@@ -87,7 +87,11 @@ func show_heal(position: Vector2, heal_amount: float) -> void:
 func _play_float_animation() -> void:
 	# 随机水平偏移，避免多个飘字重叠
 	var rng := RunManager.get_rng() if RunManager else null
-	var random_offset_x = rng.randf_range(-20.0, 20.0) if rng else randf_range(-20.0, 20.0)
+	if not rng:
+		push_warning("DamageNumber: RunManager 不可用，无法生成随机偏移")
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	var random_offset_x = rng.randf_range(-20.0, 20.0)
 	var start_pos = global_position
 	var end_pos = start_pos + Vector2(random_offset_x, -float_distance)
 	

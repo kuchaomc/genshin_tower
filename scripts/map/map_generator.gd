@@ -68,7 +68,11 @@ func _generate_floor_node_counts() -> Array:
 			count = 3
 		else:
 			# 其他阶层：3-5个节点
-			count = rng.randi_range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR) if rng else randi_range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR)
+			if not rng:
+				push_warning("MapGenerator: RunManager 不可用，创建临时 RNG")
+				rng = RandomNumberGenerator.new()
+				rng.randomize()
+			count = rng.randi_range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR)
 		
 		counts.append(count)
 	
@@ -153,7 +157,11 @@ func _select_node_type(floor_num: int, node_types_config: Dictionary) -> MapNode
 		return MapNodeData.NodeType.ENEMY
 	
 	var rng := RunManager.get_rng() if RunManager else null
-	var random_value: int = rng.randi_range(0, total_weight - 1) if rng else (randi() % total_weight)
+	if not rng:
+		push_warning("MapGenerator: RunManager 不可用，创建临时 RNG")
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	var random_value: int = rng.randi_range(0, total_weight - 1)
 	var current_weight: int = 0
 	
 	for i in range(weights.size()):
@@ -237,7 +245,11 @@ func _generate_floor_connections(current_count: int, next_count: int, floor_idx:
 	
 	# 随机选择一个有效组合
 	var rng := RunManager.get_rng() if RunManager else null
-	var selected_idx: int = rng.randi_range(0, valid_combinations.size() - 1) if rng else (randi() % valid_combinations.size())
+	if not rng:
+		push_warning("MapGenerator: RunManager 不可用，创建临时 RNG")
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	var selected_idx: int = rng.randi_range(0, valid_combinations.size() - 1)
 	var selected = valid_combinations[selected_idx]
 	return selected
 
