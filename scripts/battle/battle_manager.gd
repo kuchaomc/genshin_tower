@@ -732,9 +732,9 @@ func _apply_floor_scaling_to_enemy(enemy_node: Node, health_multiplier: float, a
 	if not enemy_node:
 		return
 	
-	# 检查敌人是否有current_stats属性
-	if "current_stats" in enemy_node and enemy_node.current_stats:
-		var stats = enemy_node.current_stats
+	# Node/Object 不能用 `"x" in obj` 判断属性；使用 get() + 空值检查更稳
+	var stats = enemy_node.get("current_stats")
+	if stats:
 		# 缩放血量
 		stats.max_health *= health_multiplier
 		# 缩放攻击力
@@ -742,10 +742,18 @@ func _apply_floor_scaling_to_enemy(enemy_node: Node, health_multiplier: float, a
 		# 移动速度保持不变
 		
 		# 同步更新敌人的实际血量
-		if "max_health" in enemy_node:
-			enemy_node.max_health = stats.max_health
-		if "current_health" in enemy_node:
-			enemy_node.current_health = stats.max_health
+		# 这里用 set()/get_property_list() 兜底，避免对不存在字段的直接访问导致报错
+		var has_max := false
+		var has_current := false
+		for prop in enemy_node.get_property_list():
+			if prop.name == "max_health":
+				has_max = true
+			elif prop.name == "current_health":
+				has_current = true
+		if has_max:
+			enemy_node.set("max_health", stats.max_health)
+		if has_current:
+			enemy_node.set("current_health", stats.max_health)
 		
 		print("敌人属性缩放：HP x%.2f -> %.0f, ATK x%.2f -> %.0f" % [
 			health_multiplier, stats.max_health,

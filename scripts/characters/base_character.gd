@@ -897,7 +897,13 @@ func _apply_custom_upgrades(_run_manager: Node) -> void:
 
 ## 应用单个属性升级
 func _apply_stat_upgrade(run_manager: Node, property_name: String, target_stat: int) -> void:
-	if not property_name in base_stats:
+	# Resource/Script 的属性不能用 `"x" in obj` 判断；改用属性列表枚举（Godot 4.x 推荐做法）
+	var has_prop := false
+	for prop in base_stats.get_property_list():
+		if prop.name == property_name:
+			has_prop = true
+			break
+	if not has_prop:
 		return
 	
 	var base_value = base_stats.get(property_name)
@@ -914,20 +920,19 @@ func _apply_dodge_upgrades(run_manager: Node) -> void:
 	# 闪避距离
 	var dodge_dist_flat = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.DODGE_DISTANCE)
 	var dodge_dist_percent = run_manager.get_stat_percent_bonus(UpgradeData.TargetStat.DODGE_DISTANCE)
-	var base_dodge_distance = 120.0  # 默认闪避距离
-	if character_data and "dodge_distance" in character_data:
-		base_dodge_distance = character_data.dodge_distance
+	# 以当前配置值作为“基础值”，避免对 CharacterData 做不存在字段的字典式访问
+	var base_dodge_distance := dodge_distance
 	dodge_distance = (base_dodge_distance + dodge_dist_flat) * (1.0 + dodge_dist_percent)
 	
 	# 闪避冷却
 	var dodge_cd_flat = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.DODGE_COOLDOWN)
 	var dodge_cd_percent = run_manager.get_stat_percent_bonus(UpgradeData.TargetStat.DODGE_COOLDOWN)
-	var base_dodge_cooldown = 0.6  # 默认闪避冷却
+	var base_dodge_cooldown := dodge_cooldown
 	dodge_cooldown = max(0.1, (base_dodge_cooldown + dodge_cd_flat) * (1.0 + dodge_cd_percent))
 	
 	# 无敌时间
 	var invincibility_flat = run_manager.get_stat_flat_bonus(UpgradeData.TargetStat.INVINCIBILITY_DURATION)
-	var base_invincibility = 1.0  # 默认无敌时间
+	var base_invincibility := invincibility_duration
 	invincibility_duration = base_invincibility + invincibility_flat
 
 ## 应用特殊属性升级

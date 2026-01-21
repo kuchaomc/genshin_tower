@@ -298,7 +298,13 @@ func _apply_common_stats_to_character(character: Node, current_stats: Resource, 
 
 ## 应用单个属性升级
 func _apply_stat_to_character(character: Node, current_stats: Resource, base_stats: Resource, property_name: String, target_stat: int) -> void:
-	if not property_name in base_stats:
+	# Resource/Script 属性不能用 `"x" in obj` 判断；改用属性列表枚举（Godot 4.x 兼容）
+	var has_prop := false
+	for prop in base_stats.get_property_list():
+		if prop.name == property_name:
+			has_prop = true
+			break
+	if not has_prop:
 		return
 	
 	var base_value = base_stats.get(property_name)
@@ -306,17 +312,35 @@ func _apply_stat_to_character(character: Node, current_stats: Resource, base_sta
 	current_stats.set(property_name, final_value)
 	
 	# 特殊处理：同步到角色节点
-	if property_name == "max_health" and "max_health" in character:
-		var old_max = character.max_health
-		character.max_health = final_value
+	if property_name == "max_health":
+		var char_has_max := false
+		var char_has_current := false
+		for prop in character.get_property_list():
+			if prop.name == "max_health":
+				char_has_max = true
+			elif prop.name == "current_health":
+				char_has_current = true
+		if char_has_max:
+			var old_max: float = float(character.get("max_health"))
+			character.set("max_health", final_value)
+			
+			# 按比例调整当前血量
+			if old_max > 0.0 and char_has_current and character.has_method("get_current_health"):
+				var health_ratio = character.get_current_health() / old_max
+				character.set("current_health", final_value * health_ratio)
 		# 按比例调整当前血量
-		if old_max > 0 and character.has_method("get_current_health"):
-			var health_ratio = character.get_current_health() / old_max
-			character.current_health = final_value * health_ratio
-	
-	if property_name == "move_speed" and "base_move_speed" in character:
-		character.base_move_speed = final_value
-		character.move_speed = final_value
+	if property_name == "move_speed":
+		var char_has_base := false
+		var char_has_move := false
+		for prop in character.get_property_list():
+			if prop.name == "base_move_speed":
+				char_has_base = true
+			elif prop.name == "move_speed":
+				char_has_move = true
+		if char_has_base:
+			character.set("base_move_speed", final_value)
+		if char_has_move:
+			character.set("move_speed", final_value)
 
 ## 检查是否有 UpgradeRegistry
 func _has_upgrade_registry() -> bool:
