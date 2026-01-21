@@ -2,6 +2,8 @@
 
 这是一个可扩展的奇遇事件系统框架，参考了升级系统的设计模式，支持多种事件类型和灵活的配置。
 
+> 当前系统与地图节点 `MapNodeData.NodeType.EVENT` 配合使用：当玩家在地图上选择“奇遇事件”节点后，会通过 `GameManager.enter_event()` 切换到事件场景 `res://scenes/ui/event.tscn`，由 `EventUI` 随机抽取并展示一个事件。
+
 ## 系统架构
 
 ```
@@ -18,7 +20,7 @@ EventUI (场景脚本)             # 事件UI显示和交互
 
 定义单个事件的所有属性和行为。
 
-**位置**: `scripts/events/event_data.gd`
+**位置**: `res://scripts/events/event_data.gd`
 
 **主要属性**:
 - `id`: 事件唯一标识符
@@ -45,14 +47,20 @@ EventUI (场景脚本)             # 事件UI显示和交互
 
 管理所有可用事件的注册、查询和随机选取。
 
-**位置**: `scripts/events/event_registry.gd`
+**位置**: `res://scripts/events/event_registry.gd`（Autoload）
 
 **主要功能**:
 - 自动加载内置事件
-- 从文件加载自定义事件（`data/events/*.tres`）
+- 从文件加载自定义事件（支持 `.tres/.res`，并兼容导出后的 `.remap`）
 - 根据条件筛选可用事件
 - 权重随机选取事件
 - 管理已触发的事件记录
+
+**自定义事件加载路径优先级**：
+- `user://data/events/`
+- `res://data/events/`
+
+说明：`res://` 随包体发布（导出后通常只读）；`user://` 允许外部写入（便于热更新/玩家自定义）。
 
 **主要方法**:
 ```gdscript
@@ -76,7 +84,10 @@ func clear_triggered_events()
 
 处理事件的显示和交互。
 
-**位置**: `scripts/ui/event_ui.gd`
+**位置**: `res://scripts/ui/event_ui.gd`
+
+**对应场景**：
+- `res://scenes/ui/event.tscn`
 
 **主要功能**:
 - 从EventRegistry随机选取事件
@@ -105,13 +116,13 @@ _register_event(my_event)
 
 ### 方法2: 创建资源文件（推荐）
 
-1. 在Godot编辑器中，右键点击 `data/events/` 目录
+1. 在 Godot 编辑器中，右键点击 `res://data/events/` 目录
 2. 选择 "新建资源"
 3. 选择 `EventData` 作为资源类型
 4. 配置事件属性
 5. 保存为 `.tres` 文件（例如：`my_custom_event.tres`）
 
-系统会自动加载 `data/events/` 目录下的所有 `.tres` 文件。
+系统会自动加载 `res://data/events/` 目录下的资源文件；如果你希望在运行时覆盖/追加事件，也可以把资源放到 `user://data/events/`。
 
 ### 示例：创建选择事件
 
@@ -202,13 +213,20 @@ choices = [
 ## 注意事项
 
 1. **事件ID唯一性**: 确保每个事件的ID是唯一的
-2. **资源文件路径**: 自定义事件必须放在 `data/events/` 目录下
+2. **资源文件路径**: 自定义事件推荐放在 `res://data/events/`（随包体发布）或 `user://data/events/`（运行时可写）
 3. **新游戏重置**: 系统会在新游戏开始时自动清除已触发的事件记录
 4. **占位符**: 描述文本支持 `{floor}`, `{gold}`, `{health}`, `{reward}` 等占位符
 
 ## 示例事件文件
 
-参考 `data/events/` 目录下的示例文件：
+参考 `res://data/events/` 目录下的示例文件：
 - `example_treasure_event.tres` - 宝藏奖励事件
 - `example_choice_event.tres` - 选择事件
 - `example_healing_event.tres` - 治愈事件
+
+## 与地图/场景切换的关系
+
+- 入口：地图节点 `MapNodeData.NodeType.EVENT`（`res://scripts/map/map_node_data.gd`）
+- 地图选择：`MapView.enter_event()` 调用 `GameManager.enter_event()`
+- 场景切换：`GameManager` 将状态切到 `GameState.EVENT` 并加载 `res://scenes/ui/event.tscn`
+- 事件抽取：`EventUI` 在 `_ready()` 中调用 `EventRegistry.pick_random_event()`

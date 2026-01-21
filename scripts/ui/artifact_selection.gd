@@ -55,17 +55,33 @@ func generate_artifact_options() -> void:
 	
 	# 从角色专属圣遗物套装中随机选择（每次打开宝箱都重新随机）
 	# 随机数统一由 RunManager 管理（避免到处 randomize）
-	
-	for i in range(artifact_count):
-		var artifact = RunManager.get_random_artifact_from_character_set()
-		if artifact:
-			available_artifacts.append(artifact)
+	# 同一次生成中尽量不出现重复选项：按槽位去重（每个槽位对应一个圣遗物）
+	var picked_slots: Dictionary = {}
+	var attempts: int = 0
+	var max_attempts: int = max(artifact_count * 10, 10)
+	while available_artifacts.size() < artifact_count and attempts < max_attempts:
+		attempts += 1
+		var result: Dictionary = RunManager.get_random_artifact_with_slot_from_character_set()
+		if result.is_empty():
+			break
+		var artifact: ArtifactData = result.get("artifact", null)
+		var slot: ArtifactSlot.SlotType = result.get("slot", ArtifactSlot.SlotType.FLOWER)
+		if artifact == null:
+			continue
+		if picked_slots.has(slot):
+			continue
+		picked_slots[slot] = true
+		available_artifacts.append(artifact)
 	
 	if available_artifacts.size() == 0:
 		push_warning("ArtifactSelection: 没有可用的圣遗物选项")
 		if DebugLogger:
 			DebugLogger.log_error("available_artifacts 为 0（界面将只剩跳过）", "ArtifactSelection")
 			DebugLogger.save_debug_log()
+	elif available_artifacts.size() < artifact_count:
+		# 可用槽位数量不足时，避免强行塞入重复项，允许显示更少的选项
+		if DebugLogger:
+			DebugLogger.log_info("可用圣遗物数量不足：期望=%d 实际=%d" % [artifact_count, available_artifacts.size()], "ArtifactSelection")
 
 ## 显示圣遗物选项
 func display_artifacts() -> void:

@@ -51,7 +51,7 @@
 ### 目录结构
 
 ```
-genshin_game/
+genshin_tower/
 ├── scripts/                    # 所有游戏脚本
 │   ├── autoload/              # 全局单例（自动加载）
 │   │   ├── game_manager.gd    # 游戏状态、场景管理、存档
@@ -74,8 +74,8 @@ genshin_game/
 │   │
 │   ├── map/                   # 地图系统
 │   │   ├── map_generator.gd  # 地图生成器（类杀戮尖塔）
-│   │   ├── map_node.gd        # 地图节点（节点类型、连接）
-│   │   └── map_room.gd        # 地图房间
+│   │   ├── map_node_data.gd   # 纯数据地图节点（节点类型、连接）
+│   │   └── map_node_view.gd   # 地图节点视图（显示与交互）
 │   │
 │   ├── ui/                    # UI 系统
 │   │   ├── main_menu.gd       # 主菜单
@@ -96,7 +96,7 @@ genshin_game/
 │   │   └── ellipse_boundary.gd
 │   │
 │   ├── camera/                # 相机系统
-│   │   └── camera_controller.gd
+│   │   └── camera_follower.gd
 │   │
 │   ├── vfx/                   # 视觉特效
 │   │   └── sword_trail.gd
@@ -139,7 +139,7 @@ genshin_game/
 │   │   └── battle_scene.tscn
 │   │
 │   └── map/                   # 地图场景
-│       ├── map_node.tscn
+│       ├── map_node_view.tscn
 │       └── map_room.tscn
 │
 ├── textures/                  # 游戏贴图
@@ -489,46 +489,58 @@ Floor 0:    [起点]              ← 起始层
 **配置文件**（`map_config.json`）：
 ```json
 {
-  "floors": 6,
-  "min_nodes_per_floor": 2,
-  "max_nodes_per_floor": 4,
-  "boss_floor": 5,
-  "node_weights": {
-    "enemy": 50,
-    "shop": 10,
-    "rest": 10,
-    "event": 15
-  }
+  "floors": 16,
+  "nodes_per_floor": {
+    "min": 3,
+    "max": 5,
+    "floor_15": 3,
+    "floor_16": 1
+  },
+  "node_types": {
+    "enemy": {"weight": 45, "min_floor": 1},
+    "treasure": {"weight": 12, "min_floor": 2},
+    "shop": {"weight": 10, "min_floor": 3},
+    "rest": {"weight": 12, "min_floor": 4},
+    "event": {"weight": 21, "min_floor": 2}
+  },
+  "special_floors": {
+    "floor_15": {"type": "rest", "count": 3},
+    "floor_16": {"type": "boss", "count": 1}
+  },
+  "boss_floor": 16
 }
 ```
 
 **核心方法**：
 ```gdscript
-func generate_map() -> Dictionary        # 生成完整地图
-func _generate_floor(floor_num: int) -> Array[MapNode]  # 生成单层
-func _select_node_type(floor: int) -> String  # 选择节点类型
-func _connect_nodes(floor_nodes, next_floor_nodes)  # 连接节点
+func generate_map(config: Dictionary = {}, seed_override: int = -1) -> Dictionary  # 生成完整地图
+func get_start_nodes() -> Array  # 获取起始层节点
+func get_map_node(node_id: String) -> MapNodeData  # 按 node_id 查询节点
+func get_current_floor_nodes(floor_num: int) -> Array  # 获取指定层节点
+func get_connections_between_floors(floor_idx: int) -> Array  # 获取层与层之间连接
 ```
 
-#### MapNode - 地图节点
+#### MapNodeData / MapNodeView - 地图节点
 
 **节点类型**：
 ```gdscript
 enum NodeType {
     ENEMY,      # 普通战斗
-    SHOP,       # 商店
+    TREASURE,   # 宝箱
     REST,       # 休息处
+    SHOP,       # 商店
     EVENT,      # 奇遇事件
-    BOSS,       # BOSS 战
-    START       # 起点
+    BOSS        # BOSS战
 }
 ```
 
 **状态管理**：
 ```gdscript
-var is_visited: bool = false             # 是否已访问
-var is_accessible: bool = false          # 是否可访问
-var connected_nodes: Array[MapNode]      # 连接的节点
+var node_id: String
+var node_type: NodeType
+var floor_number: int
+var position_in_floor: int
+var connected_nodes: Array[String]      # 连接到的 node_id 列表
 ```
 
 ---
@@ -952,20 +964,35 @@ _register_upgrade(ayaka_upgrade)
 
 ### 修改地图生成规则
 
-编辑 `data/config/map_config.json`：
+编辑 `res://data/config/map_config.json`：
 
 ```json
 {
-  "floors": 8,                    // 增加楼层数
-  "min_nodes_per_floor": 3,       // 每层最少节点
-  "max_nodes_per_floor": 5,       // 每层最多节点
-  "boss_floor": 7,                // BOSS 楼层
-  "node_weights": {
-    "enemy": 50,
-    "shop": 15,
-    "rest": 10,
-    "event": 10
-  }
+  "floors": 16,
+  "nodes_per_floor": {
+    "min": 3,
+    "max": 5,
+    "floor_15": 3,
+    "floor_16": 1
+  },
+  "node_types": {
+    "enemy": {"weight": 45, "min_floor": 1, "description": "普通战斗"},
+    "treasure": {"weight": 12, "min_floor": 2, "description": "宝箱"},
+    "shop": {"weight": 10, "min_floor": 3, "description": "商店"},
+    "rest": {"weight": 12, "min_floor": 4, "description": "休息处"},
+    "event": {"weight": 21, "min_floor": 2, "description": "奇遇事件"}
+  },
+  "special_floors": {
+    "floor_15": {"type": "rest", "count": 3, "description": "倒数第二阶固定为3个休息节点"},
+    "floor_16": {"type": "boss", "count": 1, "description": "终点固定为1个BOSS节点"}
+  },
+  "connection_rules": {
+    "min_connections_per_node": 1,
+    "max_connections_per_node": 3,
+    "no_crossing_lines": true
+  },
+  "boss_floor": 16,
+  "boss_description": "最终BOSS"
 }
 ```
 

@@ -8,7 +8,7 @@
 
 如果你发现了 Bug，请：
 
-1. 检查 [Issues](https://github.com/yourusername/genshin_game/issues) 确认是否已经有人报告
+1. 检查 [Issues](https://github.com/kuchaomc/genshin_tower/issues) 确认是否已经有人报告
 2. 如果没有，创建一个新的 Issue
 3. 提供以下信息：
    - 详细的 Bug 描述
@@ -32,8 +32,8 @@
 
 1. **Fork 仓库**
    ```bash
-   git clone https://github.com/yourusername/genshin_game.git
-   cd genshin_game
+   git clone https://github.com/kuchaomc/genshin_tower.git
+   cd genshin_tower
    ```
 
 2. **创建分支**
@@ -136,8 +136,8 @@ func take_damage(damage_amount: float) -> void:
 
 如果你有任何问题，可以：
 
-- 查看 [Issues](https://github.com/yourusername/genshin_game/issues)
-- 在 [Discussions](https://github.com/yourusername/genshin_game/discussions) 中提问
+- 查看 [Issues](https://github.com/kuchaomc/genshin_tower/issues)
+- 在 [Discussions](https://github.com/kuchaomc/genshin_tower/discussions) 中提问
 - 联系项目维护者
 
 感谢你的贡献！🎉

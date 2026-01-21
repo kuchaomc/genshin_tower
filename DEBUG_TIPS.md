@@ -14,22 +14,31 @@
 ```ini
 [autoload]
 
+BGMManager="*res://scripts/autoload/bgm_manager.gd"
 GameManager="*res://scripts/autoload/game_manager.gd"
 DataManager="*res://scripts/autoload/data_manager.gd"
 RunManager="*res://scripts/autoload/run_manager.gd"
+UpgradeRegistry="*res://scripts/upgrades/upgrade_registry.gd"
+EventRegistry="*res://scripts/events/event_registry.gd"
+EventBus="*res://scripts/core/event_bus.gd"
+TransitionManager="*res://scripts/ui/transition_manager.gd"
+DamageNumberManager="*res://scripts/autoload/damage_number_manager.gd"
+PostProcessManager="*res://scripts/autoload/post_process_manager.gd"
+DebugLogger="*res://scripts/autoload/debug_logger.gd"
 ```
 
 ### 3. 检查资源文件
 确保以下文件存在：
-- `data/characters/kamisato_ayaka_character.tres`
-- `data/enemies/normal_enemy.tres`
-- `data/config/map_config.json`
+- `res://data/characters/kamisato_ayaka_character.tres`
+- `res://data/enemies/normal_enemy.tres`
+- `res://data/config/map_config.json`
 
 ### 4. 检查场景文件
 确保以下场景文件存在：
-- `scenes/地图.tscn`
-- `scenes/角色选择.tscn`
-- `scenes/游戏场景.tscn`
+- `res://scenes/ui/main_menu.tscn`
+- `res://scenes/ui/character_select.tscn`
+- `res://scenes/ui/map_view.tscn`
+- `res://scenes/battle/battle_scene.tscn`
 
 ### 5. 常见错误和解决方案
 
