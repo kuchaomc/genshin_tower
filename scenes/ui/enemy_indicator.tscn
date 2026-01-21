@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b8k3j2h4m5n6p"]
 
-[ext_resource type="Script" path="res://scripts/ui/enemy_indicator.gd" id="1_indicator"]
+[ext_resource type="Script" uid="uid://xjuvlqedgqtg" path="res://scripts/ui/enemy_indicator.gd" id="1_indicator"]
 
 [node name="EnemyIndicator" type="Control"]
 layout_mode = 3
@@ -13,4 +13,3 @@ mouse_filter = 2
 script = ExtResource("1_indicator")
 
 [node name="Arrow" type="Sprite2D" parent="."]
-modulate = Color(1, 1, 1, 1)

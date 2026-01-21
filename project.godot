@@ -17,7 +17,9 @@ general/accessibility_support=2
 config/name="genshin"
 run/main_scene="uid://ckqkugmg6abgw"
 config/features=PackedStringArray("4.5", "Mobile")
-config/icon="res://icon.svg"
+boot_splash/show_image=false
+boot_splash/use_filter=false
+config/icon="uid://ddah7n6mfnmxo"
 
 [autoload]
 
@@ -124,3 +126,4 @@ y={
 
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="mobile"
+anti_aliasing/screen_space_roughness_limiter/enabled=false
