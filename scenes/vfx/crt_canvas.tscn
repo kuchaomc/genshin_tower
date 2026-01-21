@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://h3t1q9m8z7k2"]
+[gd_scene load_steps=3 format=3 uid="uid://h3t1ram807k2"]
 
 [ext_resource type="Shader" path="res://shaders/crt_canvas.gdshader" id="1_shader"]
 

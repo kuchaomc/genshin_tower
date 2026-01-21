@@ -4,6 +4,18 @@ extends Node2D
 const MAIN_MENU_BACKGROUND_DIR: String = "res://textures/background"
 const _MAIN_MENU_BG_EXTS: PackedStringArray = ["png", "jpg", "jpeg", "webp"]
 
+const _MAIN_MENU_BG_FALLBACK_PATHS: PackedStringArray = [
+	"res://textures/background/00131-3390311460.png",
+	"res://textures/background/00161-1240093822.png",
+	"res://textures/background/00183-1277078224.png",
+]
+
+const _MAIN_MENU_BG_FALLBACK_PRELOADS: Array[Texture2D] = [
+	preload("res://textures/background/00131-3390311460.png"),
+	preload("res://textures/background/00161-1240093822.png"),
+	preload("res://textures/background/00183-1277078224.png"),
+]
+
 const _BG_HISTORY_FILE_PATH: String = "user://main_menu_bg.cfg"
 const _BG_HISTORY_SECTION: String = "main_menu"
 const _BG_HISTORY_KEY_LAST_BG: String = "last_background"
@@ -173,7 +185,7 @@ func _collect_background_candidates() -> PackedStringArray:
 	var result: PackedStringArray = []
 	var dir := DirAccess.open(MAIN_MENU_BACKGROUND_DIR)
 	if dir == null:
-		return result
+		return _MAIN_MENU_BG_FALLBACK_PATHS
 
 	dir.list_dir_begin()
 	while true:
@@ -186,6 +198,8 @@ func _collect_background_candidates() -> PackedStringArray:
 		if ext in _MAIN_MENU_BG_EXTS:
 			result.append(MAIN_MENU_BACKGROUND_DIR.path_join(name))
 	dir.list_dir_end()
+	if result.is_empty():
+		return _MAIN_MENU_BG_FALLBACK_PATHS
 	return result
 
 func _setup_right_overlay_initial_state() -> void:
