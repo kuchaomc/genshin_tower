@@ -38,7 +38,8 @@ func _load_custom_upgrades() -> void:
 	var dir = DirAccess.open(upgrades_dir)
 	
 	if dir == null:
-		print("UpgradeRegistry: 未找到自定义升级目录 %s" % upgrades_dir)
+		if DebugLogger:
+			DebugLogger.log_info("未找到自定义升级目录 %s" % upgrades_dir, "UpgradeRegistry")
 		return
 	
 	dir.list_dir_begin()
@@ -48,23 +49,31 @@ func _load_custom_upgrades() -> void:
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.ends_with(".tres"):
 			var file_path = upgrades_dir + file_name
-			var upgrade = load(file_path) as UpgradeData
+			var upgrade: UpgradeData = null
+			if DataManager:
+				var res := DataManager.load_cached(file_path)
+				upgrade = res as UpgradeData if res is UpgradeData else null
+			else:
+				upgrade = load(file_path) as UpgradeData
 			
 			if upgrade and not upgrade.id.is_empty():
 				# 避免覆盖内置升级
 				if not _upgrades.has(upgrade.id):
 					_register_upgrade(upgrade)
 					loaded_count += 1
-					print("UpgradeRegistry: 加载自定义升级 '%s' 从 %s" % [upgrade.id, file_name])
+					if DebugLogger:
+						DebugLogger.log_debug("加载自定义升级 '%s'（%s）" % [upgrade.id, file_name], "UpgradeRegistry")
 				else:
-					print("UpgradeRegistry: 跳过重复的升级ID '%s'" % upgrade.id)
+					if DebugLogger:
+						DebugLogger.log_warning("跳过重复的升级ID '%s'" % upgrade.id, "UpgradeRegistry")
 		
 		file_name = dir.get_next()
 	
 	dir.list_dir_end()
 	
 	if loaded_count > 0:
-		print("UpgradeRegistry: 共加载 %d 个自定义升级" % loaded_count)
+		if DebugLogger:
+			DebugLogger.log_info("共加载 %d 个自定义升级" % loaded_count, "UpgradeRegistry")
 
 ## 注册所有内置升级
 func _register_builtin_upgrades() -> void:

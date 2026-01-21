@@ -41,7 +41,7 @@ window/stretch/mode="viewport"
 
 [dotnet]
 
-project/assembly_name="genshin1"
+project/assembly_name="genshin"
 
 [editor_plugins]
 

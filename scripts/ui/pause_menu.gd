@@ -119,7 +119,11 @@ func update_character_info() -> void:
 		# 尝试加载角色立绘
 		var portrait_path = _get_character_portrait_path(character_data.id)
 		if portrait_path:
-			var portrait_texture = load(portrait_path)
+			var portrait_texture: Texture2D = null
+			if DataManager:
+				portrait_texture = DataManager.get_texture(portrait_path)
+			else:
+				portrait_texture = load(portrait_path) as Texture2D
 			if portrait_texture:
 				character_portrait.texture = portrait_texture
 				character_portrait.visible = true
@@ -223,9 +227,7 @@ func _update_upgrades_display() -> void:
 		return
 	
 	# 检查是否有 UpgradeRegistry
-	var registry = null
-	if has_node("/root/UpgradeRegistry"):
-		registry = get_node("/root/UpgradeRegistry")
+	var registry = UpgradeRegistry if is_instance_valid(UpgradeRegistry) else null
 	
 	# 遍历所有已选择的升级
 	for upgrade_id in RunManager.upgrades:
@@ -367,7 +369,11 @@ func _create_artifact_slot_display(slot: ArtifactSlot.SlotType, artifact: Artifa
 		icon_path = _get_slot_icon_path(slot)
 	
 	if icon_path:
-		var icon = load(icon_path)
+		var icon: Texture2D = null
+		if DataManager:
+			icon = DataManager.get_texture(icon_path)
+		else:
+			icon = load(icon_path) as Texture2D
 		if icon:
 			icon_button.texture_normal = icon
 	

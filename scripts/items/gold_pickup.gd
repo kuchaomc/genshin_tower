@@ -63,7 +63,11 @@ func _deferred_setup() -> void:
 		sprite = Sprite2D.new()
 		add_child(sprite)
 
-	var texture = load("res://textures/ui/摩拉.png")
+	var texture: Texture2D = null
+	if DataManager:
+		texture = DataManager.get_texture("res://textures/ui/摩拉.png")
+	else:
+		texture = load("res://textures/ui/摩拉.png") as Texture2D
 	if texture:
 		sprite.texture = texture
 		sprite.scale = Vector2(0.5, 0.5)  # 缩小显示

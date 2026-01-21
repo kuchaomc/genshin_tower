@@ -94,13 +94,15 @@ func start_new_run(character: CharacterData) -> void:
 	
 	emit_signal("health_changed", health, max_health)
 	emit_signal("gold_changed", gold)
-	print("开始新的一局游戏，角色：", character.display_name)
+	if DebugLogger:
+		DebugLogger.log_info("开始新的一局游戏，角色：%s" % character.display_name, "RunManager")
 
 ## 结束当前局
 func end_run(victory: bool = false) -> void:
 	# 防止重复结算
 	if _run_ended:
-		print("警告：end_run() 被重复调用，已忽略")
+		if DebugLogger:
+			DebugLogger.log_warning("end_run() 被重复调用，已忽略", "RunManager")
 		return
 	_run_ended = true
 	
@@ -122,7 +124,8 @@ func end_run(victory: bool = false) -> void:
 	# 保存结算记录
 	GameManager.save_run_record(run_record)
 	
-	print("游戏结束，胜利：", victory, "，楼层：", current_floor)
+	if DebugLogger:
+		DebugLogger.log_info("游戏结束，胜利：%s，楼层：%d" % [str(victory), current_floor], "RunManager")
 
 ## 设置当前楼层
 func set_floor(floor_num: int) -> void:
@@ -304,13 +307,13 @@ func _apply_stat_to_character(character: Node, current_stats: Resource, base_sta
 
 ## 检查是否有 UpgradeRegistry
 func _has_upgrade_registry() -> bool:
-	return Engine.has_singleton("UpgradeRegistry") or has_node("/root/UpgradeRegistry")
+	# UpgradeRegistry 是 Autoload（见 project.godot），不应通过 Engine.has_singleton() 判断。
+	# 直接使用全局 Autoload 名更稳、更符合 Godot 4.x/4.5 的用法。
+	return is_instance_valid(UpgradeRegistry)
 
 ## 获取 UpgradeRegistry
 func _get_upgrade_registry() -> Node:
-	if has_node("/root/UpgradeRegistry"):
-		return get_node("/root/UpgradeRegistry")
-	return null
+	return UpgradeRegistry if is_instance_valid(UpgradeRegistry) else null
 
 ## 记录击杀敌人
 func record_enemy_kill() -> void:

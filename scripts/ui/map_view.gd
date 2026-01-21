@@ -488,7 +488,11 @@ func start_battle(_node: MapNodeData) -> void:
 	if GameManager:
 		GameManager.start_battle()
 	else:
-		var battle_scene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+		var battle_scene: PackedScene = null
+		if DataManager:
+			battle_scene = DataManager.get_packed_scene("res://scenes/battle/battle_scene.tscn")
+		else:
+			battle_scene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
 		if battle_scene:
 			get_tree().change_scene_to_packed(battle_scene)
 
@@ -512,7 +516,11 @@ func start_boss_battle() -> void:
 	if GameManager:
 		GameManager.start_boss_battle()
 	else:
-		var boss_battle_scene = load("res://scenes/battle/boss_battle.tscn") as PackedScene
+		var boss_battle_scene: PackedScene = null
+		if DataManager:
+			boss_battle_scene = DataManager.get_packed_scene("res://scenes/battle/boss_battle.tscn")
+		else:
+			boss_battle_scene = load("res://scenes/battle/boss_battle.tscn") as PackedScene
 		if boss_battle_scene:
 			get_tree().change_scene_to_packed(boss_battle_scene)
 

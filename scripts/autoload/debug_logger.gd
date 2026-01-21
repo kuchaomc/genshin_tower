@@ -10,7 +10,12 @@ var initialization_log: PackedStringArray = []
 # 运行时日志缓冲区
 var runtime_log_buffer: Array[Dictionary] = []
 const MAX_LOG_BUFFER_SIZE: int = 1000  # 最多保存最近 1000 条日志
-var log_enabled: bool = true  # 是否启用日志记录
+var log_enabled: bool = true  # 是否启用日志记录（缓冲区 + 控制台输出）
+
+# 日志过滤（数值越大越“严重”）
+var min_buffer_level: LogLevel = LogLevel.DEBUG
+var min_console_level: LogLevel = LogLevel.INFO
+var console_enabled: bool = true
 
 # 日志级别
 enum LogLevel {
@@ -19,6 +24,9 @@ enum LogLevel {
 	WARNING,
 	ERROR
 }
+
+func _level_allowed(level: LogLevel, minimum: LogLevel) -> bool:
+	return int(level) >= int(minimum)
 
 func _ready() -> void:
 	initialization_log.append("[调试日志] 开始初始化...")
@@ -57,13 +65,16 @@ func _ready() -> void:
 	
 	# 输出所有初始化日志
 	for log_line in initialization_log:
-		print(log_line)
+		if console_enabled:
+			print(log_line)
 	
-	print("[调试日志] 日志管理器已启动，按 Y 键保存调试日志")
-	print("[调试日志] 最终日志保存路径: ", log_directory)
+	if console_enabled:
+		print("[调试日志] 日志管理器已启动，按 Y 键保存调试日志")
+		print("[调试日志] 最终日志保存路径: ", log_directory)
 	if not use_exe_directory and not OS.has_feature("editor"):
 		var real_path = ProjectSettings.globalize_path(log_directory)
-		print("[调试日志] 实际物理路径: ", real_path)
+		if console_enabled:
+			print("[调试日志] 实际物理路径: ", real_path)
 
 func _process(_delta: float) -> void:
 	# 监听 Y 键
@@ -76,27 +87,47 @@ func _process(_delta: float) -> void:
 
 func log_debug(message: String, context: String = "") -> void:
 	"""记录调试信息"""
-	_add_log_entry(LogLevel.DEBUG, message, context)
-	print("[DEBUG] " + (context + ": " if context else "") + message)
+	_log(LogLevel.DEBUG, message, context)
 
 func log_info(message: String, context: String = "") -> void:
 	"""记录一般信息"""
-	_add_log_entry(LogLevel.INFO, message, context)
-	print("[INFO] " + (context + ": " if context else "") + message)
+	_log(LogLevel.INFO, message, context)
 
 func log_warning(message: String, context: String = "") -> void:
 	"""记录警告信息"""
-	_add_log_entry(LogLevel.WARNING, message, context)
-	push_warning("[WARNING] " + (context + ": " if context else "") + message)
+	_log(LogLevel.WARNING, message, context)
 
 func log_error(message: String, context: String = "") -> void:
 	"""记录错误信息"""
-	_add_log_entry(LogLevel.ERROR, message, context)
-	push_error("[ERROR] " + (context + ": " if context else "") + message)
+	_log(LogLevel.ERROR, message, context)
+
+func _log(level: LogLevel, message: String, context: String) -> void:
+	if not log_enabled:
+		return
+	_add_log_entry(level, message, context)
+	_print_to_console(level, message, context)
+
+func _print_to_console(level: LogLevel, message: String, context: String) -> void:
+	if not console_enabled:
+		return
+	if not _level_allowed(level, min_console_level):
+		return
+	var prefix := "[%s] " % LogLevel.keys()[level]
+	var ctx := (context + ": " if context else "")
+	var line := prefix + ctx + message
+	match level:
+		LogLevel.DEBUG, LogLevel.INFO:
+			print(line)
+		LogLevel.WARNING:
+			push_warning(line)
+		LogLevel.ERROR:
+			push_error(line)
 
 func _add_log_entry(level: LogLevel, message: String, context: String) -> void:
 	"""添加日志条目到缓冲区"""
 	if not log_enabled:
+		return
+	if not _level_allowed(level, min_buffer_level):
 		return
 	
 	var datetime = Time.get_datetime_dict_from_system()
@@ -127,7 +158,17 @@ func get_log_buffer() -> Array[Dictionary]:
 func set_log_enabled(enabled: bool) -> void:
 	"""启用或禁用日志记录"""
 	log_enabled = enabled
-	print("[调试日志] 日志记录已" + ("启用" if enabled else "禁用"))
+	if console_enabled:
+		print("[调试日志] 日志记录已" + ("启用" if enabled else "禁用"))
+
+func set_console_enabled(enabled: bool) -> void:
+	console_enabled = enabled
+
+func set_min_console_level(level: LogLevel) -> void:
+	min_console_level = level
+
+func set_min_buffer_level(level: LogLevel) -> void:
+	min_buffer_level = level
 
 func _try_create_directory(dir_path: String) -> bool:
 	"""尝试创建目录并测试写入权限"""
@@ -328,8 +369,8 @@ func _collect_debug_info() -> String:
 	info.append("-".repeat(80))
 	
 	# GameManager
-	if has_node("/root/GameManager"):
-		var game_manager = get_node("/root/GameManager")
+	if is_instance_valid(GameManager):
+		var game_manager = GameManager
 		info.append("GameManager: 已加载")
 		_append_object_properties(info, game_manager, "  ")
 	else:
@@ -337,8 +378,8 @@ func _collect_debug_info() -> String:
 	info.append("")
 	
 	# RunManager
-	if has_node("/root/RunManager"):
-		var run_manager = get_node("/root/RunManager")
+	if is_instance_valid(RunManager):
+		var run_manager = RunManager
 		info.append("RunManager: 已加载")
 		_append_object_properties(info, run_manager, "  ")
 	else:
@@ -346,8 +387,8 @@ func _collect_debug_info() -> String:
 	info.append("")
 	
 	# DataManager
-	if has_node("/root/DataManager"):
-		var data_manager = get_node("/root/DataManager")
+	if is_instance_valid(DataManager):
+		var data_manager = DataManager
 		info.append("DataManager: 已加载")
 		_append_object_properties(info, data_manager, "  ")
 	else:

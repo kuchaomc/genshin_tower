@@ -91,7 +91,11 @@ func _create_artifact_button(artifact: ArtifactData) -> void:
 	icon_texture.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	var icon_path = _get_artifact_icon_path(artifact.name)
 	if icon_path:
-		var icon = load(icon_path)
+		var icon: Texture2D = null
+		if DataManager:
+			icon = DataManager.get_texture(icon_path)
+		else:
+			icon = load(icon_path) as Texture2D
 		if icon:
 			icon_texture.texture = icon
 	icon_name_hbox.add_child(icon_texture)

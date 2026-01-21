@@ -27,7 +27,8 @@ func load_all_data() -> void:
 	load_enemies()
 	load_map_config()
 	emit_signal("data_loaded")
-	print("数据管理器：所有数据加载完成")
+	if DebugLogger:
+		DebugLogger.log_info("所有数据加载完成", "DataManager")
 
 ## 加载角色数据
 func load_characters() -> void:
@@ -69,11 +70,14 @@ func _load_resources_from_directory(dir_path: String, expected_script: Script, t
 				if resource_id and resource_id != "":
 					target_dict[resource_id] = resource
 					var display_name = resource.get("display_name")
-					print("加载", resource_type_name, "：", display_name if display_name else "未知")
+					if DebugLogger:
+						DebugLogger.log_debug("加载%s：%s" % [resource_type_name, (display_name if display_name else "未知")], "DataManager")
 				else:
-					print("警告：", resource_type_name, "资源缺少id属性 ", resource_path)
+					if DebugLogger:
+						DebugLogger.log_warning("%s资源缺少id属性：%s" % [resource_type_name, resource_path], "DataManager")
 			else:
-				print("警告：无法加载资源文件 ", resource_path)
+				if DebugLogger:
+					DebugLogger.log_warning("无法加载资源文件：%s" % resource_path, "DataManager")
 		
 		file_name = dir.get_next()
 	
@@ -90,12 +94,15 @@ func load_map_config() -> void:
 		var error = json.parse(json_string)
 		if error == OK:
 			map_config = json.data
-			print("地图配置加载成功")
+			if DebugLogger:
+				DebugLogger.log_info("地图配置加载成功", "DataManager")
 		else:
-			print("错误：无法解析地图配置JSON")
+			if DebugLogger:
+				DebugLogger.log_error("无法解析地图配置JSON", "DataManager")
 			create_default_map_config()
 	else:
-		print("警告：地图配置文件不存在，创建默认配置")
+		if DebugLogger:
+			DebugLogger.log_warning("地图配置文件不存在，创建默认配置", "DataManager")
 		create_default_map_config()
 
 ## 创建默认地图配置

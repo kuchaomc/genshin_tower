@@ -87,7 +87,10 @@ func create_character_button(character: CharacterData) -> void:
 	var portrait_texture: Texture2D = null
 	var portrait_path = _get_character_portrait_path(character.id)
 	if portrait_path:
-		portrait_texture = load(portrait_path)
+		if DataManager:
+			portrait_texture = DataManager.get_texture(portrait_path)
+		else:
+			portrait_texture = load(portrait_path) as Texture2D
 	
 	# 如果立绘加载失败，尝试使用图标
 	if not portrait_texture and character.icon:

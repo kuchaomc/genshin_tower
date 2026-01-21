@@ -100,7 +100,7 @@ signal skill_cooldown_changed(remaining_time: float, cooldown_time: float)
 
 # ========== 大招（Q技能）属性 ==========
 ## 大招特效投射物场景（PackedScene）
-@export var burst_scene: PackedScene
+@export var burst_scene: PackedScene = preload("res://scenes/projectiles/burst_projectile.tscn")
 ## 大招伤害倍率（基于攻击力计算）
 @export var burst_damage_multiplier: float = 4.0
 ## 大招投射物飞行速度
@@ -796,7 +796,10 @@ func use_burst() -> void:
 	
 	# 如果没有加载场景，尝试加载
 	if burst_scene == null:
-		burst_scene = load("res://scenes/projectiles/burst_projectile.tscn") as PackedScene
+		if DataManager:
+			burst_scene = DataManager.get_packed_scene("res://scenes/projectiles/burst_projectile.tscn")
+		else:
+			burst_scene = load("res://scenes/projectiles/burst_projectile.tscn") as PackedScene
 	
 	if not burst_scene:
 		print("错误：大招投射物场景未加载")

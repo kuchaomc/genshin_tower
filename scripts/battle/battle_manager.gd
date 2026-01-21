@@ -294,7 +294,11 @@ func initialize_player() -> void:
 		await get_tree().process_frame
 	
 	# 加载角色场景
-	var character_scene = load(character_data.scene_path) as PackedScene
+	var character_scene: PackedScene = null
+	if DataManager:
+		character_scene = DataManager.get_packed_scene(character_data.scene_path)
+	else:
+		character_scene = load(character_data.scene_path) as PackedScene
 	if not character_scene:
 		print("错误：无法加载角色场景 ", character_data.scene_path)
 		return

@@ -29,6 +29,13 @@ var _switching: bool = false
 var _queued_track: StringName = &""
 var _tween: Tween
 
+# ==============================
+# SFX Pool / Cache（减少频繁创建节点与 load 引发的卡顿）
+# ==============================
+const MAX_SFX_PLAYERS: int = 8
+var _sfx_players: Array[AudioStreamPlayer] = []
+var _audio_stream_cache: Dictionary = {} # String -> AudioStream
+
 func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	_player.name = "BGMPlayer"
@@ -37,9 +44,21 @@ func _ready() -> void:
 	add_child(_player)
 	if not _player.finished.is_connected(_on_player_finished):
 		_player.finished.connect(_on_player_finished)
+
+	# 初始化音效播放器池
+	_init_sfx_pool()
 	
 	# 默认进入游戏即主菜单BGM
 	play_track(TRACK_MAIN_MENU)
+
+func _init_sfx_pool() -> void:
+	_sfx_players.clear()
+	for i in range(MAX_SFX_PLAYERS):
+		var p := AudioStreamPlayer.new()
+		p.name = "SFXPlayer_%d" % i
+		p.bus = "Master"
+		add_child(p)
+		_sfx_players.append(p)
 
 func play_track(track: StringName) -> void:
 	if track.is_empty():
@@ -77,7 +96,7 @@ func _switch_to(track: StringName) -> void:
 		push_warning("BGMManager: 未配置的曲目key：%s" % str(track))
 		return
 
-	var stream := load(path) as AudioStream
+	var stream := _get_audio_stream(path)
 	if not stream:
 		push_warning("BGMManager: 无法加载音频：%s" % path)
 		return
@@ -136,29 +155,44 @@ func play_sound(sound_path: String, volume_db: float = 0.0) -> void:
 	if sound_path.is_empty():
 		return
 	
-	var stream := load(sound_path) as AudioStream
+	var stream := _get_audio_stream(sound_path)
 	if not stream:
 		push_warning("BGMManager: 无法加载音效：%s" % sound_path)
 		return
 	
-	# 创建临时音效播放器
-	var sound_player = AudioStreamPlayer.new()
+	# 从池中取一个可用播放器（避免每次 new/queue_free）
+	var sound_player := _get_available_sfx_player()
+	if not sound_player:
+		return
 	sound_player.stream = stream
 	sound_player.volume_db = volume_db
-	sound_player.bus = "Master"
-	add_child(sound_player)
-	
-	# 播放音效
 	sound_player.play()
-	
-	# 播放完成后自动删除播放器
-	if not sound_player.finished.is_connected(_on_sound_finished):
-		sound_player.finished.connect(_on_sound_finished.bind(sound_player))
 
-## 音效播放完成回调
-func _on_sound_finished(player: AudioStreamPlayer) -> void:
-	if player and is_instance_valid(player):
-		player.queue_free()
+func _get_available_sfx_player() -> AudioStreamPlayer:
+	# 优先找空闲的
+	for p in _sfx_players:
+		if p and not p.playing:
+			return p
+	# 全部忙：复用第一个（打断最早的音效），避免无限增长
+	if _sfx_players.size() > 0 and _sfx_players[0]:
+		_sfx_players[0].stop()
+		return _sfx_players[0]
+	return null
+
+func _get_audio_stream(path: String) -> AudioStream:
+	if path.is_empty():
+		return null
+	# 优先复用 DataManager 的资源缓存（统一入口）
+	if DataManager and DataManager.has_method("load_cached"):
+		var res := DataManager.load_cached(path)
+		return res as AudioStream if res is AudioStream else null
+	# 回退：本地缓存
+	if _audio_stream_cache.has(path):
+		return _audio_stream_cache[path] as AudioStream
+	var stream := load(path) as AudioStream
+	if stream:
+		_audio_stream_cache[path] = stream
+	return stream
 
 ## 播放命中音效
 func play_hit_sound() -> void:

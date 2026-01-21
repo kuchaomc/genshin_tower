@@ -66,7 +66,8 @@ var run_records: Array = []
 
 func _ready() -> void:
 	load_save_data()
-	print("游戏管理器初始化完成")
+	if DebugLogger:
+		DebugLogger.log_info("初始化完成", "GameManager")
 
 func _get_bgm_track_for_state(state: GameState) -> StringName:
 	match state:
@@ -102,14 +103,16 @@ func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 	if scene:
 		get_tree().change_scene_to_packed(scene)
 		emit_signal("scene_changed", scene_path)
-		print("切换到场景：", scene_path)
+		if DebugLogger:
+			DebugLogger.log_info("切换到场景：%s" % scene_path, "GameManager")
 		
 		# 场景切换完成后切换BGM（同时保存/恢复各曲目的播放进度）
 		if _pending_bgm_track.is_empty():
 			_pending_bgm_track = _get_bgm_track_for_state(current_state)
 		_apply_pending_bgm()
 	else:
-		print("错误：无法加载场景 ", scene_path)
+		if DebugLogger:
+			DebugLogger.log_error("无法加载场景：%s" % scene_path, "GameManager")
 		# 如果场景加载失败，返回主菜单
 		if scene_path != SCENE_MAIN_MENU:
 			go_to_main_menu()
@@ -229,9 +232,11 @@ func save_data() -> void:
 		var json_string = JSON.stringify(save_dict)
 		file.store_string(json_string)
 		file.close()
-		print("存档保存成功")
+		if DebugLogger:
+			DebugLogger.log_info("存档保存成功", "GameManager")
 	else:
-		print("错误：无法保存存档")
+		if DebugLogger:
+			DebugLogger.log_error("无法保存存档", "GameManager")
 
 ## 加载数据
 func load_save_data() -> void:
@@ -245,10 +250,13 @@ func load_save_data() -> void:
 		if error == OK:
 			var data = json.data
 			run_records = data.get("run_records", [])
-			print("存档加载成功，记录数：", run_records.size())
+			if DebugLogger:
+				DebugLogger.log_info("存档加载成功，记录数：%d" % run_records.size(), "GameManager")
 		else:
-			print("错误：无法解析存档JSON")
+			if DebugLogger:
+				DebugLogger.log_error("无法解析存档JSON", "GameManager")
 			run_records = []
 	else:
-		print("存档文件不存在，使用默认值")
+		if DebugLogger:
+			DebugLogger.log_info("存档文件不存在，使用默认值", "GameManager")
 		run_records = []

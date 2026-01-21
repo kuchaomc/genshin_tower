@@ -47,9 +47,8 @@ func _ready() -> void:
 
 ## 获取 UpgradeRegistry
 func _get_upgrade_registry() -> Node:
-	if has_node("/root/UpgradeRegistry"):
-		return get_node("/root/UpgradeRegistry")
-	return null
+	# UpgradeRegistry 是 Autoload（见 project.godot），直接使用全局名即可
+	return UpgradeRegistry if is_instance_valid(UpgradeRegistry) else null
 
 
 ## 生成升级选项（从 UpgradeRegistry 中随机抽取）

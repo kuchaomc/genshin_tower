@@ -34,7 +34,8 @@ func _ready() -> void:
 	_load_custom_events()
 	
 	emit_signal("events_registered")
-	print("EventRegistry: 已注册 %d 个事件" % _events.size())
+	if DebugLogger:
+		DebugLogger.log_info("已注册 %d 个事件" % _events.size(), "EventRegistry")
 
 ## 加载自定义事件文件
 func _load_custom_events() -> void:
@@ -48,7 +49,8 @@ func _load_custom_events() -> void:
 	dir = DirAccess.open(events_dir)
 	
 	if dir == null:
-		print("EventRegistry: 未找到自定义事件目录 %s，将创建" % events_dir)
+		if DebugLogger:
+			DebugLogger.log_info("未找到自定义事件目录 %s，将创建" % events_dir, "EventRegistry")
 		return
 	
 	dir.list_dir_begin()
@@ -58,23 +60,31 @@ func _load_custom_events() -> void:
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.ends_with(".tres"):
 			var file_path = events_dir + file_name
-			var event = load(file_path) as EventData
+			var event: EventData = null
+			if DataManager:
+				var res := DataManager.load_cached(file_path)
+				event = res as EventData if res is EventData else null
+			else:
+				event = load(file_path) as EventData
 			
 			if event and not event.id.is_empty():
 				# 避免覆盖内置事件
 				if not _events.has(event.id):
 					_register_event(event)
 					loaded_count += 1
-					print("EventRegistry: 加载自定义事件 '%s' 从 %s" % [event.id, file_name])
+					if DebugLogger:
+						DebugLogger.log_debug("加载自定义事件 '%s'（%s）" % [event.id, file_name], "EventRegistry")
 				else:
-					print("EventRegistry: 跳过重复的事件ID '%s'" % event.id)
+					if DebugLogger:
+						DebugLogger.log_warning("跳过重复的事件ID '%s'" % event.id, "EventRegistry")
 		
 		file_name = dir.get_next()
 	
 	dir.list_dir_end()
 	
 	if loaded_count > 0:
-		print("EventRegistry: 共加载 %d 个自定义事件" % loaded_count)
+		if DebugLogger:
+			DebugLogger.log_info("共加载 %d 个自定义事件" % loaded_count, "EventRegistry")
 
 ## 注册所有内置事件
 func _register_builtin_events() -> void:
