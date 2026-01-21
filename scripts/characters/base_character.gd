@@ -264,7 +264,7 @@ func _process_idle_state() -> void:
 	_process_attack_input()
 	
 	# 检查状态转换
-	if _is_dodge_pressed() and _is_dodge_ready():
+	if _is_dodge_pressed() and _is_dodge_ready() and not _is_dodge_blocked_by_charging():
 		_start_dodge()
 	elif _get_input_direction() != Vector2.ZERO:
 		_change_state(CharacterState.MOVING)
@@ -289,7 +289,7 @@ func _process_move_state() -> void:
 	_process_attack_input()
 	
 	# 检查状态转换
-	if _is_dodge_pressed() and _is_dodge_ready():
+	if _is_dodge_pressed() and _is_dodge_ready() and not _is_dodge_blocked_by_charging():
 		_start_dodge()
 	elif input_dir == Vector2.ZERO:
 		_change_state(CharacterState.IDLE)
@@ -463,6 +463,11 @@ func get_attack_hold_duration() -> float:
 ## 检查是否达到重击阈值
 func is_charged_attack_ready() -> bool:
 	return _attack_button_pressed and get_attack_hold_duration() >= charged_attack_threshold
+
+## 蓄力重击中是否禁止闪避
+## 说明：当前系统使用 _attack_button_pressed 作为“按住普攻键蓄力”的状态标志。
+func _is_dodge_blocked_by_charging() -> bool:
+	return _attack_button_pressed
 
 ## 检查是否按下闪避键
 func _is_dodge_pressed() -> bool:
