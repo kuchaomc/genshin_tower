@@ -8,6 +8,7 @@ signal artifact_selected(artifact: ArtifactData, slot: ArtifactSlot.SlotType)
 @onready var artifact_container: VBoxContainer = $CanvasLayer/VBoxContainer/ArtifactContainer
 @onready var title_label: Label = $CanvasLayer/VBoxContainer/TitleLabel
 @onready var skip_button: Button = $CanvasLayer/VBoxContainer/SkipButton
+@onready var _root_vbox: VBoxContainer = $CanvasLayer/VBoxContainer
 
 # 可选的圣遗物列表（ArtifactData 类型）
 var available_artifacts: Array[ArtifactData] = []
@@ -18,6 +19,15 @@ var available_artifacts: Array[ArtifactData] = []
 func _ready() -> void:
 	if title_label:
 		title_label.text = "选择圣遗物"
+	if _root_vbox and not _root_vbox.has_node("RuleLabel"):
+		var rule_label := Label.new()
+		rule_label.name = "RuleLabel"
+		rule_label.text = "规则说明：\n- 同名圣遗物需要获得两次才能达到最大效果\n- 第1次获得：50%效果\n- 第2次及以上：100%效果（满级后不再提升）"
+		rule_label.add_theme_font_size_override("font_size", 12)
+		rule_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+		rule_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_root_vbox.add_child(rule_label)
+		_root_vbox.move_child(rule_label, 1)
 	if skip_button:
 		skip_button.pressed.connect(_on_skip_pressed)
 	generate_artifact_options()
@@ -58,7 +68,7 @@ func display_artifacts() -> void:
 ## 创建圣遗物按钮
 func _create_artifact_button(artifact: ArtifactData) -> void:
 	var button = Button.new()
-	button.custom_minimum_size = Vector2(450, 120)
+	button.custom_minimum_size = Vector2(450, 160)
 	
 	# 确定圣遗物槽位（从角色套装中查找）
 	var slot = _find_artifact_slot(artifact)
@@ -106,6 +116,14 @@ func _create_artifact_button(artifact: ArtifactData) -> void:
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	icon_name_hbox.add_child(name_label)
 	
+	# 描述
+	var desc_label = Label.new()
+	desc_label.text = artifact.description
+	desc_label.add_theme_font_size_override("font_size", 12)
+	desc_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox_left.add_child(desc_label)
+	
 	# 右侧：属性加成
 	var vbox_right = VBoxContainer.new()
 	vbox_right.alignment = BoxContainer.ALIGNMENT_END
@@ -114,6 +132,9 @@ func _create_artifact_button(artifact: ArtifactData) -> void:
 	# 检查是否已装备该圣遗物
 	var is_equipped = false
 	var current_level = -1
+	var obtained_count: int = 0
+	if RunManager:
+		obtained_count = RunManager.get_artifact_obtained_count(artifact.name, slot)
 	if RunManager and RunManager.current_character_node:
 		var artifact_manager = RunManager.current_character_node.get_artifact_manager()
 		if artifact_manager:
@@ -122,18 +143,20 @@ func _create_artifact_button(artifact: ArtifactData) -> void:
 				is_equipped = true
 				current_level = artifact_manager.get_artifact_level(slot)
 	
+	var after_obtained_count: int = obtained_count + 1
+	var predicted_level: int = 0 if after_obtained_count < 2 else 1
+	
 	# 属性加成显示
 	var bonus_label = Label.new()
-	if is_equipped and current_level >= 0:
-		# 已装备：显示升级后的效果
-		if current_level < 1:
-			bonus_label.text = artifact.get_bonus_summary(1)  # 显示升级后的100%效果
-			bonus_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))  # 金色表示升级
+	if predicted_level >= 1:
+		bonus_label.text = artifact.get_bonus_summary(1)
+		if is_equipped and current_level >= 1:
+			bonus_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+		elif obtained_count >= 2:
+			bonus_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
 		else:
-			bonus_label.text = artifact.get_bonus_summary(1)  # 已满级
-			bonus_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))  # 灰色表示已满级
+			bonus_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
 	else:
-		# 未装备：显示0级效果（50%）
 		bonus_label.text = artifact.get_bonus_summary(0)
 		bonus_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
 	bonus_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -141,16 +164,16 @@ func _create_artifact_button(artifact: ArtifactData) -> void:
 	
 	# 等级提示
 	var level_hint = Label.new()
-	if is_equipped:
-		if current_level < 1:
-			level_hint.text = "（已装备，选择可升级至100%效果）"
+	if predicted_level == 0:
+		level_hint.text = "（首次获得：50%效果；再次获得可达100%）"
+		level_hint.add_theme_color_override("font_color", Color(0.8, 0.8, 0.5))
+	else:
+		if obtained_count == 1 and (not is_equipped or current_level < 1):
+			level_hint.text = "（第2次获得：达100%效果）"
 			level_hint.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
 		else:
-			level_hint.text = "（已满级）"
+			level_hint.text = "（已满效果）"
 			level_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	else:
-		level_hint.text = "（首次获得：50%效果）"
-		level_hint.add_theme_color_override("font_color", Color(0.8, 0.8, 0.5))
 	level_hint.add_theme_font_size_override("font_size", 12)
 	vbox_right.add_child(level_hint)
 	

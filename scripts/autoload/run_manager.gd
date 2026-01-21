@@ -378,6 +378,22 @@ func add_artifact_to_inventory(artifact: ArtifactData, slot: ArtifactSlot.SlotTy
 	artifact_inventory[slot].append(artifact)
 	print("获得圣遗物：%s（%s）" % [artifact.name, ArtifactSlot.get_slot_name(slot)])
 
+## 检查某个槽位是否已获得过指定名称的圣遗物
+func has_artifact_in_inventory(artifact_name: String, slot: ArtifactSlot.SlotType) -> bool:
+	var list: Array = artifact_inventory.get(slot, [])
+	for a in list:
+		if a and a is ArtifactData and a.name == artifact_name:
+			return true
+	return false
+
+func get_artifact_obtained_count(artifact_name: String, slot: ArtifactSlot.SlotType) -> int:
+	var count: int = 0
+	var list: Array = artifact_inventory.get(slot, [])
+	for a in list:
+		if a and a is ArtifactData and a.name == artifact_name:
+			count += 1
+	return count
+
 ## 获取指定槽位的所有圣遗物
 func get_artifacts_by_slot(slot: ArtifactSlot.SlotType) -> Array[ArtifactData]:
 	return artifact_inventory.get(slot, [])

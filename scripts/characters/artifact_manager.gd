@@ -17,8 +17,9 @@ func initialize(artifact_set: ArtifactSetData) -> void:
 	artifact_levels.clear()
 
 ## 装备圣遗物到指定槽位
-## 如果该槽位已有相同圣遗物，则升级（等级+1，最高1级）
-## 如果是新圣遗物，则装备并设置为0级（50%效果）
+## 规则：同名圣遗物需要获得两次才能达到最大效果
+## - 第1次获得：等级0（50%效果）
+## - 第2次及以上：等级1（100%效果）
 func equip_artifact(slot: ArtifactSlot.SlotType, artifact: ArtifactData) -> bool:
 	if not equipped_set:
 		push_error("ArtifactManager: 未初始化圣遗物套装")
@@ -26,22 +27,28 @@ func equip_artifact(slot: ArtifactSlot.SlotType, artifact: ArtifactData) -> bool
 	
 	var current_artifact = equipped_set.get_artifact(slot)
 	
-	# 如果已装备相同圣遗物，则升级
-	if current_artifact and current_artifact.name == artifact.name:
-		var current_level = artifact_levels.get(slot, 0)
-		if current_level < 1:  # 最高1级（100%效果）
-			artifact_levels[slot] = current_level + 1
-			print("圣遗物升级：%s 等级 %d -> %d（效果：%d%%）" % [artifact.name, current_level, artifact_levels[slot], _get_effect_percent(artifact_levels[slot])])
-			return true
-		else:
-			print("圣遗物已满级：%s" % artifact.name)
-			return false
-	else:
-		# 装备新圣遗物，初始等级0（50%效果）
+	var obtained_count: int = 1
+	if is_instance_valid(RunManager):
+		obtained_count = RunManager.get_artifact_obtained_count(artifact.name, slot)
+	var desired_level: int = 0 if obtained_count < 2 else 1
+	var prev_level: int = artifact_levels.get(slot, 0)
+	
+	# 始终确保槽位装备为该圣遗物（不同圣遗物则替换）
+	if not current_artifact or current_artifact.name != artifact.name:
 		equipped_set.set_artifact(slot, artifact)
-		artifact_levels[slot] = 0
-		print("装备圣遗物：%s（等级0，效果50%%）" % artifact.name)
+		artifact_levels[slot] = desired_level
+		print("装备圣遗物：%s（等级%d，效果%d%%）" % [artifact.name, desired_level, _get_effect_percent(desired_level)])
 		return true
+	
+	# 相同圣遗物：根据获得次数刷新等级
+	if prev_level != desired_level:
+		artifact_levels[slot] = desired_level
+		print("圣遗物升级：%s 等级 %d -> %d（效果：%d%%）" % [artifact.name, prev_level, desired_level, _get_effect_percent(desired_level)])
+		return true
+	
+	# 已是目标等级，无需变化
+	print("圣遗物已满级：%s" % artifact.name)
+	return false
 
 ## 卸载指定槽位的圣遗物
 func unequip_artifact(slot: ArtifactSlot.SlotType) -> bool:
