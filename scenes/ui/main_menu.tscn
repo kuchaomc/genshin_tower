@@ -1,7 +1,16 @@
-[gd_scene load_steps=3 format=3 uid="uid://ckqkugmg6abgw"]
+[gd_scene load_steps=6 format=3 uid="uid://ckqkugmg6abgw"]
 
 [ext_resource type="Script" uid="uid://ci5nhsa7nvglw" path="res://scripts/ui/main_menu.gd" id="1_ki7t4"]
 [ext_resource type="Texture2D" uid="uid://7ahk74we7y2c" path="res://textures/background/main_scene_background.png" id="2_background"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
+bg_color = Color(0.16, 0.16, 0.16, 0.85)
+
+[sub_resource type="Shader" id="Shader_1"]
+code = "shader_type canvas_item;\n\nuniform vec4 base_color : source_color = vec4(0.16, 0.16, 0.16, 0.85);\nuniform float cell_size = 6.0;\nuniform float jitter = 0.35;\nuniform float levels = 6.0;\nuniform float strength = 1.0;\n\nfloat _hash(vec2 p) {\n\treturn fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);\n}\n\nvoid fragment() {\n\tfloat fade = clamp(1.0 - UV.x, 0.0, 1.0);\n\tvec2 cell = floor(FRAGCOORD.xy / max(cell_size, 1.0));\n\tfloat rnd = _hash(cell);\n\tfloat shifted = clamp((fade - rnd * jitter) / max(1.0 - jitter, 0.001), 0.0, 1.0);\n\tfloat a = floor(shifted * levels) / max(levels, 1.0);\n\tCOLOR = vec4(base_color.rgb, base_color.a * a * clamp(strength, 0.0, 1.0));\n}\n"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1"]
+shader = SubResource("Shader_1")
 
 [node name="Node2D2" type="Node2D"]
 script = ExtResource("1_ki7t4")
@@ -19,60 +28,218 @@ grow_vertical = 2
 texture = ExtResource("2_background")
 stretch_mode = 5
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -151.5
-offset_top = -200.0
-offset_right = 151.5
-offset_bottom = 200.0
-grow_horizontal = 2
+[node name="LeftMenu" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_right = 514.0
 grow_vertical = 2
 
-[node name="Label" type="Label" parent="CanvasLayer/VBoxContainer"]
+[node name="PanelBg" type="Panel" parent="CanvasLayer/LeftMenu"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -64.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_1")
+
+[node name="EdgeFade" type="ColorRect" parent="CanvasLayer/LeftMenu"]
+anchors_preset = 5
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -64.0
+offset_right = 0.0
+grow_vertical = 2
+mouse_filter = 2
+material = SubResource("ShaderMaterial_1")
+
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/LeftMenu"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -64.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 64
+theme_override_constants/margin_top = 48
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 48
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0, 0, 0, 1)
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 50
-text = "杀原戮神尖塔 v2.0 测试版"
-horizontal_alignment = 1
+text = "杀原戮神尖塔"
 
-[node name="Button" type="Button" parent="CanvasLayer/VBoxContainer"]
-custom_minimum_size = Vector2(150, 60)
+[node name="Spacer" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 220)
 layout_mode = 2
-text = "开始游戏"
 
-[node name="Button2" type="Button" parent="CanvasLayer/VBoxContainer"]
-custom_minimum_size = Vector2(150, 60)
+[node name="MenuBox" type="VBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "游戏说明"
+theme_override_constants/separation = 18
 
-[node name="Button4" type="Button" parent="CanvasLayer/VBoxContainer"]
-custom_minimum_size = Vector2(150, 60)
+[node name="StartRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
 layout_mode = 2
-text = "设置"
+theme_override_constants/separation = 12
 
-[node name="Button3" type="Button" parent="CanvasLayer/VBoxContainer"]
-custom_minimum_size = Vector2(150, 60)
+[node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/StartRow"]
 layout_mode = 2
-text = "退出游戏"
 
-[node name="Panel" type="Panel" parent="CanvasLayer"]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -150.0
-offset_right = 200.0
-offset_bottom = 150.0
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/StartRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Label" type="Label" parent="CanvasLayer/Panel"]
+[node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/StartRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="Button" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/StartRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "开始游戏"
+flat = true
+
+[node name="HelpRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/HelpRow"]
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/HelpRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/HelpRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="Button2" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/HelpRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "游戏说明"
+flat = true
+
+[node name="SettingsRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/SettingsRow"]
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/SettingsRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/SettingsRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="Button4" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/SettingsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "设置"
+flat = true
+
+[node name="QuitRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/QuitRow"]
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/QuitRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/QuitRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="Button3" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/QuitRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "退出游戏"
+flat = true
+
+[node name="RightOverlay" type="Control" parent="CanvasLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+visible = false
+
+[node name="Drawer" type="Control" parent="CanvasLayer/RightOverlay"]
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_right = 860.0
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Mask" type="ColorRect" parent="CanvasLayer/RightOverlay/Drawer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.16, 0.16, 0.16, 0.92)
+
+[node name="ContentHolder" type="MarginContainer" parent="CanvasLayer/RightOverlay/Drawer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 48
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 48
+
+[node name="Panel" type="Panel" parent="CanvasLayer/RightOverlay/Drawer/ContentHolder"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/RightOverlay/Drawer/ContentHolder/Panel"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -89,7 +256,7 @@ q - 大招
 注意！如果遇到了bug或其它卡死问题
 按下y键生成日志后再使用alt+f4退出游戏！"
 
-[node name="CloseButton" type="Button" parent="CanvasLayer/Panel"]
+[node name="CloseButton" type="Button" parent="CanvasLayer/RightOverlay/Drawer/ContentHolder/Panel"]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
