@@ -28,11 +28,31 @@ var floor_nodes: Array = []  # 每层的节点数组，索引0是第1层（最�
 # 每个connection是 [from_node_idx, to_node_idx]
 var connections: Array = []
 
+# 地图生成专用 RNG：必须只由 map_seed 决定，避免被全局/战斗等随机消耗影响
+var _map_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+## 获取地图 RNG（保证每次 generate_map() 都已正确设种子）
+func _get_map_rng() -> RandomNumberGenerator:
+	return _map_rng
+
 ## 生成地图
-func generate_map(config: Dictionary = {}) -> Dictionary:
+## 说明：地图随机只应由 map_seed 决定。
+## - 如果传入 seed_override != -1，则使用该 seed。
+## - 否则优先使用 RunManager.map_seed。
+## - 若仍为 -1，则随机化一次（不保证可复现）。
+func generate_map(config: Dictionary = {}, seed_override: int = -1) -> Dictionary:
 	map_nodes.clear()
 	floor_nodes.clear()
 	connections.clear()
+	
+	var effective_seed: int = seed_override
+	if effective_seed == -1 and RunManager and RunManager.map_seed != -1:
+		effective_seed = RunManager.map_seed
+	
+	if effective_seed != -1:
+		_map_rng.seed = effective_seed
+	else:
+		_map_rng.randomize()
 	
 	# 步骤1：生成每一阶的节点数量
 	var nodes_per_floor = _generate_floor_node_counts()
@@ -55,13 +75,7 @@ func generate_map(config: Dictionary = {}) -> Dictionary:
 ## 步骤1：生成每一阶的节点数量
 func _generate_floor_node_counts() -> Array:
 	var counts: Array = []
-	var rng: RandomNumberGenerator = null
-	if RunManager:
-		rng = RunManager.get_rng()
-	if not rng:
-		push_warning("MapGenerator: RunManager 不可用，创建临时 RNG")
-		rng = RandomNumberGenerator.new()
-		rng.randomize()
+	var rng: RandomNumberGenerator = _get_map_rng()
 	
 	for floor_num in range(1, TOTAL_FLOORS + 1):
 		var count: int
@@ -158,13 +172,7 @@ func _select_node_type(floor_num: int, node_types_config: Dictionary) -> MapNode
 	if total_weight <= 0:
 		return MapNodeData.NodeType.ENEMY
 	
-	var rng: RandomNumberGenerator = null
-	if RunManager:
-		rng = RunManager.get_rng()
-	if not rng:
-		push_warning("MapGenerator: RunManager 不可用，创建临时 RNG")
-		rng = RandomNumberGenerator.new()
-		rng.randomize()
+	var rng: RandomNumberGenerator = _get_map_rng()
 	var random_value: int = rng.randi_range(0, total_weight - 1)
 	var current_weight: int = 0
 	
@@ -248,13 +256,7 @@ func _generate_floor_connections(current_count: int, next_count: int, floor_idx:
 		return _generate_fallback_connections_limited(current_count, next_count)
 	
 	# 随机选择一个有效组合
-	var rng: RandomNumberGenerator = null
-	if RunManager:
-		rng = RunManager.get_rng()
-	if not rng:
-		push_warning("MapGenerator: RunManager 不可用，创建临时 RNG")
-		rng = RandomNumberGenerator.new()
-		rng.randomize()
+	var rng: RandomNumberGenerator = _get_map_rng()
 	var selected_idx: int = rng.randi_range(0, valid_combinations.size() - 1)
 	var selected = valid_combinations[selected_idx]
 	return selected

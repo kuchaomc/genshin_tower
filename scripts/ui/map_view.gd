@@ -125,10 +125,6 @@ func generate_and_display_map() -> void:
 	if map_generator == null:
 		map_generator = MapGenerator.new()
 	
-	# 如果已有地图种子，使用固定种子生成相同地图
-	if RunManager.map_seed != -1:
-		seed(RunManager.map_seed)
-	
 	# 获取地图配置
 	var config = DataManager.get_map_config()
 	if config.is_empty():
@@ -136,7 +132,7 @@ func generate_and_display_map() -> void:
 		config = {}
 	
 	# 生成地图
-	current_map = map_generator.generate_map(config)
+	current_map = map_generator.generate_map(config, RunManager.map_seed)
 	
 	# 显示地图
 	display_map()
