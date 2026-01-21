@@ -26,6 +26,11 @@ func load_all_data() -> void:
 	load_characters()
 	load_enemies()
 	load_map_config()
+	if DebugLogger and not OS.has_feature("editor"):
+		DebugLogger.log_info("Data loaded: characters=%d enemies=%d" % [characters.size(), enemies.size()], "DataManager")
+		if characters.is_empty() or enemies.is_empty():
+			DebugLogger.log_error("Data missing after export load (characters/enemies is empty)", "DataManager")
+			DebugLogger.save_debug_log()
 	emit_signal("data_loaded")
 	if DebugLogger:
 		DebugLogger.log_info("所有数据加载完成", "DataManager")
@@ -52,16 +57,32 @@ func _load_resources_from_directory(dir_path: String, expected_script: Script, t
 		return
 	
 	dir.list_dir_begin()
-	var file_name = dir.get_next()
+	var file_name: String = dir.get_next()
 	
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".tres"):
-			var resource_path = dir_path + "/" + file_name
+		if not dir.current_is_dir():
+			# 导出版本中可能会枚举到 *.tres.remap / *.res.remap；
+			# 如果只匹配 .tres，会导致整个目录资源都无法加载。
+			var is_tres := file_name.ends_with(".tres") or file_name.ends_with(".tres.remap")
+			var is_res := file_name.ends_with(".res") or file_name.ends_with(".res.remap")
+			if not (is_tres or is_res):
+				file_name = dir.get_next() as String
+				continue
+			
+			var actual_file: String = file_name
+			if actual_file.ends_with(".remap"):
+				actual_file = actual_file.substr(0, actual_file.length() - 6)
+			var resource_path = dir_path + "/" + actual_file
 			var resource = load_cached(resource_path)
 			
 			if resource:
-				# 只处理指定类型的资源，跳过其他类型（通过比较脚本对象）
-				if resource.get_script() != expected_script:
+				# 只处理指定类型的资源：导出后 Script 可能不是同一个实例，
+				# 直接用对象相等判断会导致误过滤；改为比较脚本路径更稳。
+				var res_script: Script = resource.get_script()
+				if res_script == null:
+					file_name = dir.get_next()
+					continue
+				if res_script.resource_path != expected_script.resource_path:
 					file_name = dir.get_next()
 					continue
 				
@@ -79,7 +100,7 @@ func _load_resources_from_directory(dir_path: String, expected_script: Script, t
 				if DebugLogger:
 					DebugLogger.log_warning("无法加载资源文件：%s" % resource_path, "DataManager")
 		
-		file_name = dir.get_next()
+		file_name = dir.get_next() as String
 	
 	dir.list_dir_end()
 

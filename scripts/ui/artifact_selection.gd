@@ -39,7 +39,19 @@ func generate_artifact_options() -> void:
 	
 	if not RunManager or not RunManager.current_character:
 		push_error("ArtifactSelection: RunManager 或当前角色未找到")
+		if DebugLogger:
+			DebugLogger.log_error("RunManager 或 current_character 为 null，无法生成圣遗物选项", "ArtifactSelection")
+			DebugLogger.save_debug_log()
 		return
+	
+	if DebugLogger:
+		var c := RunManager.current_character
+		DebugLogger.log_info("current_character=%s(%s)" % [c.display_name, c.id], "ArtifactSelection")
+		DebugLogger.log_info("artifact_set=%s" % ["null" if c.artifact_set == null else "ok"], "ArtifactSelection")
+		if c.artifact_set:
+			for slot in ArtifactSlot.get_all_slots():
+				var a: ArtifactData = c.artifact_set.get_artifact(slot)
+				DebugLogger.log_debug("slot=%s artifact=%s" % [ArtifactSlot.get_slot_name(slot), ("null" if a == null else a.name)], "ArtifactSelection")
 	
 	# 从角色专属圣遗物套装中随机选择（每次打开宝箱都重新随机）
 	# 随机数统一由 RunManager 管理（避免到处 randomize）
@@ -51,6 +63,9 @@ func generate_artifact_options() -> void:
 	
 	if available_artifacts.size() == 0:
 		push_warning("ArtifactSelection: 没有可用的圣遗物选项")
+		if DebugLogger:
+			DebugLogger.log_error("available_artifacts 为 0（界面将只剩跳过）", "ArtifactSelection")
+			DebugLogger.save_debug_log()
 
 ## 显示圣遗物选项
 func display_artifacts() -> void:
