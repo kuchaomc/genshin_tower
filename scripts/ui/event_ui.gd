@@ -30,18 +30,14 @@ func _ready() -> void:
 
 ## 加载随机事件
 func _load_random_event() -> void:
-	var registry = _get_event_registry()
-	if registry == null:
-		push_error("EventUI: EventRegistry 未找到")
-		return
+	var registry := EventRegistry
 	
 	var character_id := ""
 	var current_floor := 0
 	
-	if RunManager:
-		if RunManager.current_character:
-			character_id = RunManager.current_character.id
-		current_floor = RunManager.current_floor
+	if RunManager.current_character:
+		character_id = RunManager.current_character.id
+	current_floor = RunManager.current_floor
 	
 	current_event = registry.pick_random_event(character_id, current_floor)
 	
@@ -66,9 +62,9 @@ func _display_event() -> void:
 	
 	if description_label:
 		var context = {
-			"floor": RunManager.current_floor if RunManager else 0,
-			"gold": RunManager.gold if RunManager else 0,
-			"health": RunManager.health if RunManager else 0
+			"floor": RunManager.current_floor,
+			"gold": RunManager.gold,
+			"health": RunManager.health
 		}
 		description_label.text = current_event.get_formatted_description(context)
 	
@@ -114,7 +110,7 @@ func _show_reward_event() -> void:
 	
 	# 如果是圣遗物奖励，预先抽取并显示具体信息
 	if current_event.reward_type == EventData.RewardType.ARTIFACT:
-		var artifact_result = RunManager.get_random_artifact_with_slot_from_character_set() if RunManager else {}
+		var artifact_result = RunManager.get_random_artifact_with_slot_from_character_set()
 		if artifact_result.is_empty():
 			reward_label.text = "获得圣遗物！（但没有可用的圣遗物套装）"
 			reward_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
@@ -232,7 +228,8 @@ func _show_random_event() -> void:
 		_show_fate_dice_event()
 	else:
 		# 默认随机选择一种类型
-		var random_type = randi() % 3
+		var rng := RunManager.get_rng() if RunManager else null
+		var random_type: int = (rng.randi_range(0, 2) if rng else (randi() % 3))
 		match random_type:
 			0:
 				_show_reward_event()
@@ -246,7 +243,8 @@ func _show_weather_change_event() -> void:
 	if not content_container:
 		return
 	
-	var random = randf()
+	var rng := RunManager.get_rng() if RunManager else null
+	var random: float = rng.randf() if rng else randf()
 	var result_label = Label.new()
 	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
@@ -286,7 +284,8 @@ func _show_fate_dice_event() -> void:
 	if not content_container:
 		return
 	
-	var random = randf()
+	var rng := RunManager.get_rng() if RunManager else null
+	var random: float = rng.randf() if rng else randf()
 	var result_label = Label.new()
 	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
@@ -383,7 +382,7 @@ func _on_choice_selected(choice_index: int) -> void:
 	
 	# 检查是否需要支付成本
 	if choice.has("cost") and choice.cost > 0:
-		if not RunManager or not RunManager.spend_gold(choice.cost):
+		if not RunManager.spend_gold(choice.cost):
 			print("摩拉不足，无法选择此选项")
 			return
 	
@@ -438,12 +437,11 @@ func _on_rest_confirmed() -> void:
 	# 检查是否需要支付成本
 	if current_event_id == "liyue_inn":
 		# 璃月客栈需要支付200摩拉
-		if not RunManager or not RunManager.spend_gold(200):
+		if not RunManager.spend_gold(200):
 			print("摩拉不足，无法在客栈休息")
 			return
 		# 生命值全满
-		if RunManager:
-			RunManager.heal(RunManager.max_health)
+		RunManager.heal(RunManager.max_health)
 	else:
 		# 其他休息事件根据reward_value恢复
 		_apply_reward(current_event.reward_type, current_event.reward_value, current_event)
@@ -468,9 +466,6 @@ func _on_upgrade_confirmed() -> void:
 
 ## 应用奖励
 func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, event_data: EventData = null) -> void:
-	if not RunManager:
-		return
-	
 	# 处理随机奖励范围
 	var actual_value = _get_actual_reward_value(reward_type, reward_value, event_data)
 	
@@ -542,7 +537,8 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 					if key == "gold":
 						# 如果事件有随机范围，且gold是最大值，则使用随机范围
 						if event_data and event_data.reward_min > 0 and event_data.reward_max > 0:
-							var random_gold = randi_range(int(event_data.reward_min), int(event_data.reward_max))
+							var rng := RunManager.get_rng()
+							var random_gold = rng.randi_range(int(event_data.reward_min), int(event_data.reward_max))
 							RunManager.add_gold(random_gold)
 							print("获得摩拉：", random_gold)
 						else:
@@ -595,32 +591,31 @@ func _get_actual_reward_value(reward_type: EventData.RewardType, reward_value: V
 	# 检查是否有随机范围
 	if event_data.reward_min > 0 and event_data.reward_max > 0:
 		# 使用随机范围
-		var random_value = randi_range(int(event_data.reward_min), int(event_data.reward_max))
+		var rng := RunManager.get_rng() if RunManager else null
+		var random_value = (rng.randi_range(int(event_data.reward_min), int(event_data.reward_max)) if rng else randi_range(int(event_data.reward_min), int(event_data.reward_max)))
 		return random_value
 	
 	# 检查reward_value是否是数组范围
 	if reward_value is Array and reward_value.size() == 2:
 		var min_val = reward_value[0]
 		var max_val = reward_value[1]
-		return randi_range(int(min_val), int(max_val))
+		var rng := RunManager.get_rng() if RunManager else null
+		return (rng.randi_range(int(min_val), int(max_val)) if rng else randi_range(int(min_val), int(max_val)))
 	
 	return reward_value
 
 ## 给予随机升级
 func _give_random_upgrade() -> void:
-	var registry = _get_upgrade_registry()
-	if not registry:
-		return
+	var registry := UpgradeRegistry
 	
 	var character_id := ""
 	var current_floor := 0
 	var current_upgrades: Dictionary = {}
 	
-	if RunManager:
-		if RunManager.current_character:
-			character_id = RunManager.current_character.id
-		current_floor = RunManager.current_floor
-		current_upgrades = RunManager.upgrades
+	if RunManager.current_character:
+		character_id = RunManager.current_character.id
+	current_floor = RunManager.current_floor
+	current_upgrades = RunManager.upgrades
 	
 	var picked = registry.pick_random_upgrades(character_id, current_upgrades, current_floor, 1)
 	if picked.size() > 0:
@@ -630,19 +625,16 @@ func _give_random_upgrade() -> void:
 
 ## 给予随机升级并直接满级
 func _give_random_upgrade_max_level() -> void:
-	var registry = _get_upgrade_registry()
-	if not registry:
-		return
+	var registry := UpgradeRegistry
 	
 	var character_id := ""
 	var current_floor := 0
 	var current_upgrades: Dictionary = {}
 	
-	if RunManager:
-		if RunManager.current_character:
-			character_id = RunManager.current_character.id
-		current_floor = RunManager.current_floor
-		current_upgrades = RunManager.upgrades
+	if RunManager.current_character:
+		character_id = RunManager.current_character.id
+	current_floor = RunManager.current_floor
+	current_upgrades = RunManager.upgrades
 	
 	var picked = registry.pick_random_upgrades(character_id, current_upgrades, current_floor, 1)
 	if picked.size() > 0:
@@ -656,7 +648,7 @@ func _give_random_upgrade_max_level() -> void:
 
 ## 给予指定的圣遗物（用于已预先抽取的情况）
 func _give_specific_artifact(artifact: ArtifactData, slot: ArtifactSlot.SlotType) -> void:
-	if not RunManager or not artifact:
+	if not artifact:
 		return
 	
 	var slot_name = ArtifactSlot.get_slot_name(slot)
@@ -678,7 +670,7 @@ func _show_artifact_reward_result(reward_type: EventData.RewardType, reward_valu
 	_clear_content()
 	
 	# 抽取圣遗物
-	var artifact_result = RunManager.get_random_artifact_with_slot_from_character_set() if RunManager else {}
+	var artifact_result = RunManager.get_random_artifact_with_slot_from_character_set()
 	
 	var result_label = Label.new()
 	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -739,9 +731,6 @@ func _show_artifact_reward_result(reward_type: EventData.RewardType, reward_valu
 
 ## 应用非圣遗物奖励（用于MULTIPLE类型中排除圣遗物后的其他奖励）
 func _apply_non_artifact_rewards(reward_dict: Dictionary) -> void:
-	if not RunManager:
-		return
-	
 	for key in reward_dict:
 		if key == "artifact":
 			continue  # 跳过圣遗物，已单独处理
@@ -800,20 +789,4 @@ func _mark_event_triggered() -> void:
 	if current_event_id.is_empty():
 		return
 	
-	var registry = _get_event_registry()
-	if registry:
-		registry.mark_event_triggered(current_event_id)
-
-## 获取EventRegistry
-func _get_event_registry() -> Node:
-	# 直接访问自动加载单例（不需要通过场景树）
-	if EventRegistry:
-		return EventRegistry
-	return null
-
-## 获取UpgradeRegistry
-func _get_upgrade_registry() -> Node:
-	# 直接访问自动加载单例（不需要通过场景树）
-	if UpgradeRegistry:
-		return UpgradeRegistry
-	return null
+	EventRegistry.mark_event_triggered(current_event_id)

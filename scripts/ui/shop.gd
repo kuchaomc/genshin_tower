@@ -44,31 +44,18 @@ func _ready() -> void:
 	if back_button and not back_button.pressed.is_connected(_on_back_pressed):
 		back_button.pressed.connect(_on_back_pressed)
 
-
-## 获取 UpgradeRegistry
-func _get_upgrade_registry() -> Node:
-	# UpgradeRegistry 是 Autoload（见 project.godot），直接使用全局名即可
-	return UpgradeRegistry if is_instance_valid(UpgradeRegistry) else null
-
-
 ## 生成升级选项（从 UpgradeRegistry 中随机抽取）
 func _generate_upgrade_options() -> void:
 	available_upgrades.clear()
 	
-	var registry = _get_upgrade_registry()
-	if registry == null:
-		push_error("Shop: UpgradeRegistry 未找到，无法生成升级选项")
-		return
+	var registry := UpgradeRegistry
 	
 	var character_id := ""
-	var current_floor := 0
-	var current_upgrades: Dictionary = {}
+	var current_floor := RunManager.current_floor
+	var current_upgrades: Dictionary = RunManager.upgrades
 	
-	if RunManager:
-		if RunManager.current_character:
-			character_id = RunManager.current_character.id
-		current_floor = RunManager.current_floor
-		current_upgrades = RunManager.upgrades
+	if RunManager.current_character:
+		character_id = RunManager.current_character.id
 	
 	var picked: Array = registry.pick_random_upgrades(
 		character_id,
@@ -148,9 +135,7 @@ func _create_upgrade_button(upgrade: UpgradeData) -> void:
 	title_hbox.add_child(rarity_label)
 	
 	var name_label := Label.new()
-	var current_level := 0
-	if RunManager:
-		current_level = RunManager.get_upgrade_level(upgrade.id)
+	var current_level := RunManager.get_upgrade_level(upgrade.id)
 	
 	if current_level > 0:
 		name_label.text = "%s (Lv.%d → %d)" % [upgrade.display_name, current_level, current_level + 1]
@@ -198,9 +183,6 @@ func _create_upgrade_button(upgrade: UpgradeData) -> void:
 
 ## 处理升级购买
 func _on_upgrade_buy_pressed(upgrade: UpgradeData, price: int, button: Button) -> void:
-	if not RunManager:
-		return
-	
 	if purchased_upgrades.has(upgrade.id):
 		return
 	
@@ -228,10 +210,8 @@ func _update_artifact_pack_button_text() -> void:
 	if not artifact_pack_button:
 		return
 	
-	var floor_num: int = 1
-	if RunManager:
-		# 最少按第1层计价，避免 0 楼层出现 0 价格
-		floor_num = maxi(1, RunManager.current_floor)
+	# 最少按第1层计价，避免 0 楼层出现 0 价格
+	var floor_num: int = maxi(1, RunManager.current_floor)
 	
 	var price: int = floor_num * 50
 	if artifact_pack_already_purchased:
@@ -245,9 +225,6 @@ func _update_artifact_pack_button_text() -> void:
 ## 购买圣遗物自选包
 func _on_artifact_pack_pressed() -> void:
 	if artifact_pack_already_purchased:
-		return
-	
-	if not RunManager:
 		return
 	
 	var floor_num: int = maxi(1, RunManager.current_floor)
@@ -270,10 +247,7 @@ func _on_artifact_pack_pressed() -> void:
 
 ## 返回地图
 func _on_back_pressed() -> void:
-	if GameManager:
-		GameManager.go_to_map_view()
-	else:
-		queue_free()
+	GameManager.go_to_map_view()
 
 
 ## 更新摩拉显示
@@ -281,15 +255,9 @@ func _update_gold_label() -> void:
 	if not gold_label:
 		return
 	
-	var gold_amount := 0
-	if RunManager:
-		gold_amount = RunManager.gold
-	
-	gold_label.text = "当前摩拉：%d" % gold_amount
+	gold_label.text = "当前摩拉：%d" % RunManager.gold
 
 
 ## 判断是否有足够摩拉
 func _can_afford(price: int) -> bool:
-	if not RunManager:
-		return false
 	return RunManager.gold >= price

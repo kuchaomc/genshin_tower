@@ -39,18 +39,16 @@ func _ready() -> void:
 
 ## 加载自定义事件文件
 func _load_custom_events() -> void:
-	var events_dir = "res://data/events/"
-	
-	# 如果目录不存在，创建它
-	var dir = DirAccess.open("res://")
-	if dir:
-		dir.make_dir_recursive("data/events")
-	
-	dir = DirAccess.open(events_dir)
-	
+	# 注意：导出版本里 res:// 通常是只读包体，运行时不应尝试创建目录/写入。
+	# 自定义事件优先从 user://data/events/ 读取（可由玩家/外部写入），其次从 res://data/events/ 读取（随包体发布）。
+	_load_custom_events_from_dir("user://data/events/")
+	_load_custom_events_from_dir("res://data/events/")
+
+func _load_custom_events_from_dir(events_dir: String) -> void:
+	var dir := DirAccess.open(events_dir)
 	if dir == null:
 		if DebugLogger:
-			DebugLogger.log_info("未找到自定义事件目录 %s，将创建" % events_dir, "EventRegistry")
+			DebugLogger.log_debug("未找到事件目录 %s" % events_dir, "EventRegistry")
 		return
 	
 	dir.list_dir_begin()
@@ -84,7 +82,7 @@ func _load_custom_events() -> void:
 	
 	if loaded_count > 0:
 		if DebugLogger:
-			DebugLogger.log_info("共加载 %d 个自定义事件" % loaded_count, "EventRegistry")
+			DebugLogger.log_info("从 %s 共加载 %d 个自定义事件" % [events_dir, loaded_count], "EventRegistry")
 
 ## 注册所有内置事件
 func _register_builtin_events() -> void:
@@ -356,9 +354,9 @@ func pick_random_event(
 		weights.append(weight)
 		total_weight += weight
 	
-	# 权重随机选取（使用当前时间作为随机种子的一部分，确保每次都是随机的）
-	randomize()
-	var random_value = randf() * total_weight
+	# 权重随机选取：统一走 RunManager RNG（避免频繁 randomize 破坏可控性）
+	var rng := RunManager.get_rng() if RunManager else null
+	var random_value: float = (rng.randf() if rng else randf()) * total_weight
 	var cumulative_weight: float = 0.0
 	
 	for i in range(available.size()):

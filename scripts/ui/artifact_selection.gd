@@ -32,8 +32,7 @@ func generate_artifact_options() -> void:
 		return
 	
 	# 从角色专属圣遗物套装中随机选择（每次打开宝箱都重新随机）
-	# 使用当前时间作为随机种子的一部分，确保每次都是随机的
-	randomize()
+	# 随机数统一由 RunManager 管理（避免到处 randomize）
 	
 	for i in range(artifact_count):
 		var artifact = RunManager.get_random_artifact_from_character_set()

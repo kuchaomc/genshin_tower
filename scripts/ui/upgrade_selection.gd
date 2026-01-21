@@ -23,30 +23,18 @@ func _ready() -> void:
 	if TransitionManager and TransitionManager.is_transitioning:
 		await TransitionManager.fade_in(1.0)
 
-## 获取 UpgradeRegistry
-func _get_upgrade_registry() -> Node:
-	# UpgradeRegistry 是 Autoload（见 project.godot），直接使用全局名即可
-	return UpgradeRegistry if is_instance_valid(UpgradeRegistry) else null
-
 ## 生成升级选项
 func generate_upgrade_options() -> void:
 	available_upgrades.clear()
 	
-	var registry = _get_upgrade_registry()
-	if registry == null:
-		push_error("UpgradeSelection: UpgradeRegistry 未找到，无法生成升级选项")
-		return
+	var registry := UpgradeRegistry
 	
 	# 获取当前角色ID和楼层
 	var character_id = ""
-	var current_floor = 0
-	var current_upgrades: Dictionary = {}
-	
-	if RunManager:
-		if RunManager.current_character:
-			character_id = RunManager.current_character.id
-		current_floor = RunManager.current_floor
-		current_upgrades = RunManager.upgrades
+	var current_floor = RunManager.current_floor
+	var current_upgrades: Dictionary = RunManager.upgrades
+	if RunManager.current_character:
+		character_id = RunManager.current_character.id
 	
 	# 使用注册表的随机选取功能
 	var picked = registry.pick_random_upgrades(
@@ -105,9 +93,7 @@ func _create_upgrade_button(upgrade: UpgradeData) -> void:
 	
 	# 名称标签
 	var name_label = Label.new()
-	var current_level = 0
-	if RunManager:
-		current_level = RunManager.get_upgrade_level(upgrade.id)
+	var current_level = RunManager.get_upgrade_level(upgrade.id)
 	
 	if current_level > 0:
 		name_label.text = "%s (Lv.%d → %d)" % [upgrade.display_name, current_level, current_level + 1]
@@ -148,22 +134,19 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 		return
 	_is_processing_selection = true
 	
-	if RunManager:
-		RunManager.add_upgrade(upgrade_id, 1)
+	RunManager.add_upgrade(upgrade_id, 1)
 	
 	emit_signal("upgrade_selected", upgrade_id)
 	print("选择升级：", upgrade_id)
 	
 	# 结束当前战斗局（标记为胜利）
-	if RunManager:
-		RunManager.end_run(true)
+	RunManager.end_run(true)
 	
 	# 返回地图界面
-	if GameManager:
-		# 先淡出转场，再进入地图；地图场景会在 _ready 中检测并淡入
-		if TransitionManager:
-			await TransitionManager.fade_out(1.0)
-		GameManager.go_to_map_view()
+	# 先淡出转场，再进入地图；地图场景会在 _ready 中检测并淡入
+	if TransitionManager:
+		await TransitionManager.fade_out(1.0)
+	GameManager.go_to_map_view()
 
 ## 刷新升级选项（可在运行时调用）
 func refresh_options() -> void:

@@ -49,7 +49,8 @@ func calculate_damage(base_multiplier: float = 1.0, target_defense: float = 0.0,
 	if force_crit:
 		is_crit = true
 	elif not force_no_crit:
-		is_crit = randf() < crit_rate
+		var rng := RunManager.get_rng() if RunManager else null
+		is_crit = (rng.randf() if rng else randf()) < crit_rate
 	
 	# 暴击倍率
 	var crit_multiplier = 1.0
@@ -66,7 +67,8 @@ func calculate_damage(base_multiplier: float = 1.0, target_defense: float = 0.0,
 
 ## 判断是否触发暴击
 func is_critical_hit() -> bool:
-	return randf() < crit_rate
+	var rng := RunManager.get_rng() if RunManager else null
+	return (rng.randf() if rng else randf()) < crit_rate
 
 ## 计算受到的伤害（应用自身减伤）
 ## raw_damage: 原始伤害值

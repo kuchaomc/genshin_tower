@@ -86,7 +86,8 @@ func show_heal(position: Vector2, heal_amount: float) -> void:
 ## 播放飘字动画
 func _play_float_animation() -> void:
 	# 随机水平偏移，避免多个飘字重叠
-	var random_offset_x = randf_range(-20.0, 20.0)
+	var rng := RunManager.get_rng() if RunManager else null
+	var random_offset_x = rng.randf_range(-20.0, 20.0) if rng else randf_range(-20.0, 20.0)
 	var start_pos = global_position
 	var end_pos = start_pos + Vector2(random_offset_x, -float_distance)
 	

@@ -55,14 +55,18 @@ var _dodge_elapsed: float = 0.0
 var _hurt_invincible: bool = false
 var _dodge_invincible: bool = false
 
-# ========== 碰撞掩码（数字版，便于读） ==========
-# 约定：第1层=墙(Walls)，第2层=敌人(Enemies)，第3层未用，第4层=玩家(Player)
-# - 正常：与墙+敌人碰撞 => 1 + 2 = 3
+# ========== 碰撞层/掩码（Godot 4 使用 bitmask，不是“层号”） ==========
+# 约定（与 project.godot 的 layer_names 对齐）：
+# - 1: Walls   => bit 1 << 0 == 1
+# - 2: Enemies => bit 1 << 1 == 2
+# - 4: Player  => bit 1 << 3 == 8
+# - 5: DodgePlayer（闪避专用层）=> bit 1 << 4 == 16
+# - 正常：与墙+敌人碰撞 => 1 | 2 = 3
 # - 闪避：只与墙碰撞（可穿过敌人）=> 1
-const _NORMAL_COLLISION_MASK: int = 3
+const _NORMAL_COLLISION_MASK: int = 1 | 2
 const _DODGE_COLLISION_MASK: int = 1
-const _PLAYER_COLLISION_LAYER: int = 4
-const _DODGE_PLAYER_COLLISION_LAYER: int = 8 # 闪避专用层：让敌人不再"顶开/挡住"玩家
+const _PLAYER_COLLISION_LAYER: int = 1 << 3
+const _DODGE_PLAYER_COLLISION_LAYER: int = 1 << 4
 
 # 血量变化信号
 signal health_changed(current: float, maximum: float)

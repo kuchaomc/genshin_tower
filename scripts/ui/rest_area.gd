@@ -125,13 +125,7 @@ func _create_upgrade_option() -> void:
 ## 加载已有升级
 func _load_owned_upgrades() -> void:
 	owned_upgrades.clear()
-	
-	if not RunManager:
-		return
-	
-	var registry = _get_upgrade_registry()
-	if not registry:
-		return
+	var registry := UpgradeRegistry
 	
 	# 遍历玩家已有的升级
 	for upgrade_id in RunManager.upgrades:
@@ -151,10 +145,6 @@ func _load_owned_upgrades() -> void:
 
 ## 选择恢复生命值
 func _on_heal_selected() -> void:
-	if not RunManager:
-		_complete_rest()
-		return
-	
 	# 恢复20%生命值
 	var heal_amount = RunManager.max_health * 0.20
 	RunManager.heal(heal_amount)
@@ -265,16 +255,7 @@ func _create_upgrade_button(upgrade_info: Dictionary) -> void:
 
 ## 选择升级
 func _on_upgrade_selected(upgrade_id: String) -> void:
-	if not RunManager:
-		_complete_rest()
-		return
-	
-	var registry = _get_upgrade_registry()
-	if not registry:
-		_complete_rest()
-		return
-	
-	var upgrade_data = registry.get_upgrade(upgrade_id)
+	var upgrade_data = UpgradeRegistry.get_upgrade(upgrade_id)
 	if not upgrade_data:
 		_complete_rest()
 		return
@@ -322,8 +303,7 @@ func _complete_rest() -> void:
 	emit_signal("rest_completed")
 	
 	# 返回地图
-	if GameManager:
-		GameManager.go_to_map_view()
+	GameManager.go_to_map_view()
 
 ## 返回按钮点击
 func _on_back_pressed() -> void:
@@ -337,7 +317,4 @@ func _clear_container(container: Control) -> void:
 	for child in container.get_children():
 		child.queue_free()
 
-## 获取 UpgradeRegistry
-func _get_upgrade_registry() -> Node:
-	# UpgradeRegistry 是 Autoload（见 project.godot），直接使用全局名即可
-	return UpgradeRegistry if is_instance_valid(UpgradeRegistry) else null
+## UpgradeRegistry 为 Autoload，直接使用全局名即可

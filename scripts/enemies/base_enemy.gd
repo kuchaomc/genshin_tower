@@ -69,15 +69,18 @@ func _ready() -> void:
 	# 统一敌人分组：供 UI/战斗逻辑识别
 	add_to_group("enemies")
 	
-	# 碰撞层约定：第1层=墙(Walls)，第2层=敌人(Enemies)
+	# 碰撞层约定（bitmask）：
+	# - 1: Walls   => 1
+	# - 2: Enemies => 2
+	# - 4: Player  => 8
 	# 敌人本体放到“敌人层”，避免和墙层混用，方便玩家在闪避时只碰墙
 	collision_layer = 2
 	# 敌人需要：
 	# - 与墙碰撞（不穿出空气墙）=> +1
 	# - 与敌人碰撞（避免挤在一起）=> +2（敌人层）
-	# - 与玩家碰撞（用于接触伤害/阻挡）=> +4（玩家层）
-	# 合计：1 + 2 + 4 = 7
-	collision_mask = 7
+	# - 与玩家碰撞（用于接触伤害/阻挡）=> +8（玩家层，bitmask）
+	# 合计：1 + 2 + 8 = 11
+	collision_mask = 11
 	
 	# 如果没有通过 initialize 初始化，创建默认属性
 	if current_stats == null:
@@ -365,7 +368,8 @@ func on_death() -> void:
 		return
 	
 	is_dead = true
-	print("敌人死亡")
+	if DebugLogger:
+		DebugLogger.log_debug("敌人死亡", "BaseEnemy")
 	
 	# 记录击杀
 	if RunManager:
@@ -383,48 +387,29 @@ func on_death() -> void:
 			battle_manager.on_enemy_killed(score)
 	
 	# 掉落摩拉
-	if enemy_data:
-		var gold = enemy_data.drop_gold
-		print("敌人掉落摩拉检查：enemy_data存在，drop_gold = ", gold)
-		if gold > 0:
-			print("开始掉落摩拉：", gold)
-			_drop_gold(gold)
-		else:
-			print("警告：敌人 drop_gold 为 0，不掉落摩拉")
-	else:
-		print("警告：敌人 enemy_data 为 null，无法掉落摩拉")
-		# 即使 enemy_data 为 null，也掉落默认摩拉（兼容性处理）
-		_drop_gold(10)
+	if enemy_data and enemy_data.drop_gold > 0:
+		_drop_gold(enemy_data.drop_gold)
 	
 	# 删除敌人节点
 	queue_free()
 
 ## 掉落摩拉
 func _drop_gold(amount: int) -> void:
-	print("_drop_gold 被调用，数量：", amount)
-	
 	# 加载摩拉场景（使用DataManager缓存）
 	var gold_pickup_scene: PackedScene = null
 	if DataManager:
 		gold_pickup_scene = DataManager.get_packed_scene("res://scenes/items/gold_pickup.tscn")
-		print("通过 DataManager 加载摩拉场景：", gold_pickup_scene != null)
 	else:
 		gold_pickup_scene = load("res://scenes/items/gold_pickup.tscn") as PackedScene
-		print("直接加载摩拉场景：", gold_pickup_scene != null)
 	
 	if not gold_pickup_scene:
 		# 如果场景不存在，直接添加到RunManager（兼容性处理）
-		print("摩拉场景加载失败，直接添加到 RunManager")
 		if RunManager:
 			RunManager.add_gold(amount)
-			print("已直接添加摩拉到 RunManager：", amount)
-		else:
-			print("错误：RunManager 不存在，无法添加摩拉")
 		return
 	
 	# 创建摩拉实例
 	var gold_pickup = gold_pickup_scene.instantiate()
-	print("摩拉实例化：", gold_pickup != null)
 	if gold_pickup and gold_pickup.has_method("set_gold_amount"):
 		gold_pickup.set_gold_amount(amount)
 		gold_pickup.global_position = global_position
@@ -432,17 +417,13 @@ func _drop_gold(amount: int) -> void:
 		var current_scene = get_tree().current_scene
 		if current_scene:
 			current_scene.add_child(gold_pickup)
-			print("摩拉已添加到场景树，位置：", global_position, "，数量：", amount)
 		else:
-			print("错误：无法获取当前场景，直接添加到 RunManager")
 			if RunManager:
 				RunManager.add_gold(amount)
 	else:
 		# 如果实例化失败，直接添加到RunManager
-		print("摩拉实例化失败或缺少 set_gold_amount 方法，直接添加到 RunManager")
 		if RunManager:
 			RunManager.add_gold(amount)
-			print("已直接添加摩拉到 RunManager：", amount)
 
 ## 身体进入回调函数（检测与玩家的碰撞）
 func _on_body_entered(body: Node2D) -> void:

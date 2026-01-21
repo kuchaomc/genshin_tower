@@ -51,23 +51,12 @@ var camera_bounds: Rect2 = Rect2(-500, -3000, 3000, 4200)  # x, y, width, height
 
 func _ready() -> void:
 	var should_fade_in: bool = (TransitionManager != null and TransitionManager.is_transitioning)
-	# 检查必要的单例是否存在
-	if not DataManager:
-		print("错误：DataManager未找到")
-		if should_fade_in:
-			await TransitionManager.fade_in(1.0)
-		return
-	
-	if not RunManager:
-		print("错误：RunManager未找到")
-		if should_fade_in:
-			await TransitionManager.fade_in(1.0)
-		return
 	
 	# 如果是新游戏（current_node_id为空且没有地图种子），生成新地图种子
 	# 否则重用现有地图（通过固定种子）
 	if RunManager.current_node_id.is_empty() and RunManager.map_seed == -1:
-		RunManager.map_seed = randi()
+		var rng := RunManager.get_rng()
+		RunManager.map_seed = rng.randi()
 		print("生成新地图，种子：", RunManager.map_seed)
 	else:
 		print("重用现有地图，种子：", RunManager.map_seed)
@@ -137,7 +126,7 @@ func generate_and_display_map() -> void:
 		map_generator = MapGenerator.new()
 	
 	# 如果已有地图种子，使用固定种子生成相同地图
-	if RunManager and RunManager.map_seed != -1:
+	if RunManager.map_seed != -1:
 		seed(RunManager.map_seed)
 	
 	# 获取地图配置
@@ -277,7 +266,7 @@ func display_map() -> void:
 			node_instances[node_data.node_id] = node_view
 			
 			# 恢复已访问节点的状态
-			if RunManager and RunManager.is_node_visited(node_data.node_id):
+			if RunManager.is_node_visited(node_data.node_id):
 				node_view.set_visited(true)
 				node_view.update_visual_state(false)  # 已访问节点不可选择
 	
@@ -289,8 +278,8 @@ func display_map() -> void:
 	
 	# 如果已经选择了初始节点，计算可达节点并淡化不可达节点
 	# 注意：初始时所有节点都应该是可达的，只有选择初始节点后才计算可达性
-	var current_node_id = RunManager.current_node_id if RunManager else ""
-	var current_floor = RunManager.current_floor if RunManager else 1
+	var current_node_id = RunManager.current_node_id
+	var current_floor = RunManager.current_floor
 	
 	# 只有当玩家已经选择了初始节点（第1层）时，才计算可达性
 	# 初始状态下，reachable_nodes 为空，所有节点和连接线都正常显示
@@ -359,8 +348,8 @@ func _draw_all_connections(floors: Array) -> void:
 func _update_selectable_nodes() -> void:
 	selectable_nodes.clear()
 	
-	var current_floor = RunManager.current_floor if RunManager else 1
-	var current_node_id = RunManager.current_node_id if RunManager else ""
+	var current_floor = RunManager.current_floor
+	var current_node_id = RunManager.current_node_id
 	
 	# 如果当前楼层 <= 1 且没有当前节点，所有第一层节点都可选
 	if current_floor <= 1 and current_node_id.is_empty():
@@ -404,8 +393,8 @@ func _on_node_selected(node: MapNodeData) -> void:
 		return
 	
 	# 检查节点是否可选
-	var current_floor = RunManager.current_floor if RunManager else 1
-	var current_node_id = RunManager.current_node_id if RunManager else ""
+	var current_floor = RunManager.current_floor
+	var current_node_id = RunManager.current_node_id
 	var is_selectable = false
 	
 	if current_floor <= 1 and current_node_id.is_empty() and node.floor_number == 1:
@@ -419,15 +408,13 @@ func _on_node_selected(node: MapNodeData) -> void:
 	# 访问节点
 	if view:
 		view.set_visited(true)
-	if RunManager:
-		RunManager.visit_node(node.node_id)
+	RunManager.visit_node(node.node_id)
 	
 	# 更新楼层和当前节点
-	if RunManager:
-		RunManager.set_floor(node.floor_number)
-		RunManager.current_node_id = node.node_id
-		if floor_label:
-			floor_label.text = "当前楼层: %d / 16" % node.floor_number
+	RunManager.set_floor(node.floor_number)
+	RunManager.current_node_id = node.node_id
+	if floor_label:
+		floor_label.text = "当前楼层: %d / 16" % node.floor_number
 	
 	# 滚动相机跟随
 	_scroll_to_floor(node.floor_number)
@@ -485,44 +472,23 @@ func open_treasure() -> void:
 
 ## 开始战斗
 func start_battle(_node: MapNodeData) -> void:
-	if GameManager:
-		GameManager.start_battle()
-	else:
-		var battle_scene: PackedScene = null
-		if DataManager:
-			battle_scene = DataManager.get_packed_scene("res://scenes/battle/battle_scene.tscn")
-		else:
-			battle_scene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
-		if battle_scene:
-			get_tree().change_scene_to_packed(battle_scene)
+	GameManager.start_battle()
 
 ## 进入商店
 func enter_shop() -> void:
-	if GameManager:
-		GameManager.enter_shop()
+	GameManager.enter_shop()
 
 ## 进入休息处
 func enter_rest() -> void:
-	if GameManager:
-		GameManager.enter_rest()
+	GameManager.enter_rest()
 
 ## 进入奇遇事件
 func enter_event() -> void:
-	if GameManager:
-		GameManager.enter_event()
+	GameManager.enter_event()
 
 ## 开始BOSS战
 func start_boss_battle() -> void:
-	if GameManager:
-		GameManager.start_boss_battle()
-	else:
-		var boss_battle_scene: PackedScene = null
-		if DataManager:
-			boss_battle_scene = DataManager.get_packed_scene("res://scenes/battle/boss_battle.tscn")
-		else:
-			boss_battle_scene = load("res://scenes/battle/boss_battle.tscn") as PackedScene
-		if boss_battle_scene:
-			get_tree().change_scene_to_packed(boss_battle_scene)
+	GameManager.start_boss_battle()
 
 ## 计算从起点开始所有可达的节点（使用BFS）
 func _calculate_reachable_nodes(start_node_id: String) -> void:

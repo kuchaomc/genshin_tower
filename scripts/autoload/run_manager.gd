@@ -9,6 +9,9 @@ signal health_changed(current: float, maximum: float)
 signal upgrade_added(upgrade_id: String)
 signal upgrades_applied  # 升级应用完成信号
 
+# ========== 随机数（统一入口，避免到处 randomize/seed） ==========
+var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
 # 当前角色
 var current_character: CharacterData = null
 var current_character_node: Node = null  # 当前角色的场景节点引用
@@ -64,6 +67,14 @@ var start_time: float = 0.0
 # 防止重复结算标志
 var _run_ended: bool = false
 
+func _ready() -> void:
+	# Autoload 初始化时随机化一次即可；后续所有随机都走 _rng
+	_rng.randomize()
+
+## 获取 RNG（统一随机入口）
+func get_rng() -> RandomNumberGenerator:
+	return _rng
+
 ## 开始新的一局游戏
 func start_new_run(character: CharacterData) -> void:
 	current_character = character
@@ -87,6 +98,8 @@ func start_new_run(character: CharacterData) -> void:
 	damage_taken = 0.0
 	start_time = Time.get_ticks_msec() / 1000.0
 	_run_ended = false  # 重置结算标志
+	# 每局重新随机化一次，确保 run 间差异；如需可复现可改为固定 seed
+	_rng.randomize()
 	
 	# 清除已触发的事件记录
 	if EventRegistry:
@@ -406,7 +419,7 @@ func get_random_artifact_from_character_set() -> ArtifactData:
 		return null
 	
 	# 随机选择一个槽位
-	var random_slot = available_slots[randi() % available_slots.size()]
+	var random_slot = available_slots[_rng.randi_range(0, available_slots.size() - 1)]
 	return current_character.artifact_set.get_artifact(random_slot)
 
 ## 从角色专属圣遗物套装中随机获取一个圣遗物及其槽位
@@ -426,7 +439,7 @@ func get_random_artifact_with_slot_from_character_set() -> Dictionary:
 		return {}
 	
 	# 随机选择一个槽位
-	var random_slot = available_slots[randi() % available_slots.size()]
+	var random_slot = available_slots[_rng.randi_range(0, available_slots.size() - 1)]
 	var artifact = current_character.artifact_set.get_artifact(random_slot)
 	
 	return {

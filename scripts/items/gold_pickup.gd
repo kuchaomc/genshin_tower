@@ -39,9 +39,10 @@ func _ready() -> void:
 ## 延迟初始化（避免 flushing queries 报错）
 func _deferred_setup() -> void:
 	# 设置碰撞层和掩码
-	# 摩拉在碰撞层0（默认），检测玩家层（第4层）
-	collision_layer = 0
-	collision_mask = 4  # 玩家层
+	# Godot 4 使用 bitmask。这里的 Area2D 只需要“检测玩家层”，自身放到单独层即可。
+	# 约定：第4层=玩家(Player) => bit 1<<3 == 8；第3层作为拾取物层 => bit 1<<2 == 4
+	collision_layer = 1 << 2
+	collision_mask = 1 << 3
 
 	# 创建/确保碰撞形状存在（避免重复创建）
 	var collision_shape: CollisionShape2D = null

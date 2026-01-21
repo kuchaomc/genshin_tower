@@ -55,6 +55,7 @@ func generate_map(config: Dictionary = {}) -> Dictionary:
 ## 步骤1：生成每一阶的节点数量
 func _generate_floor_node_counts() -> Array:
 	var counts: Array = []
+	var rng := RunManager.get_rng() if RunManager else null
 	
 	for floor_num in range(1, TOTAL_FLOORS + 1):
 		var count: int
@@ -67,7 +68,7 @@ func _generate_floor_node_counts() -> Array:
 			count = 3
 		else:
 			# 其他阶层：3-5个节点
-			count = randi_range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR)
+			count = rng.randi_range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR) if rng else randi_range(MIN_NODES_PER_FLOOR, MAX_NODES_PER_FLOOR)
 		
 		counts.append(count)
 	
@@ -151,7 +152,8 @@ func _select_node_type(floor_num: int, node_types_config: Dictionary) -> MapNode
 	if total_weight <= 0:
 		return MapNodeData.NodeType.ENEMY
 	
-	var random_value = randi() % total_weight
+	var rng := RunManager.get_rng() if RunManager else null
+	var random_value: int = rng.randi_range(0, total_weight - 1) if rng else (randi() % total_weight)
 	var current_weight: int = 0
 	
 	for i in range(weights.size()):
@@ -234,7 +236,9 @@ func _generate_floor_connections(current_count: int, next_count: int, floor_idx:
 		return _generate_fallback_connections_limited(current_count, next_count)
 	
 	# 随机选择一个有效组合
-	var selected = valid_combinations[randi() % valid_combinations.size()]
+	var rng := RunManager.get_rng() if RunManager else null
+	var selected_idx: int = rng.randi_range(0, valid_combinations.size() - 1) if rng else (randi() % valid_combinations.size())
+	var selected = valid_combinations[selected_idx]
 	return selected
 
 ## 获取单个输出点到多个输入点的所有可能连接（限制范围版本）

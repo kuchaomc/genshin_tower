@@ -142,7 +142,7 @@ func _initialize_battle_conditions() -> void:
 		# BOSS战：只需要击杀1个BOSS即可胜利
 		required_score = 1
 	else:
-		var current_floor = RunManager.current_floor if RunManager else 1
+		var current_floor = RunManager.current_floor
 		required_score = 5 + (current_floor - 1) * 5
 	update_enemy_kill_counter_display()
 	_update_gold_display()
@@ -169,7 +169,7 @@ func _initialize_timers() -> void:
 	
 	# 普通战斗模式：创建敌人生成计时器
 	enemy_spawn_timer = Timer.new()
-	var current_floor = RunManager.current_floor if RunManager else 1
+	var current_floor = RunManager.current_floor
 	enemy_spawn_timer.wait_time = _calculate_enemy_spawn_time(current_floor)
 	var spawn_count = _calculate_enemy_spawn_count(current_floor)
 	var multipliers = _calculate_enemy_stat_multipliers(current_floor)
@@ -211,9 +211,8 @@ func _calculate_enemy_stat_multipliers(current_floor: int) -> Array:
 
 ## 连接信号
 func _connect_signals() -> void:
-	if RunManager:
-		RunManager.health_changed.connect(_on_player_health_changed)
-		RunManager.gold_changed.connect(_on_gold_changed)
+	RunManager.health_changed.connect(_on_player_health_changed)
+	RunManager.gold_changed.connect(_on_gold_changed)
 
 func _exit_tree() -> void:
 	_restore_floor_notification_from_transition_layer()
@@ -229,7 +228,7 @@ func _input(event: InputEvent) -> void:
 ## 初始化暂停菜单
 func _initialize_pause_menu() -> void:
 	# 加载暂停菜单场景
-	var pause_menu_scene = DataManager.get_packed_scene("res://scenes/ui/pause_menu.tscn") if DataManager else preload("res://scenes/ui/pause_menu.tscn")
+	var pause_menu_scene = DataManager.get_packed_scene("res://scenes/ui/pause_menu.tscn")
 	if not pause_menu_scene:
 		push_error("BattleManager: 无法加载暂停菜单场景")
 		return
@@ -280,7 +279,7 @@ func get_player() -> BaseCharacter:
 
 ## 初始化玩家
 func initialize_player() -> void:
-	if not RunManager or not RunManager.current_character:
+	if not RunManager.current_character:
 		print("错误：没有选择角色，无法初始化玩家")
 		return
 	
@@ -295,10 +294,7 @@ func initialize_player() -> void:
 	
 	# 加载角色场景
 	var character_scene: PackedScene = null
-	if DataManager:
-		character_scene = DataManager.get_packed_scene(character_data.scene_path)
-	else:
-		character_scene = load(character_data.scene_path) as PackedScene
+	character_scene = DataManager.get_packed_scene(character_data.scene_path)
 	if not character_scene:
 		print("错误：无法加载角色场景 ", character_data.scene_path)
 		return
@@ -333,11 +329,10 @@ func initialize_player() -> void:
 	connect_player_signals()
 	
 	# 同步血量到RunManager，并注册角色节点以应用升级
-	if RunManager:
-		RunManager.set_health(player.current_health, player.max_health)
-		RunManager.set_character_node(player)
-		# 自动装备库存中的所有圣遗物
-		RunManager.equip_all_inventory_artifacts()
+	RunManager.set_health(player.current_health, player.max_health)
+	RunManager.set_character_node(player)
+	# 自动装备库存中的所有圣遗物
+	RunManager.equip_all_inventory_artifacts()
 	
 	# 通知相机更新目标（如果相机存在）
 	_update_camera_target()
@@ -363,7 +358,7 @@ func connect_player_signals() -> void:
 			_on_player_health_changed(player.get_current_health(), player.get_max_health())
 		
 		# 初始化技能UI（根据角色ID动态加载图标）
-		if skill_ui and RunManager and RunManager.current_character:
+		if skill_ui and RunManager.current_character:
 			var skill_icon_path = _get_skill_icon_path(RunManager.current_character.id)
 			if skill_icon_path:
 				var skill_icon = _load_texture(skill_icon_path)
@@ -371,7 +366,7 @@ func connect_player_signals() -> void:
 					skill_ui.set_skill_icon(skill_icon)
 		
 		# 初始化大招UI（根据角色ID动态加载图标）
-		if burst_ui and RunManager and RunManager.current_character:
+		if burst_ui and RunManager.current_character:
 			var burst_icon_path = _get_burst_icon_path(RunManager.current_character.id)
 			if burst_icon_path:
 				var burst_icon = _load_texture(burst_icon_path)
@@ -381,7 +376,7 @@ func connect_player_signals() -> void:
 ## 敌人生成计时器回调
 func _on_enemy_spawn_timer_timeout() -> void:
 	if current_state == GameState.PLAYING and not is_boss_battle:
-		var current_floor = RunManager.current_floor if RunManager else 1
+		var current_floor = RunManager.current_floor
 		var spawn_count = _calculate_enemy_spawn_count(current_floor)
 		for i in range(spawn_count):
 			spawn_enemy()
@@ -389,10 +384,6 @@ func _on_enemy_spawn_timer_timeout() -> void:
 
 ## 生成BOSS（BOSS战模式专用）
 func spawn_boss() -> void:
-	if not DataManager:
-		print("错误：DataManager未找到")
-		return
-	
 	# 获取BOSS数据
 	var boss_enemies = DataManager.get_enemies_by_type("boss")
 	if boss_enemies.is_empty():
@@ -408,10 +399,7 @@ func spawn_boss() -> void:
 	# 加载BOSS场景
 	var boss_scene_path = boss_data.scene_path
 	var boss_scene: PackedScene = null
-	if DataManager:
-		boss_scene = DataManager.get_packed_scene(boss_scene_path)
-	else:
-		boss_scene = load(boss_scene_path) as PackedScene
+	boss_scene = DataManager.get_packed_scene(boss_scene_path)
 	
 	if not boss_scene:
 		print("错误：无法加载BOSS场景：", boss_scene_path)
@@ -465,14 +453,16 @@ func spawn_enemy() -> void:
 		print("获取敌人类型列表，数量：", enemy_types.size())
 		
 		if not enemy_types.is_empty():
-			var enemy_data = enemy_types[randi() % enemy_types.size()]
+			var rng := RunManager.get_rng()
+			var idx: int = rng.randi_range(0, enemy_types.size() - 1)
+			var enemy_data = enemy_types[idx]
 			print("初始化敌人，类型：", enemy_data.display_name, "，drop_gold：", enemy_data.drop_gold)
 			enemy_instance.initialize(enemy_data)
 		else:
 			print("警告：没有找到敌人类型数据，敌人可能无法正常掉落摩拉")
 	
 	# 应用楼层属性缩放
-	var current_floor = RunManager.current_floor if RunManager else 1
+	var current_floor = RunManager.current_floor
 	var multipliers = _calculate_enemy_stat_multipliers(current_floor)
 	_apply_floor_scaling_to_enemy(enemy_instance, multipliers[0], multipliers[1])
 	
@@ -489,15 +479,17 @@ func spawn_enemy() -> void:
 		b = max(0.0, b - margin)
 		
 		# 采样均匀分布在椭圆内部的随机点
-		var angle: float = randf() * TAU
-		var r: float = sqrt(randf())  # 保证在圆内均匀分布
+		var rng := RunManager.get_rng()
+		var angle: float = rng.randf() * TAU
+		var r: float = sqrt(rng.randf())  # 保证在圆内均匀分布
 		var local: Vector2 = Vector2(cos(angle) * a * r, sin(angle) * b * r)
 		spawn_pos = center + local
 	else:
 		# 兜底：如果没有找到空气墙，就按屏幕范围随机生成
 		var screen_size = get_viewport().get_visible_rect().size
-		var spawn_x = randf_range(100, screen_size.x - 100)
-		var spawn_y = randf_range(100, screen_size.y - 100)
+		var rng := RunManager.get_rng()
+		var spawn_x = rng.randf_range(100.0, screen_size.x - 100.0)
+		var spawn_y = rng.randf_range(100.0, screen_size.y - 100.0)
 		spawn_pos = Vector2(spawn_x, spawn_y)
 	
 	# 设置敌人位置（使用全局坐标，保证与空气墙一致）
@@ -518,7 +510,7 @@ func update_enemy_kill_counter_display() -> void:
 
 ## 更新摩拉显示
 func _update_gold_display() -> void:
-	if gold_label and RunManager:
+	if gold_label:
 		gold_label.text = str(RunManager.gold)
 
 ## 敌人被击杀回调（由敌人死亡时调用）
@@ -558,8 +550,7 @@ func battle_victory() -> void:
 	if is_boss_battle:
 		print("BOSS战胜利！游戏完成！")
 		# 结束游戏并标记为胜利
-		if RunManager:
-			RunManager.end_run(true)
+		RunManager.end_run(true)
 	else:
 		print("战斗胜利！当前得分：", current_score, "。即将进入升级选择...")
 	
@@ -616,10 +607,8 @@ func _on_game_over_timer_timeout() -> void:
 	else:
 		# 战斗失败，直接返回地图
 		_restore_floor_notification_from_transition_layer()
-		if RunManager:
-			RunManager.end_run(false)
-		if GameManager:
-			GameManager.go_to_map_view()
+		RunManager.end_run(false)
+		GameManager.go_to_map_view()
 
 ## 显示“已完成当前层级目标”提示（复用 FloorNotification）
 func _show_level_goal_completed_notification() -> void:
@@ -692,8 +681,7 @@ func _on_gold_changed(gold: int) -> void:
 		gold_label.text = str(gold)
 	
 	# 初始化时也更新一次
-	if RunManager:
-		_update_gold_display()
+	_update_gold_display()
 
 ## 调试开关：显示/隐藏判定与碰撞箱
 func _on_debug_toggle_pressed() -> void:
