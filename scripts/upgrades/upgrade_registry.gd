@@ -415,7 +415,9 @@ func pick_random_upgrades(
 	var available_copy = available.duplicate()
 	var weights_copy = weights.duplicate()
 	var total_weight_copy = total_weight
-	var rng := RunManager.get_rng() if RunManager else null
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng()
 	if not rng:
 		push_warning("UpgradeRegistry: RunManager 不可用，创建临时 RNG")
 		rng = RandomNumberGenerator.new()

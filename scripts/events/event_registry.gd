@@ -355,7 +355,9 @@ func pick_random_event(
 		total_weight += weight
 	
 	# 权重随机选取：统一走 RunManager RNG（避免频繁 randomize 破坏可控性）
-	var rng := RunManager.get_rng() if RunManager else null
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng()
 	if not rng:
 		push_warning("EventRegistry: RunManager 不可用，创建临时 RNG")
 		rng = RandomNumberGenerator.new()

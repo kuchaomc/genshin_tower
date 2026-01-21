@@ -273,10 +273,7 @@ func display_map() -> void:
 	# 绘制所有连接线
 	_draw_all_connections(floors)
 	
-	# 更新可选择的节点状态
-	_update_selectable_nodes()
-	
-	# 如果已经选择了初始节点，计算可达节点并淡化不可达节点
+	# 如果已经选择了初始节点，先计算可达节点
 	# 注意：初始时所有节点都应该是可达的，只有选择初始节点后才计算可达性
 	var current_node_id = RunManager.current_node_id
 	var current_floor = RunManager.current_floor
@@ -286,7 +283,12 @@ func display_map() -> void:
 	if not current_node_id.is_empty() and current_floor >= 1:
 		# 玩家已经选择了初始节点，计算从该节点开始的所有可达节点
 		_calculate_reachable_nodes(current_node_id)
-		# 更新不可达节点和连接线的视觉状态
+	
+	# 更新可选择的节点状态（在计算可达节点之后）
+	_update_selectable_nodes()
+	
+	# 更新不可达节点和连接线的视觉状态（如果在计算了可达节点后）
+	if not reachable_nodes.is_empty():
 		_update_unreachable_nodes_visual()
 	# 初始状态：reachable_nodes 为空，_update_node_visual_state 会使用默认视觉状态
 

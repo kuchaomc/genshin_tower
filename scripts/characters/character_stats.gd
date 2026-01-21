@@ -49,7 +49,9 @@ func calculate_damage(base_multiplier: float = 1.0, target_defense: float = 0.0,
 	if force_crit:
 		is_crit = true
 	elif not force_no_crit:
-		var rng := RunManager.get_rng() if RunManager else null
+		var rng: RandomNumberGenerator = null
+		if RunManager:
+			rng = RunManager.get_rng()
 		if not rng:
 			push_warning("CharacterStats: RunManager 不可用，创建临时 RNG")
 			rng = RandomNumberGenerator.new()
@@ -71,7 +73,9 @@ func calculate_damage(base_multiplier: float = 1.0, target_defense: float = 0.0,
 
 ## 判断是否触发暴击
 func is_critical_hit() -> bool:
-	var rng := RunManager.get_rng() if RunManager else null
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng()
 	if not rng:
 		push_warning("CharacterStats: RunManager 不可用，创建临时 RNG")
 		rng = RandomNumberGenerator.new()
@@ -133,7 +137,7 @@ func apply_bonuses(bonuses: Dictionary) -> void:
 			push_warning("CharacterStats: 属性 '%s' 不存在，已忽略加成" % stat_name)
 			continue
 
-		var current_value := get(stat_key)
+		var current_value: Variant = get(stat_key)
 		# 只对可数值化的属性做叠加，避免把非数值字段误改成 NaN
 		if not (current_value is int or current_value is float):
 			push_warning("CharacterStats: 属性 '%s' 不是数值类型，已忽略加成" % stat_name)

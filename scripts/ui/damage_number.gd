@@ -86,12 +86,14 @@ func show_heal(position: Vector2, heal_amount: float) -> void:
 ## 播放飘字动画
 func _play_float_animation() -> void:
 	# 随机水平偏移，避免多个飘字重叠
-	var rng := RunManager.get_rng() if RunManager else null
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng()
 	if not rng:
 		push_warning("DamageNumber: RunManager 不可用，无法生成随机偏移")
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
-	var random_offset_x = rng.randf_range(-20.0, 20.0)
+	var random_offset_x: float = rng.randf_range(-20.0, 20.0)
 	var start_pos = global_position
 	var end_pos = start_pos + Vector2(random_offset_x, -float_distance)
 	

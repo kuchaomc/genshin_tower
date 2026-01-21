@@ -228,7 +228,9 @@ func _show_random_event() -> void:
 		_show_fate_dice_event()
 	else:
 		# 默认随机选择一种类型
-		var rng := RunManager.get_rng() if RunManager else null
+		var rng: RandomNumberGenerator = null
+		if RunManager:
+			rng = RunManager.get_rng()
 		if not rng:
 			push_warning("EventUI: RunManager 不可用，创建临时 RNG")
 			rng = RandomNumberGenerator.new()
@@ -247,7 +249,9 @@ func _show_weather_change_event() -> void:
 	if not content_container:
 		return
 	
-	var rng := RunManager.get_rng() if RunManager else null
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng()
 	if not rng:
 		push_warning("EventUI: RunManager 不可用，创建临时 RNG")
 		rng = RandomNumberGenerator.new()
@@ -297,7 +301,9 @@ func _show_fate_dice_event() -> void:
 	if not content_container:
 		return
 	
-	var rng := RunManager.get_rng() if RunManager else null
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng()
 	if not rng:
 		push_warning("EventUI: RunManager 不可用，创建临时 RNG")
 		rng = RandomNumberGenerator.new()
@@ -608,19 +614,23 @@ func _get_actual_reward_value(reward_type: EventData.RewardType, reward_value: V
 	# 检查是否有随机范围
 	if event_data.reward_min > 0 and event_data.reward_max > 0:
 		# 使用随机范围
-		var rng := RunManager.get_rng() if RunManager else null
+		var rng: RandomNumberGenerator = null
+		if RunManager:
+			rng = RunManager.get_rng()
 		if not rng:
 			push_warning("EventUI: RunManager 不可用，创建临时 RNG")
 			rng = RandomNumberGenerator.new()
 			rng.randomize()
-		var random_value = rng.randi_range(int(event_data.reward_min), int(event_data.reward_max))
+		var random_value: int = rng.randi_range(int(event_data.reward_min), int(event_data.reward_max))
 		return random_value
 	
 	# 检查reward_value是否是数组范围
 	if reward_value is Array and reward_value.size() == 2:
 		var min_val = reward_value[0]
 		var max_val = reward_value[1]
-		var rng := RunManager.get_rng() if RunManager else null
+		var rng: RandomNumberGenerator = null
+		if RunManager:
+			rng = RunManager.get_rng()
 		if not rng:
 			push_warning("EventUI: RunManager 不可用，创建临时 RNG")
 			rng = RandomNumberGenerator.new()
