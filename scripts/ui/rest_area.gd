@@ -7,11 +7,30 @@ extends Node2D
 
 signal rest_completed
 
-@onready var title_label: Label = $CanvasLayer/VBoxContainer/TitleLabel
-@onready var description_label: Label = $CanvasLayer/VBoxContainer/DescriptionLabel
-@onready var choice_container: VBoxContainer = $CanvasLayer/VBoxContainer/ChoiceContainer
-@onready var upgrade_selection_container: VBoxContainer = $CanvasLayer/VBoxContainer/UpgradeSelectionContainer
-@onready var back_button: Button = $CanvasLayer/VBoxContainer/BackButton
+@onready var _ui_root: Control = $CanvasLayer/UIRoot
+@onready var _main_margin: MarginContainer = $CanvasLayer/UIRoot/MainMargin
+@onready var _rest_panel: PanelContainer = $CanvasLayer/UIRoot/MainMargin/MainVBox/RestPanel
+
+@onready var title_label: Label = $CanvasLayer/UIRoot/MainMargin/MainVBox/TitleLabel
+@onready var description_label: Label = $CanvasLayer/UIRoot/MainMargin/MainVBox/RestPanel/RestMargin/RestVBox/DescriptionLabel
+@onready var choice_container: VBoxContainer = $CanvasLayer/UIRoot/MainMargin/MainVBox/RestPanel/RestMargin/RestVBox/ChoiceContainer
+@onready var upgrade_selection_container: VBoxContainer = $CanvasLayer/UIRoot/MainMargin/MainVBox/RestPanel/RestMargin/RestVBox/UpgradeSelectionContainer
+@onready var back_button: Button = $CanvasLayer/UIRoot/MainMargin/MainVBox/BackButton
+
+var _ui_tween: Tween = null
+var _hover_tweens: Dictionary = {}
+var _closing: bool = false
+var _layout_cached: bool = false
+
+var _ui_root_final_modulate: Color = Color(1, 1, 1, 1)
+var _main_margin_final_scale: Vector2 = Vector2.ONE
+var _main_margin_final_position: Vector2 = Vector2.ZERO
+
+var _panel_style: StyleBoxFlat = null
+var _button_style_normal: StyleBoxFlat = null
+var _button_style_hover: StyleBoxFlat = null
+var _button_style_pressed: StyleBoxFlat = null
+var _button_style_disabled: StyleBoxFlat = null
 
 ## 当前状态
 enum RestState {
@@ -26,12 +45,260 @@ var current_state: RestState = RestState.CHOOSING
 var owned_upgrades: Array = []
 
 func _ready() -> void:
+	_process_ui_style()
+	_setup_container_auto_style()
+	call_deferred("_cache_layout")
+	call_deferred("_play_open_animation")
+	
 	_setup_ui()
 	_show_rest_choices()
 	
 	# 连接返回按钮
 	if back_button and not back_button.pressed.is_connected(_on_back_pressed):
 		back_button.pressed.connect(_on_back_pressed)
+
+func _setup_container_auto_style() -> void:
+	if is_instance_valid(choice_container) and not choice_container.child_entered_tree.is_connected(_on_container_child_entered):
+		choice_container.child_entered_tree.connect(_on_container_child_entered)
+	if is_instance_valid(upgrade_selection_container) and not upgrade_selection_container.child_entered_tree.is_connected(_on_container_child_entered):
+		upgrade_selection_container.child_entered_tree.connect(_on_container_child_entered)
+
+func _on_container_child_entered(node: Node) -> void:
+	if node is Button:
+		_bind_button_fx(node as Button)
+
+func _process_ui_style() -> void:
+	if _panel_style == null:
+		_panel_style = StyleBoxFlat.new()
+		_panel_style.bg_color = Color(0.10, 0.12, 0.16, 0.98)
+		_panel_style.border_width_left = 4
+		_panel_style.border_width_top = 4
+		_panel_style.border_width_right = 4
+		_panel_style.border_width_bottom = 4
+		_panel_style.border_color = Color(0.86, 0.88, 0.92, 1.0)
+		_panel_style.shadow_color = Color(0, 0, 0, 0.55)
+		_panel_style.shadow_size = 10
+		_panel_style.shadow_offset = Vector2(0, 8)
+		_panel_style.content_margin_left = 0
+		_panel_style.content_margin_top = 0
+		_panel_style.content_margin_right = 0
+		_panel_style.content_margin_bottom = 0
+
+	if is_instance_valid(_rest_panel):
+		_rest_panel.add_theme_stylebox_override("panel", _panel_style)
+		_rest_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		_ensure_center_pivot(_rest_panel)
+
+	if title_label:
+		title_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.65, 1.0))
+	if description_label:
+		description_label.add_theme_color_override("font_color", Color(0.90, 0.92, 0.96, 1.0))
+
+	if _button_style_normal == null:
+		_button_style_normal = StyleBoxFlat.new()
+		_button_style_normal.bg_color = Color(0.16, 0.18, 0.24, 1.0)
+		_button_style_normal.border_width_left = 3
+		_button_style_normal.border_width_top = 3
+		_button_style_normal.border_width_right = 3
+		_button_style_normal.border_width_bottom = 3
+		_button_style_normal.border_color = Color(0.86, 0.88, 0.92, 0.90)
+		_button_style_normal.content_margin_left = 12
+		_button_style_normal.content_margin_top = 10
+		_button_style_normal.content_margin_right = 12
+		_button_style_normal.content_margin_bottom = 10
+
+		_button_style_hover = _button_style_normal.duplicate()
+		_button_style_hover.bg_color = Color(0.20, 0.22, 0.30, 1.0)
+		_button_style_hover.border_color = Color(1.0, 0.96, 0.72, 0.95)
+
+		_button_style_pressed = _button_style_normal.duplicate()
+		_button_style_pressed.bg_color = Color(0.12, 0.14, 0.20, 1.0)
+		_button_style_pressed.border_color = Color(1.0, 0.96, 0.72, 0.85)
+
+		_button_style_disabled = _button_style_normal.duplicate()
+		_button_style_disabled.bg_color = Color(0.12, 0.13, 0.16, 1.0)
+		_button_style_disabled.border_color = Color(0.55, 0.57, 0.62, 0.70)
+
+	_apply_button_theme(back_button)
+
+func _apply_button_theme(button: Button) -> void:
+	if not is_instance_valid(button):
+		return
+	button.focus_mode = Control.FOCUS_ALL
+	_ensure_center_pivot(button)
+	button.add_theme_stylebox_override("normal", _button_style_normal)
+	button.add_theme_stylebox_override("hover", _button_style_hover)
+	button.add_theme_stylebox_override("pressed", _button_style_pressed)
+	button.add_theme_stylebox_override("disabled", _button_style_disabled)
+	button.add_theme_color_override("font_color", Color(0.92, 0.95, 1.0, 1.0))
+	button.add_theme_color_override("font_hover_color", Color(0.92, 0.95, 1.0, 1.0))
+	button.add_theme_color_override("font_pressed_color", Color(0.92, 0.95, 1.0, 1.0))
+	button.add_theme_color_override("font_disabled_color", Color(0.65, 0.67, 0.72, 1.0))
+	if not button.has_meta("ui_base_scale"):
+		button.set_meta("ui_base_scale", button.scale)
+
+func _ensure_center_pivot(control: Control) -> void:
+	if not is_instance_valid(control):
+		return
+	control.pivot_offset = control.size * 0.5
+	if control.has_meta("ui_pivot_bound") and bool(control.get_meta("ui_pivot_bound")):
+		return
+	control.set_meta("ui_pivot_bound", true)
+	if not control.resized.is_connected(_on_control_resized.bind(control)):
+		control.resized.connect(_on_control_resized.bind(control))
+	call_deferred("_refresh_center_pivot", control)
+
+func _refresh_center_pivot(control: Control) -> void:
+	if not is_instance_valid(control):
+		return
+	control.pivot_offset = control.size * 0.5
+
+func _on_control_resized(control: Control) -> void:
+	if not is_instance_valid(control):
+		return
+	control.pivot_offset = control.size * 0.5
+
+func _kill_hover_tween_for(target: CanvasItem) -> void:
+	if target == null:
+		return
+	var key: String = str(target.get_instance_id())
+	if _hover_tweens.has(key):
+		var t: Tween = _hover_tweens[key]
+		if t and t.is_running():
+			t.kill()
+		_hover_tweens.erase(key)
+
+func _get_button_base_scale(button: Button) -> Vector2:
+	var base_scale := Vector2.ONE
+	if is_instance_valid(button):
+		base_scale = button.scale
+		if button.has_meta("ui_base_scale"):
+			var v: Variant = button.get_meta("ui_base_scale")
+			if v is Vector2:
+				base_scale = v
+	return base_scale
+
+func _bind_button_fx(button: Button) -> void:
+	if not is_instance_valid(button):
+		return
+	_apply_button_theme(button)
+	if not button.mouse_entered.is_connected(_on_button_mouse_entered.bind(button)):
+		button.mouse_entered.connect(_on_button_mouse_entered.bind(button))
+	if not button.mouse_exited.is_connected(_on_button_mouse_exited.bind(button)):
+		button.mouse_exited.connect(_on_button_mouse_exited.bind(button))
+	if not button.button_down.is_connected(_on_button_down.bind(button)):
+		button.button_down.connect(_on_button_down.bind(button))
+	if not button.button_up.is_connected(_on_button_up.bind(button)):
+		button.button_up.connect(_on_button_up.bind(button))
+	if not button.focus_entered.is_connected(_on_button_focus_entered.bind(button)):
+		button.focus_entered.connect(_on_button_focus_entered.bind(button))
+	if not button.focus_exited.is_connected(_on_button_focus_exited.bind(button)):
+		button.focus_exited.connect(_on_button_focus_exited.bind(button))
+
+func _on_button_mouse_entered(button: Button) -> void:
+	if not is_instance_valid(button) or button.disabled:
+		return
+	_on_button_focus_entered(button)
+
+func _on_button_mouse_exited(button: Button) -> void:
+	if not is_instance_valid(button) or button.disabled:
+		return
+	_on_button_focus_exited(button)
+
+func _on_button_focus_entered(button: Button) -> void:
+	if not is_instance_valid(button) or button.disabled:
+		return
+	_kill_hover_tween_for(button)
+	var base_scale := _get_button_base_scale(button)
+	var t: Tween = create_tween()
+	t.set_trans(Tween.TRANS_CUBIC)
+	t.set_ease(Tween.EASE_OUT)
+	t.tween_property(button, "scale", base_scale * 1.03, 0.12)
+	_hover_tweens[str(button.get_instance_id())] = t
+
+func _on_button_focus_exited(button: Button) -> void:
+	if not is_instance_valid(button):
+		return
+	_kill_hover_tween_for(button)
+	var base_scale := _get_button_base_scale(button)
+	var t: Tween = create_tween()
+	t.set_trans(Tween.TRANS_CUBIC)
+	t.set_ease(Tween.EASE_OUT)
+	t.tween_property(button, "scale", base_scale, 0.10)
+	_hover_tweens[str(button.get_instance_id())] = t
+
+func _on_button_down(button: Button) -> void:
+	if not is_instance_valid(button) or button.disabled:
+		return
+	_kill_hover_tween_for(button)
+	var base_scale := _get_button_base_scale(button)
+	var t: Tween = create_tween()
+	t.set_trans(Tween.TRANS_CUBIC)
+	t.set_ease(Tween.EASE_OUT)
+	t.tween_property(button, "scale", base_scale * 0.98, 0.06)
+	_hover_tweens[str(button.get_instance_id())] = t
+
+func _on_button_up(button: Button) -> void:
+	if not is_instance_valid(button) or button.disabled:
+		return
+	if button.is_hovered() or button.has_focus():
+		_on_button_focus_entered(button)
+	else:
+		_on_button_focus_exited(button)
+
+func _kill_ui_tween() -> void:
+	if _ui_tween and _ui_tween.is_running():
+		_ui_tween.kill()
+	_ui_tween = null
+
+func _cache_layout() -> void:
+	await get_tree().process_frame
+	if is_instance_valid(_ui_root):
+		_ui_root_final_modulate = _ui_root.modulate
+	if is_instance_valid(_main_margin):
+		_main_margin_final_scale = _main_margin.scale
+		_main_margin_final_position = _main_margin.position
+		_ensure_center_pivot(_main_margin)
+	_layout_cached = true
+
+func _play_open_animation() -> void:
+	if not is_instance_valid(_ui_root) or not is_instance_valid(_main_margin):
+		return
+	await get_tree().process_frame
+	if not _layout_cached:
+		await _cache_layout()
+	_kill_ui_tween()
+	_closing = false
+	_ui_root.modulate = Color(_ui_root_final_modulate.r, _ui_root_final_modulate.g, _ui_root_final_modulate.b, 0.0)
+	_main_margin.position = _main_margin_final_position + Vector2(0, 18)
+	_main_margin.scale = _main_margin_final_scale * 0.96
+	_ui_tween = create_tween()
+	_ui_tween.set_trans(Tween.TRANS_CUBIC)
+	_ui_tween.set_ease(Tween.EASE_OUT)
+	_ui_tween.parallel().tween_property(_ui_root, "modulate", _ui_root_final_modulate, 0.22)
+	_ui_tween.parallel().tween_property(_main_margin, "position", _main_margin_final_position, 0.28)
+	_ui_tween.parallel().tween_property(_main_margin, "scale", _main_margin_final_scale * 1.01, 0.18)
+	_ui_tween.tween_property(_main_margin, "scale", _main_margin_final_scale, 0.12)
+
+func _close_and_do(action: Callable) -> void:
+	if _closing:
+		return
+	_closing = true
+	if is_instance_valid(back_button):
+		back_button.disabled = true
+	if not is_instance_valid(_ui_root) or not is_instance_valid(_main_margin):
+		action.call()
+		return
+	_kill_ui_tween()
+	_ui_tween = create_tween()
+	_ui_tween.set_trans(Tween.TRANS_CUBIC)
+	_ui_tween.set_ease(Tween.EASE_IN)
+	_ui_tween.parallel().tween_property(_ui_root, "modulate", Color(_ui_root_final_modulate.r, _ui_root_final_modulate.g, _ui_root_final_modulate.b, 0.0), 0.18)
+	_ui_tween.parallel().tween_property(_main_margin, "position", _main_margin_final_position + Vector2(0, 16), 0.20)
+	_ui_tween.parallel().tween_property(_main_margin, "scale", _main_margin_final_scale * 0.96, 0.20)
+	_ui_tween.finished.connect(func() -> void:
+		action.call()
+	)
 
 ## 初始化UI
 func _setup_ui() -> void:
@@ -125,7 +392,7 @@ func _create_upgrade_option() -> void:
 ## 加载已有升级
 func _load_owned_upgrades() -> void:
 	owned_upgrades.clear()
-	var registry := UpgradeRegistry
+	var registry = UpgradeRegistry
 	
 	# 遍历玩家已有的升级
 	for upgrade_id in RunManager.upgrades:
@@ -303,7 +570,9 @@ func _complete_rest() -> void:
 	emit_signal("rest_completed")
 	
 	# 返回地图
-	GameManager.go_to_map_view()
+	_close_and_do(func() -> void:
+		GameManager.go_to_map_view()
+	)
 
 ## 返回按钮点击
 func _on_back_pressed() -> void:

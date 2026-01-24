@@ -7,38 +7,86 @@ script = ExtResource("1_event_ui")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
+[node name="UIRoot" type="Control" parent="CanvasLayer"]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -400.0
-offset_top = -300.0
-offset_right = 400.0
-offset_bottom = 300.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="TitleLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 36
-text = "奇遇事件"
-horizontal_alignment = 1
+[node name="Background" type="ColorRect" parent="CanvasLayer/UIRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.06, 0.07, 0.1, 1)
 
-[node name="DescriptionLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
+[node name="MainMargin" type="MarginContainer" parent="CanvasLayer/UIRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 42
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 42
+
+[node name="MainVBox" type="VBoxContainer" parent="CanvasLayer/UIRoot/MainMargin"]
+layout_mode = 2
+theme_override_constants/separation = 22
+
+[node name="HeaderHBox" type="HBoxContainer" parent="CanvasLayer/UIRoot/MainMargin/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer/UIRoot/MainMargin/MainVBox/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 44
+text = "奇遇事件"
+
+[node name="GoldLabel" type="Label" parent="CanvasLayer/UIRoot/MainMargin/MainVBox/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 10
+theme_override_font_sizes/font_size = 20
+text = "当前摩拉：0"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="EventPanel" type="PanelContainer" parent="CanvasLayer/UIRoot/MainMargin/MainVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EventMargin" type="MarginContainer" parent="CanvasLayer/UIRoot/MainMargin/MainVBox/EventPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 22
+
+[node name="EventVBox" type="VBoxContainer" parent="CanvasLayer/UIRoot/MainMargin/MainVBox/EventPanel/EventMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="DescriptionLabel" type="Label" parent="CanvasLayer/UIRoot/MainMargin/MainVBox/EventPanel/EventMargin/EventVBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "事件描述..."
 horizontal_alignment = 1
 autowrap_mode = 3
-custom_minimum_size = Vector2(0, 100)
+custom_minimum_size = Vector2(0, 120)
 
-[node name="ContentContainer" type="VBoxContainer" parent="CanvasLayer/VBoxContainer"]
+[node name="ContentContainer" type="VBoxContainer" parent="CanvasLayer/UIRoot/MainMargin/MainVBox/EventPanel/EventMargin/EventVBox"]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 12
 
-[node name="ChoiceContainer" type="VBoxContainer" parent="CanvasLayer/VBoxContainer"]
+[node name="ChoiceContainer" type="VBoxContainer" parent="CanvasLayer/UIRoot/MainMargin/MainVBox/EventPanel/EventMargin/EventVBox"]
 layout_mode = 2
-size_flags_vertical = 3
+theme_override_constants/separation = 12
