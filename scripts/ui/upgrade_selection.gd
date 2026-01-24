@@ -139,8 +139,7 @@ func _on_upgrade_selected(upgrade_id: String) -> void:
 	emit_signal("upgrade_selected", upgrade_id)
 	print("选择升级：", upgrade_id)
 	
-	# 结束当前战斗局（标记为胜利）
-	RunManager.end_run(true)
+	# 选择升级后返回地图（当前局继续，不在此处结算整局）
 	
 	# 返回地图界面
 	# 先淡出转场，再进入地图；地图场景会在 _ready 中检测并淡入

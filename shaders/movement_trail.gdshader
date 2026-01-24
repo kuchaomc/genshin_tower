@@ -9,7 +9,7 @@ void fragment() {
 	vec4 c = COLOR;
 
 	float t = clamp(UV.x, 0.0, 1.0);
-	float tail = pow(1.0 - t, tail_power);
+	float tail = pow(t, tail_power);
 
 	c.rgb *= tint.rgb;
 	c.a *= tint.a * strength * tail;

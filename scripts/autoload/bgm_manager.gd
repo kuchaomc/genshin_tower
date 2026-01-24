@@ -41,6 +41,47 @@ const CHARACTER_VOICE_ROOTS: Dictionary = {
 	"kamisato_ayaka": VOICE_ROOT_AYAKA,
 }
 
+
+var _voice_fallback_dir_files: Dictionary = {
+	"res://voice/characters/ayaka/受伤/": PackedStringArray([
+		"res://voice/characters/ayaka/受伤/9mo5r7q7ds63swfvuhe4rz19od32qxk.mp3",
+		"res://voice/characters/ayaka/受伤/i4fkego6ji6sf96j1v9oo7lxb50hj6c.mp3",
+	]),
+	"res://voice/characters/ayaka/技能/": PackedStringArray([
+		"res://voice/characters/ayaka/技能/9moyz93pctyky5llhlr5bcuxnt5oh9v.mp3",
+		"res://voice/characters/ayaka/技能/gqwg4whduw8bjm1t7ru2q3tu2tkvb8w.mp3",
+		"res://voice/characters/ayaka/技能/jgb5aficqguoap19il4zihhowm73wpk.mp3",
+	]),
+	"res://voice/characters/ayaka/大招/": PackedStringArray([
+		"res://voice/characters/ayaka/大招/050wfiw8vcbg30tfac0eg7g07rjtvmg.mp3",
+		"res://voice/characters/ayaka/大招/ap0txbic0g2ct3grvn9xvy3zt4zoc7r.mp3",
+		"res://voice/characters/ayaka/大招/errycwgf5e3w64maxkyetavyt3dfnvh.mp3",
+	]),
+	"res://voice/characters/ayaka/死亡/": PackedStringArray([
+		"res://voice/characters/ayaka/死亡/9gb6dmk33gavl1hgf1irakp9xymdbkc.mp3",
+		"res://voice/characters/ayaka/死亡/9xc364amcn2a9xcnnlldqt593pqel20.mp3",
+		"res://voice/characters/ayaka/死亡/k64b8m8p95ndjax3m37ob5twkfgb37z.mp3",
+	]),
+	"res://voice/characters/ayaka/选中角色/": PackedStringArray([
+		"res://voice/characters/ayaka/选中角色/hx23f7cf96qrxdedj1x8km0ksmc8fwq.mp3",
+	]),
+}
+
+const _VOICE_FALLBACK_PRELOADS: Array[AudioStream] = [
+	preload("res://voice/characters/ayaka/受伤/9mo5r7q7ds63swfvuhe4rz19od32qxk.mp3"),
+	preload("res://voice/characters/ayaka/受伤/i4fkego6ji6sf96j1v9oo7lxb50hj6c.mp3"),
+	preload("res://voice/characters/ayaka/技能/9moyz93pctyky5llhlr5bcuxnt5oh9v.mp3"),
+	preload("res://voice/characters/ayaka/技能/gqwg4whduw8bjm1t7ru2q3tu2tkvb8w.mp3"),
+	preload("res://voice/characters/ayaka/技能/jgb5aficqguoap19il4zihhowm73wpk.mp3"),
+	preload("res://voice/characters/ayaka/大招/050wfiw8vcbg30tfac0eg7g07rjtvmg.mp3"),
+	preload("res://voice/characters/ayaka/大招/ap0txbic0g2ct3grvn9xvy3zt4zoc7r.mp3"),
+	preload("res://voice/characters/ayaka/大招/errycwgf5e3w64maxkyetavyt3dfnvh.mp3"),
+	preload("res://voice/characters/ayaka/死亡/9gb6dmk33gavl1hgf1irakp9xymdbkc.mp3"),
+	preload("res://voice/characters/ayaka/死亡/9xc364amcn2a9xcnnlldqt593pqel20.mp3"),
+	preload("res://voice/characters/ayaka/死亡/k64b8m8p95ndjax3m37ob5twkfgb37z.mp3"),
+	preload("res://voice/characters/ayaka/选中角色/hx23f7cf96qrxdedj1x8km0ksmc8fwq.mp3"),
+]
+
 var _player: AudioStreamPlayer
 var _positions: Dictionary = {} # StringName -> float
 var _current_track: StringName = &""
@@ -397,6 +438,8 @@ func _get_voice_files_in_dir(dir_path: String) -> PackedStringArray:
 	var result := PackedStringArray()
 	var dir := DirAccess.open(dir_path)
 	if dir == null:
+		if _voice_fallback_dir_files.has(dir_path):
+			result = _voice_fallback_dir_files[dir_path]
 		_voice_dir_files_cache[dir_path] = result
 		return result
 
@@ -424,6 +467,8 @@ func _get_voice_files_in_dir(dir_path: String) -> PackedStringArray:
 		file_name = dir.get_next() as String
 
 	dir.list_dir_end()
+	if result.is_empty() and _voice_fallback_dir_files.has(dir_path):
+		result = _voice_fallback_dir_files[dir_path]
 	_voice_dir_files_cache[dir_path] = result
 	return result
 
