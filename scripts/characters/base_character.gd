@@ -81,25 +81,20 @@ signal damage_dealt(damage: float, is_crit: bool, target: Node)
 @export var animator: AnimatedSprite2D
 @export var knockback_force: float = 150.0  # 对敌人造成击退的力度，可在角色数据中配置
 
-# ========== 移动拖尾特效 ==========
-@export_group("移动拖尾特效")
-@export var movement_trail_enabled: bool = true
-@export var movement_trail_tint: Color = Color(0.75, 0.92, 1.0, 0.9)
-@export var movement_trail_min_width: float = 2.0
-@export var movement_trail_max_width: float = 8.0
-@export var movement_trail_speed_for_max_strength: float = 220.0
-@export var movement_trail_fade_speed: float = 10.0
-@export var movement_trail_max_points: int = 18
-@export var movement_trail_min_distance: float = 4.0
-@export var movement_trail_tail_power: float = 1.6
-@export var movement_trail_z: int = 40
+# ========== 闪避残影特效 ==========
+@export_group("闪避残影特效")
+@export var dodge_afterimage_enabled: bool = true
+@export var dodge_afterimage_count: int = 4
+@export var dodge_afterimage_interval: float = 0.04
+@export var dodge_afterimage_lifetime: float = 0.18
+@export var dodge_afterimage_color: Color = Color(0.75, 0.92, 1.0, 0.65)
+@export var dodge_afterimage_z: int = 40
 @export_group("")
-const _MOVEMENT_TRAIL_SCRIPT: Script = preload("res://scripts/vfx/movement_trail.gd")
-const _MOVEMENT_TRAIL_OFFSET: Vector2 = Vector2(0.0, 15.0)
 const _SETTINGS_FILE_PATH: String = "user://settings.cfg"
 const _SETTINGS_SECTION_VFX: String = "vfx"
 const _SETTINGS_KEY_MOVEMENT_TRAIL_ENABLED: String = "movement_trail_enabled"
-var _movement_trail: Node
+var _dodge_afterimage_timer: float = 0.0
+var _dodge_afterimage_spawned: int = 0
 
 # ========== 攻击按键追踪 ==========
 ## 鼠标左键按下的时间戳（毫秒）
@@ -219,8 +214,8 @@ func _ready() -> void:
 	collision_shape = get_node_or_null("CollisionShape2D") as CollisionShape2D
 	
 	add_to_group("characters")
-	_movement_trail_enabled_from_settings()
-	set_movement_trail_enabled(movement_trail_enabled)
+	_dodge_afterimage_enabled_from_settings()
+	set_movement_trail_enabled(dodge_afterimage_enabled)
 	
 	# 没有通过initialize赋值时，创建默认属性并使用当前速度作为基准
 	if current_stats == null:
@@ -245,8 +240,6 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if is_game_over:
-		if is_instance_valid(_movement_trail):
-			_movement_trail.call("update_trail", global_position + _MOVEMENT_TRAIL_OFFSET, 0.0, delta)
 		return
 	
 	# 更新击退计时器
@@ -260,42 +253,80 @@ func _physics_process(delta: float) -> void:
 	
 	# 执行移动
 	move_and_slide()
-	
-	# 更新移动拖尾（在移动完成后采样位置，确保轨迹稳定）
-	if is_instance_valid(_movement_trail):
-		_movement_trail.call("update_trail", global_position + _MOVEMENT_TRAIL_OFFSET, velocity.length(), delta)
 
 func set_movement_trail_enabled(is_enabled: bool) -> void:
-	movement_trail_enabled = is_enabled
-	if not is_enabled:
-		if is_instance_valid(_movement_trail):
-			_movement_trail.queue_free()
-		_movement_trail = null
-		return
-	
-	if is_instance_valid(_movement_trail):
-		return
-	
-	_movement_trail = _MOVEMENT_TRAIL_SCRIPT.new()
-	_movement_trail.set("tint", movement_trail_tint)
-	_movement_trail.set("min_width", movement_trail_min_width)
-	_movement_trail.set("max_width", movement_trail_max_width)
-	_movement_trail.set("speed_for_max_strength", movement_trail_speed_for_max_strength)
-	_movement_trail.set("fade_speed", movement_trail_fade_speed)
-	_movement_trail.set("max_points", movement_trail_max_points)
-	_movement_trail.set("min_distance", movement_trail_min_distance)
-	_movement_trail.set("tail_power", movement_trail_tail_power)
-	_movement_trail.set("z", movement_trail_z)
-	add_child(_movement_trail)
-	_movement_trail.call("reset", global_position + _MOVEMENT_TRAIL_OFFSET)
+	dodge_afterimage_enabled = is_enabled
 
-func _movement_trail_enabled_from_settings() -> void:
+func _dodge_afterimage_enabled_from_settings() -> void:
 	var config := ConfigFile.new()
 	var err: Error = config.load(_SETTINGS_FILE_PATH)
 	if err != OK:
 		return
-	var enabled: bool = bool(config.get_value(_SETTINGS_SECTION_VFX, _SETTINGS_KEY_MOVEMENT_TRAIL_ENABLED, movement_trail_enabled))
-	movement_trail_enabled = enabled
+	var enabled: bool = bool(config.get_value(_SETTINGS_SECTION_VFX, _SETTINGS_KEY_MOVEMENT_TRAIL_ENABLED, dodge_afterimage_enabled))
+	dodge_afterimage_enabled = enabled
+
+func _start_dodge_afterimage() -> void:
+	_dodge_afterimage_timer = 0.0
+	_dodge_afterimage_spawned = 0
+	_spawn_dodge_afterimage()
+
+func _update_dodge_afterimage(delta: float) -> void:
+	if not dodge_afterimage_enabled:
+		return
+	if dodge_afterimage_count <= 0:
+		return
+	if dodge_afterimage_interval <= 0.0:
+		return
+	if _dodge_afterimage_spawned >= dodge_afterimage_count:
+		return
+
+	_dodge_afterimage_timer -= delta
+	var safe_loops: int = 0
+	while _dodge_afterimage_timer <= 0.0 and _dodge_afterimage_spawned < dodge_afterimage_count:
+		_spawn_dodge_afterimage()
+		_dodge_afterimage_timer += dodge_afterimage_interval
+		safe_loops += 1
+		if safe_loops >= 16:
+			break
+
+func _spawn_dodge_afterimage() -> void:
+	if not is_instance_valid(animator):
+		return
+	if animator.sprite_frames == null:
+		return
+
+	var ghost := AnimatedSprite2D.new()
+	ghost.top_level = true
+	ghost.sprite_frames = animator.sprite_frames
+	ghost.animation = animator.animation
+	ghost.frame = animator.frame
+	ghost.flip_h = animator.flip_h
+	ghost.flip_v = animator.flip_v
+	ghost.z_index = dodge_afterimage_z
+	ghost.z_as_relative = false
+	ghost.modulate = dodge_afterimage_color
+	ghost.global_transform = animator.global_transform
+	ghost.speed_scale = 0.0
+	ghost.stop()
+
+	var mat := CanvasItemMaterial.new()
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	ghost.material = mat
+
+	var p := get_parent()
+	if p:
+		p.add_child(ghost)
+	else:
+		add_child(ghost)
+
+	_dodge_afterimage_spawned += 1
+
+	var life: float = maxf(0.01, dodge_afterimage_lifetime)
+	var t := create_tween()
+	t.set_ease(Tween.EASE_OUT)
+	t.set_trans(Tween.TRANS_SINE)
+	t.tween_property(ghost, "modulate:a", 0.0, life)
+	t.tween_callback(ghost.queue_free)
 
 ## 处理状态逻辑（主要控制循环）
 func _process_state_logic(delta: float) -> void:
@@ -383,6 +414,7 @@ func _process_dodge_state(delta: float) -> void:
 	var speed: float = lerp(start_speed, end_speed, ease_out)
 	
 	velocity = _dodge_direction * speed
+	_update_dodge_afterimage(delta)
 	
 	# 检查闪避是否完成
 	if t >= 1.0:
@@ -434,6 +466,7 @@ func _enter_state(state: CharacterState) -> void:
 			if dir == Vector2.ZERO:
 				dir = _last_nonzero_move_dir
 			_dodge_direction = dir.normalized()
+			_start_dodge_afterimage()
 			
 			# 设置闪避无敌
 			_set_dodge_invincible(true)
