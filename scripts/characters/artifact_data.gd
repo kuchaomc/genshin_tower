@@ -68,7 +68,10 @@ func _get_stat_display_name(stat_name: String) -> String:
 ## 格式化属性值显示
 func _format_stat_value(stat_name: String, value: float) -> String:
 	# 百分比属性显示为百分比
-	if stat_name == "defense_percent" or stat_name == "crit_rate" or stat_name == "attack_percent":
-		return "%.1f%%" % (value * 100.0)
+	if stat_name == "defense_percent" or stat_name == "crit_rate" or stat_name == "attack_percent" or stat_name == "crit_damage":
+		var percent_value: float = snappedf(value * 100.0, 0.1)
+		if abs(percent_value - float(roundi(percent_value))) < 0.0001:
+			return "%.0f%%" % percent_value
+		return "%.1f%%" % percent_value
 	# 其他属性显示为数值
 	return "%.1f" % value

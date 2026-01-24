@@ -1,49 +1,187 @@
-[gd_scene load_steps=2 format=3 uid="uid://character_select_scene"]
+[gd_scene load_steps=5 format=3 uid="uid://character_select_scene"]
 
 [ext_resource type="Script" path="res://scripts/ui/character_select.gd" id="1_char_select"]
+
+ [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_LeftPanel"]
+ bg_color = Color(0.16, 0.16, 0.16, 0.85)
+
+ [sub_resource type="Shader" id="Shader_EdgeFade"]
+ code = "shader_type canvas_item;\n\nuniform vec4 base_color : source_color = vec4(0.16, 0.16, 0.16, 0.85);\nuniform float cell_size = 6.0;\nuniform float jitter = 0.35;\nuniform float levels = 6.0;\nuniform float strength = 1.0;\n\nfloat _hash(vec2 p) {\n\treturn fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);\n}\n\nvoid fragment() {\n\tfloat fade = clamp(1.0 - UV.x, 0.0, 1.0);\n\tvec2 cell = floor(FRAGCOORD.xy / max(cell_size, 1.0));\n\tfloat rnd = _hash(cell);\n\tfloat shifted = clamp((fade - rnd * jitter) / max(1.0 - jitter, 0.001), 0.0, 1.0);\n\tfloat a = floor(shifted * levels) / max(levels, 1.0);\n\tCOLOR = vec4(base_color.rgb, base_color.a * a * clamp(strength, 0.0, 1.0));\n}\n"
+
+ [sub_resource type="ShaderMaterial" id="ShaderMaterial_EdgeFade"]
+ shader = SubResource("Shader_EdgeFade")
+ shader_parameter/base_color = Color(0.16, 0.16, 0.16, 0.85)
+ shader_parameter/cell_size = 6.0
+ shader_parameter/jitter = 0.35
+ shader_parameter/levels = 6.0
+ shader_parameter/strength = 1.0
 
 [node name="Node2D" type="Node2D"]
 script = ExtResource("1_char_select")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -400.0
-offset_top = -300.0
-offset_right = 400.0
-offset_bottom = 300.0
-grow_horizontal = 2
-grow_vertical = 2
+ [node name="Background" type="TextureRect" parent="CanvasLayer"]
+ unique_name_in_owner = true
+ anchors_preset = 15
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ grow_horizontal = 2
+ grow_vertical = 2
+ stretch_mode = 5
 
-[node name="TitleLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 48
-text = "选择角色"
-horizontal_alignment = 1
+ [node name="LeftMenu" type="Control" parent="CanvasLayer"]
+ layout_mode = 3
+ anchors_preset = 9
+ anchor_bottom = 1.0
+ offset_right = 620.0
+ grow_vertical = 2
 
-[node name="CharacterContainer" type="HBoxContainer" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
-alignment = 1
+ [node name="PanelBg" type="Panel" parent="CanvasLayer/LeftMenu"]
+ layout_mode = 0
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ offset_right = -64.0
+ grow_horizontal = 2
+ grow_vertical = 2
+ theme_override_styles/panel = SubResource("StyleBoxFlat_LeftPanel")
 
-[node name="DescriptionLabel" type="Label" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "请选择一个角色"
-horizontal_alignment = 1
+ [node name="EdgeFade" type="ColorRect" parent="CanvasLayer/LeftMenu"]
+ material = SubResource("ShaderMaterial_EdgeFade")
+ layout_mode = 0
+ anchor_left = 1.0
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ offset_left = -64.0
+ grow_vertical = 2
+ mouse_filter = 2
 
-[node name="ConfirmButton" type="Button" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
-custom_minimum_size = Vector2(200, 60)
-text = "确认选择"
-disabled = true
+ [node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/LeftMenu"]
+ layout_mode = 0
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ offset_right = -64.0
+ grow_horizontal = 2
+ grow_vertical = 2
+ theme_override_constants/margin_left = 64
+ theme_override_constants/margin_top = 48
+ theme_override_constants/margin_right = 32
+ theme_override_constants/margin_bottom = 48
 
-[node name="BackButton" type="Button" parent="CanvasLayer/VBoxContainer"]
-layout_mode = 2
-custom_minimum_size = Vector2(200, 60)
-text = "返回"
+ [node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer"]
+ layout_mode = 2
+
+ [node name="TitleLabel" type="Label" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]
+ theme_override_colors/font_color = Color(1, 1, 1, 1)
+ theme_override_font_sizes/font_size = 50
+ text = "选择角色"
+
+ [node name="Spacer" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]
+ custom_minimum_size = Vector2(0, 36)
+ layout_mode = 2
+
+ [node name="DescriptionLabel" type="Label" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]
+ unique_name_in_owner = true
+ layout_mode = 2
+ theme_override_colors/font_color = Color(1, 1, 1, 0.85)
+ theme_override_font_sizes/font_size = 22
+ text = "请选择一个角色"
+ autowrap_mode = 3
+
+ [node name="Spacer2" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]
+ custom_minimum_size = Vector2(0, 24)
+ layout_mode = 2
+
+ [node name="MenuBox" type="VBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]
+ layout_mode = 2
+ theme_override_constants/separation = 18
+
+ [node name="ConfirmRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+ layout_mode = 2
+ theme_override_constants/separation = 12
+
+ [node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ConfirmRow"]
+ layout_mode = 2
+
+ [node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ConfirmRow/IndicatorSpace"]
+ layout_mode = 0
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ grow_horizontal = 2
+ grow_vertical = 2
+
+ [node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ConfirmRow/IndicatorSpace/CenterContainer"]
+ visible = false
+ custom_minimum_size = Vector2(10, 10)
+ layout_mode = 2
+ color = Color(0.2, 0.6, 1, 1)
+
+ [node name="ConfirmButton" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ConfirmRow"]
+ unique_name_in_owner = true
+ layout_mode = 2
+ theme_override_colors/font_color = Color(1, 1, 1, 1)
+ theme_override_font_sizes/font_size = 28
+ text = "确认选择"
+ flat = true
+ disabled = true
+
+ [node name="BackRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+ layout_mode = 2
+ theme_override_constants/separation = 12
+
+ [node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/BackRow"]
+ layout_mode = 2
+
+ [node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/BackRow/IndicatorSpace"]
+ layout_mode = 0
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ grow_horizontal = 2
+ grow_vertical = 2
+
+ [node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/BackRow/IndicatorSpace/CenterContainer"]
+ visible = false
+ custom_minimum_size = Vector2(10, 10)
+ layout_mode = 2
+ color = Color(0.2, 0.6, 1, 1)
+
+ [node name="BackButton" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/BackRow"]
+ unique_name_in_owner = true
+ layout_mode = 2
+ theme_override_colors/font_color = Color(1, 1, 1, 1)
+ theme_override_font_sizes/font_size = 28
+ text = "返回"
+ flat = true
+
+ [node name="RightArea" type="Control" parent="CanvasLayer"]
+ layout_mode = 3
+ anchors_preset = 15
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ offset_left = 620.0
+ grow_horizontal = 2
+ grow_vertical = 2
+
+ [node name="RightMargin" type="MarginContainer" parent="CanvasLayer/RightArea"]
+ layout_mode = 0
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ grow_horizontal = 2
+ grow_vertical = 2
+ theme_override_constants/margin_left = 32
+ theme_override_constants/margin_top = 64
+ theme_override_constants/margin_right = 64
+ theme_override_constants/margin_bottom = 64
+
+ [node name="ScrollContainer" type="ScrollContainer" parent="CanvasLayer/RightArea/RightMargin"]
+ layout_mode = 2
+ size_flags_horizontal = 3
+ size_flags_vertical = 3
+ scroll_horizontal_enabled = false
+
+ [node name="CharacterContainer" type="HFlowContainer" parent="CanvasLayer/RightArea/RightMargin/ScrollContainer"]
+ unique_name_in_owner = true
+ layout_mode = 2
+ size_flags_horizontal = 3
+ theme_override_constants/h_separation = 18
+ theme_override_constants/v_separation = 18

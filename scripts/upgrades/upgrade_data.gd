@@ -146,19 +146,21 @@ func _format_value_for_description(value: float) -> String:
 	
 	if is_percent:
 		return "%.0f%%" % (value * 100) if value < 1.0 else "%.0f%%" % value
-	elif abs(value - floor(value)) < 0.001:
-		return "%.0f" % value
 	else:
-		return "%.1f" % value
+		var snapped_value: float = snappedf(value, 0.1)
+		if abs(snapped_value - float(roundi(snapped_value))) < 0.0001:
+			return "%.0f" % snapped_value
+		return "%.1f" % snapped_value
 
 ## 格式化数值显示（通用方法，保持原逻辑不变）
 func _format_value(value: float) -> String:
 	if upgrade_type == UpgradeType.STAT_PERCENT:
 		return "%.0f%%" % (value * 100) if value < 1.0 else "%.0f%%" % value
-	elif abs(value - floor(value)) < 0.001:
-		return "%.0f" % value
 	else:
-		return "%.1f" % value
+		var snapped_value: float = snappedf(value, 0.1)
+		if abs(snapped_value - float(roundi(snapped_value))) < 0.0001:
+			return "%.0f" % snapped_value
+		return "%.1f" % snapped_value
 
 ## 获取稀有度颜色
 func get_rarity_color() -> Color:
