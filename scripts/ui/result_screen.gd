@@ -18,7 +18,7 @@ func _ready() -> void:
 	# 如果是从战斗胜利转场进入结算界面，需要把黑屏淡入撤掉
 	# 约定：发起方只负责 fade_out；目标场景在 _ready() 检测 is_transitioning 后执行 fade_in
 	if TransitionManager != null and TransitionManager.is_transitioning:
-		await TransitionManager.fade_in(1.0)
+		await TransitionManager.fade_in(0.4)
 
 ## 加载结算记录
 func load_run_record() -> void:

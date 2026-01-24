@@ -74,7 +74,7 @@ func _ready() -> void:
 	
 	# 如果是转场进入地图（例如：升级选择后回到地图），在地图生成完成后再淡入
 	if should_fade_in:
-		await TransitionManager.fade_in(1.0)
+		await TransitionManager.fade_in(0.4)
 
 func _input(event: InputEvent) -> void:
 	# 处理鼠标拖拽滚动地图

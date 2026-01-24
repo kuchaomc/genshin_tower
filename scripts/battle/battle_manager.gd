@@ -7,7 +7,7 @@ class_name BattleManager
 # 胜利提示与转场参数
 const LEVEL_GOAL_COMPLETED_TEXT: String = "已完成当前层级目标"
 const VICTORY_NOTIFY_SECONDS: float = 1.2
-const VICTORY_TRANSITION_SECONDS: float = 1.0
+const VICTORY_TRANSITION_SECONDS: float = 0.6
 
 # 战斗场景准星贴图
 const CROSSHAIR_TEXTURE := preload("res://textures/effects/mouse.png")

@@ -240,7 +240,7 @@ func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 	# 如果需要转场动画（仅用于战斗场景）
 	if use_transition and TransitionManager:
 		# 播放淡出动画
-		await TransitionManager.fade_out(2.0)
+		await TransitionManager.fade_out(0.8)
 	
 	# 优先通过 DataManager 的缓存加载，减少反复 load 造成的卡顿
 	var scene: PackedScene = null
