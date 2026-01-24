@@ -23,6 +23,7 @@ var _layout_cached: bool = false
 var _ui_root_final_modulate: Color = Color(1, 1, 1, 1)
 var _main_margin_final_scale: Vector2 = Vector2.ONE
 var _main_margin_final_position: Vector2 = Vector2.ZERO
+var _main_margin_final_modulate: Color = Color(1, 1, 1, 1)
 
 var _panel_style: StyleBoxFlat = null
 var _button_style_normal: StyleBoxFlat = null
@@ -251,6 +252,7 @@ func _cache_layout() -> void:
 	if is_instance_valid(_main_margin):
 		_main_margin_final_scale = _main_margin.scale
 		_main_margin_final_position = _main_margin.position
+		_main_margin_final_modulate = _main_margin.modulate
 		_ensure_center_pivot(_main_margin)
 	_layout_cached = true
 
@@ -262,13 +264,14 @@ func _play_open_animation() -> void:
 		await _cache_layout()
 	_kill_ui_tween()
 	_closing = false
-	_ui_root.modulate = Color(_ui_root_final_modulate.r, _ui_root_final_modulate.g, _ui_root_final_modulate.b, 0.0)
+	_ui_root.modulate = _ui_root_final_modulate
 	_main_margin.position = _main_margin_final_position + Vector2(0, 18)
 	_main_margin.scale = _main_margin_final_scale * 0.96
+	_main_margin.modulate = Color(_main_margin_final_modulate.r, _main_margin_final_modulate.g, _main_margin_final_modulate.b, 0.0)
 	_ui_tween = create_tween()
 	_ui_tween.set_trans(Tween.TRANS_CUBIC)
 	_ui_tween.set_ease(Tween.EASE_OUT)
-	_ui_tween.parallel().tween_property(_ui_root, "modulate", _ui_root_final_modulate, 0.22)
+	_ui_tween.parallel().tween_property(_main_margin, "modulate", _main_margin_final_modulate, 0.22)
 	_ui_tween.parallel().tween_property(_main_margin, "position", _main_margin_final_position, 0.28)
 	_ui_tween.parallel().tween_property(_main_margin, "scale", _main_margin_final_scale * 1.01, 0.18)
 	_ui_tween.tween_property(_main_margin, "scale", _main_margin_final_scale, 0.12)
@@ -286,7 +289,7 @@ func _close_and_do(action: Callable) -> void:
 	_ui_tween = create_tween()
 	_ui_tween.set_trans(Tween.TRANS_CUBIC)
 	_ui_tween.set_ease(Tween.EASE_IN)
-	_ui_tween.parallel().tween_property(_ui_root, "modulate", Color(_ui_root_final_modulate.r, _ui_root_final_modulate.g, _ui_root_final_modulate.b, 0.0), 0.18)
+	_ui_tween.parallel().tween_property(_main_margin, "modulate", Color(_main_margin_final_modulate.r, _main_margin_final_modulate.g, _main_margin_final_modulate.b, 0.0), 0.18)
 	_ui_tween.parallel().tween_property(_main_margin, "position", _main_margin_final_position + Vector2(0, 16), 0.20)
 	_ui_tween.parallel().tween_property(_main_margin, "scale", _main_margin_final_scale * 0.96, 0.20)
 	_ui_tween.finished.connect(func() -> void:
@@ -534,13 +537,7 @@ func _get_artifact_icon_path(artifact_name: String) -> String:
 func _return_to_map() -> void:
 	if GameManager:
 		_close_and_do(func() -> void:
-			call_deferred("_fade_out_and_go_to_map")
+			GameManager.go_to_map_view()
 		)
 	else:
 		queue_free()
-
-func _fade_out_and_go_to_map() -> void:
-	if TransitionManager:
-		await TransitionManager.fade_out(0.6)
-	if GameManager:
-		GameManager.go_to_map_view()

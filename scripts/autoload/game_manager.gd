@@ -11,6 +11,13 @@ const GAME_DISPLAY_NAME: String = "杀原戮神尖塔"
 # 开发者覆盖层（常驻顶层UI）
 var _dev_overlay: CanvasLayer = null
 
+var _ui_overlay_layer: CanvasLayer = null
+var _ui_overlay_node: Node = null
+var _map_prev_process_mode: Node.ProcessMode = Node.PROCESS_MODE_INHERIT
+var _map_process_mode_cached: bool = false
+
+const MAP_VIEW_SCRIPT: Script = preload("res://scripts/ui/map_view.gd")
+
 # BGM曲目key（与 BGMManager.TRACK_* 保持一致）
 const BGM_TRACK_MAIN_MENU: StringName = &"main_menu"
 const BGM_TRACK_MAP: StringName = &"map"
@@ -87,6 +94,7 @@ func _ready() -> void:
 	call_deferred("_apply_window_title")
 	load_save_data()
 	_ensure_dev_overlay()
+	_ensure_ui_overlay_layer()
 	_ensure_cg_unlock_overlay()
 	if DebugLogger:
 		DebugLogger.log_info("初始化完成", "GameManager")
@@ -133,6 +141,82 @@ func _ensure_dev_overlay() -> void:
 	# 注意：_ready() 阶段 root 可能仍在搭建子节点，直接 add_child 会报 “Parent node is busy…”
 	# 用 call_deferred 延迟到下一帧更稳。
 	get_tree().root.add_child.call_deferred(_dev_overlay)
+
+func _ensure_ui_overlay_layer() -> void:
+	if is_instance_valid(_ui_overlay_layer):
+		if _ui_overlay_layer.is_inside_tree():
+			return
+		return
+	_ui_overlay_layer = CanvasLayer.new()
+	_ui_overlay_layer.name = "UIOverlay"
+	_ui_overlay_layer.layer = 40
+	get_tree().root.add_child.call_deferred(_ui_overlay_layer)
+
+func _is_map_scene_loaded() -> bool:
+	var current := get_tree().current_scene
+	if current == null:
+		return false
+	var target_path := str(SCENE_PATHS.get(GameState.MAP_VIEW, ""))
+	if not target_path.is_empty() and current.scene_file_path == target_path:
+		return true
+	if not current.scene_file_path.is_empty() and current.scene_file_path.ends_with("/map_view.tscn"):
+		return true
+	if current.get_script() == MAP_VIEW_SCRIPT:
+		return true
+	return false
+
+func _close_ui_overlay() -> void:
+	if is_instance_valid(_ui_overlay_node):
+		_ui_overlay_node.queue_free()
+	_ui_overlay_node = null
+	if _map_process_mode_cached and _is_map_scene_loaded():
+		var current := get_tree().current_scene
+		if current:
+			current.process_mode = _map_prev_process_mode
+	_map_process_mode_cached = false
+	current_state = GameState.MAP_VIEW
+	_pending_bgm_track = _get_bgm_track_for_state(GameState.MAP_VIEW)
+	_apply_pending_bgm()
+
+func _raise_overlay_canvas_layers(root_node: Node) -> void:
+	if root_node == null:
+		return
+	if not is_instance_valid(_ui_overlay_layer):
+		return
+	var target_layer: int = int(_ui_overlay_layer.layer) + 1
+	var layers: Array[Node] = root_node.find_children("*", "CanvasLayer", true, false)
+	for n in layers:
+		if n is CanvasLayer:
+			var cl := n as CanvasLayer
+			cl.layer = maxi(int(cl.layer), target_layer)
+
+func _open_ui_overlay(scene_path: String, overlay_state: GameState) -> void:
+	_ensure_ui_overlay_layer()
+	_close_ui_overlay()
+	if _is_map_scene_loaded():
+		var current := get_tree().current_scene
+		if current:
+			_map_prev_process_mode = current.process_mode
+			_map_process_mode_cached = true
+			current.process_mode = Node.PROCESS_MODE_DISABLED
+	current_state = overlay_state
+	_pending_bgm_track = _get_bgm_track_for_state(overlay_state)
+	_apply_pending_bgm()
+	var scene: PackedScene = null
+	if DataManager and DataManager.has_method("get_packed_scene"):
+		scene = DataManager.get_packed_scene(scene_path) as PackedScene
+	else:
+		scene = load(scene_path) as PackedScene
+	if scene == null:
+		push_error("GameManager: 无法加载叠加UI场景：%s" % scene_path)
+		return
+	_ui_overlay_node = scene.instantiate()
+	if _ui_overlay_node == null:
+		push_error("GameManager: 无法实例化叠加UI场景：%s" % scene_path)
+		return
+	_raise_overlay_canvas_layers(_ui_overlay_node)
+	if is_instance_valid(_ui_overlay_layer):
+		_ui_overlay_layer.add_child(_ui_overlay_node)
 
 func _get_bgm_track_for_state(state: GameState) -> StringName:
 	match state:
@@ -235,6 +319,9 @@ func go_to_character_select() -> void:
 
 ## 切换到地图界面
 func go_to_map_view() -> void:
+	_close_ui_overlay()
+	if _is_map_scene_loaded():
+		return
 	_change_scene_by_state(GameState.MAP_VIEW)
 
 ## 开始战斗
@@ -256,14 +343,23 @@ func open_treasure() -> void:
 
 ## 进入商店
 func enter_shop() -> void:
+	if _is_map_scene_loaded():
+		_open_ui_overlay(str(SCENE_PATHS.get(GameState.SHOP, "")), GameState.SHOP)
+		return
 	_change_scene_by_state(GameState.SHOP)
 
 ## 进入休息处
 func enter_rest() -> void:
+	if _is_map_scene_loaded():
+		_open_ui_overlay(str(SCENE_PATHS.get(GameState.REST, "")), GameState.REST)
+		return
 	_change_scene_by_state(GameState.REST)
 
 ## 进入奇遇事件
 func enter_event() -> void:
+	if _is_map_scene_loaded():
+		_open_ui_overlay(str(SCENE_PATHS.get(GameState.EVENT, "")), GameState.EVENT)
+		return
 	_change_scene_by_state(GameState.EVENT)
 
 ## 开始BOSS战
@@ -282,6 +378,9 @@ func show_upgrade_selection() -> void:
 
 ## 显示圣遗物选择界面
 func show_artifact_selection() -> void:
+	if _is_map_scene_loaded():
+		_open_ui_overlay(SCENE_ARTIFACT_SELECTION, GameState.TREASURE)
+		return
 	current_state = GameState.TREASURE
 	_pending_bgm_track = _get_bgm_track_for_state(GameState.TREASURE)
 	change_scene_to(SCENE_ARTIFACT_SELECTION)

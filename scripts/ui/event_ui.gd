@@ -28,6 +28,7 @@ var _layout_cached: bool = false
 var _ui_root_final_modulate: Color = Color(1, 1, 1, 1)
 var _main_margin_final_scale: Vector2 = Vector2.ONE
 var _main_margin_final_position: Vector2 = Vector2.ZERO
+var _main_margin_final_modulate: Color = Color(1, 1, 1, 1)
 
 var _panel_style: StyleBoxFlat = null
 var _button_style_normal: StyleBoxFlat = null
@@ -255,6 +256,7 @@ func _cache_layout() -> void:
 	if is_instance_valid(_main_margin):
 		_main_margin_final_scale = _main_margin.scale
 		_main_margin_final_position = _main_margin.position
+		_main_margin_final_modulate = _main_margin.modulate
 		_ensure_center_pivot(_main_margin)
 	_layout_cached = true
 
@@ -266,13 +268,14 @@ func _play_open_animation() -> void:
 		await _cache_layout()
 	_kill_ui_tween()
 	_closing = false
-	_ui_root.modulate = Color(_ui_root_final_modulate.r, _ui_root_final_modulate.g, _ui_root_final_modulate.b, 0.0)
+	_ui_root.modulate = _ui_root_final_modulate
 	_main_margin.position = _main_margin_final_position + Vector2(0, 18)
 	_main_margin.scale = _main_margin_final_scale * 0.96
+	_main_margin.modulate = Color(_main_margin_final_modulate.r, _main_margin_final_modulate.g, _main_margin_final_modulate.b, 0.0)
 	_ui_tween = create_tween()
 	_ui_tween.set_trans(Tween.TRANS_CUBIC)
 	_ui_tween.set_ease(Tween.EASE_OUT)
-	_ui_tween.parallel().tween_property(_ui_root, "modulate", _ui_root_final_modulate, 0.22)
+	_ui_tween.parallel().tween_property(_main_margin, "modulate", _main_margin_final_modulate, 0.22)
 	_ui_tween.parallel().tween_property(_main_margin, "position", _main_margin_final_position, 0.28)
 	_ui_tween.parallel().tween_property(_main_margin, "scale", _main_margin_final_scale * 1.01, 0.18)
 	_ui_tween.tween_property(_main_margin, "scale", _main_margin_final_scale, 0.12)
@@ -288,7 +291,7 @@ func _close_and_do(action: Callable) -> void:
 	_ui_tween = create_tween()
 	_ui_tween.set_trans(Tween.TRANS_CUBIC)
 	_ui_tween.set_ease(Tween.EASE_IN)
-	_ui_tween.parallel().tween_property(_ui_root, "modulate", Color(_ui_root_final_modulate.r, _ui_root_final_modulate.g, _ui_root_final_modulate.b, 0.0), 0.18)
+	_ui_tween.parallel().tween_property(_main_margin, "modulate", Color(_main_margin_final_modulate.r, _main_margin_final_modulate.g, _main_margin_final_modulate.b, 0.0), 0.18)
 	_ui_tween.parallel().tween_property(_main_margin, "position", _main_margin_final_position + Vector2(0, 16), 0.20)
 	_ui_tween.parallel().tween_property(_main_margin, "scale", _main_margin_final_scale * 0.96, 0.20)
 	_ui_tween.finished.connect(func() -> void:
@@ -1096,21 +1099,15 @@ func _complete_event() -> void:
 	# 检查场景树是否存在（节点可能已经不在场景树中）
 	var tree = get_tree()
 	if tree:
-		# 立刻返回地图：先播本界面退场动画，再用转场黑屏遮罩掩盖地图加载卡顿
+		# 立刻返回地图：先播本界面退场动画，然后直接切回地图
 		if GameManager:
 			_close_and_do(func() -> void:
-				call_deferred("_fade_out_and_go_to_map")
+				GameManager.go_to_map_view()
 			)
 	else:
 		# 如果节点不在场景树中，直接返回地图
 		if GameManager:
 			GameManager.go_to_map_view()
-
-func _fade_out_and_go_to_map() -> void:
-	if TransitionManager:
-		await TransitionManager.fade_out(0.6)
-	if GameManager:
-		GameManager.go_to_map_view()
 
 ## 标记事件已触发
 func _mark_event_triggered() -> void:
