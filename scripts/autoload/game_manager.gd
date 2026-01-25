@@ -45,6 +45,9 @@ enum GameState {
 
 var current_state: GameState = GameState.MAIN_MENU
 
+# 仅用于主菜单抽屉版角色选择：从其他界面回到主菜单后，自动打开角色选择面板（一次性消费）
+var _open_character_select_panel_on_main_menu: bool = false
+
 # 场景路径映射（统一管理，便于维护）
 const SCENE_PATHS: Dictionary = {
 	GameState.MAIN_MENU: "res://scenes/ui/main_menu.tscn",
@@ -434,6 +437,20 @@ func _change_scene_by_state(state: GameState) -> void:
 ## 切换到主菜单
 func go_to_main_menu() -> void:
 	_change_scene_by_state(GameState.MAIN_MENU)
+
+
+
+func go_to_main_menu_open_character_select() -> void:
+	_open_character_select_panel_on_main_menu = true
+	go_to_main_menu()
+
+
+
+func consume_open_character_select_on_main_menu() -> bool:
+	if not _open_character_select_panel_on_main_menu:
+		return false
+	_open_character_select_panel_on_main_menu = false
+	return true
 
 ## 切换到角色选择
 func go_to_character_select() -> void:

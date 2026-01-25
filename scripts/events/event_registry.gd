@@ -77,6 +77,15 @@ func _load_custom_events_from_dir(events_dir: String) -> void:
 				event = load(file_path) as EventData
 			
 			if event and not event.id.is_empty():
+				# 记录来源路径：用于校验/定位 user:// 覆盖问题
+				event.set_meta("source_path", file_path)
+				if not _is_event_valid_for_register(event):
+					if DebugLogger:
+						DebugLogger.log_warning("跳过非法事件 '%s'（%s）" % [event.id, file_path], "EventRegistry")
+					else:
+						push_warning("EventRegistry: 跳过非法事件 '%s'（%s）" % [event.id, file_path])
+					file_name = dir.get_next() as String
+					continue
 				# 避免覆盖内置事件
 				if not _events.has(event.id):
 					_register_event(event)
@@ -463,15 +472,25 @@ func _validate_all_events() -> void:
 				# RANDOM/SHOP/REST/UPGRADE/BATTLE 的奖励逻辑由 EventUI 分支处理，这里只做轻量校验
 				pass
 			EventData.EventType.BATTLE:
-				if event.enemy_data == null:
-					issues.append("[%s] BATTLE 事件 enemy_data 为 null（当前实现会直接进入战斗，但无法指定敌人）" % event.id)
+				# BATTLE=1：事件战斗走通用战斗，不要求配置 enemy_data
+				pass
 			EventData.EventType.SHOP:
-				issues.append("[%s] SHOP 事件目前为占位实现（仅提示+离开），未实现购买逻辑" % event.id)
+				# SHOP=2：目前仅 antique_shop 有完整购买逻辑，其它 SHOP 仍视为占位
+				if event.id != "antique_shop":
+					issues.append("[%s] SHOP 事件尚未实现购买逻辑（当前仅支持 antique_shop）" % event.id)
 			EventData.EventType.REST:
-				if event.id == "liyue_inn":
-					issues.append("[%s] REST 事件使用特殊逻辑（扣200并回满血），reward_value 配置不会被直接应用" % event.id)
+				# REST=2：按 reward_type/reward_value 数据驱动执行
+				if event.reward_type == EventData.RewardType.MULTIPLE and (not (event.reward_value is Dictionary)):
+					var src := str(event.get_meta("source_path", ""))
+					issues.append("[%s] REST 事件 reward_type=MULTIPLE 但 reward_value 不是 Dictionary（typeof=%d value=%s source=%s）" % [event.id, typeof(event.reward_value), str(event.reward_value), src])
+				elif event.reward_type == EventData.RewardType.GOLD and (not (event.reward_value is int or event.reward_value is float)):
+					issues.append("[%s] REST 事件 reward_type=GOLD 但 reward_value 不是数值" % event.id)
 			EventData.EventType.UPGRADE:
-				issues.append("[%s] UPGRADE 事件当前会进入升级选择界面，reward_type/reward_value 不会被直接自动发放" % event.id)
+				# UPGRADE=2：按 reward_type/reward_value 数据驱动执行
+				if event.reward_type != EventData.RewardType.UPGRADE:
+					issues.append("[%s] UPGRADE 事件 reward_type 不是 UPGRADE" % event.id)
+				if event.reward_value == null:
+					issues.append("[%s] UPGRADE 事件 reward_value 为空" % event.id)
 			EventData.EventType.RANDOM:
 				if not (event.id in supported_random_ids):
 					issues.append("[%s] RANDOM 事件未在 EventUI 中实现专用逻辑（会走默认随机展示）" % event.id)
@@ -487,3 +506,23 @@ func _validate_all_events() -> void:
 	else:
 		for line in issues:
 			push_warning("EventRegistry: %s" % line)
+
+
+func _is_event_valid_for_register(event: EventData) -> bool:
+	if event == null:
+		return false
+	if event.id.is_empty():
+		return false
+	# 对 user:// 覆盖文件做最小校验，避免坏数据把 res:// 正常版本“挡住”
+	match event.event_type:
+		EventData.EventType.REST:
+			if event.reward_type == EventData.RewardType.MULTIPLE and not (event.reward_value is Dictionary):
+				return false
+		EventData.EventType.UPGRADE:
+			if event.reward_type != EventData.RewardType.UPGRADE:
+				return false
+			if event.reward_value == null:
+				return false
+		_:
+			pass
+	return true

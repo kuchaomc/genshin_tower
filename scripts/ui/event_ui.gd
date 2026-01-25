@@ -458,6 +458,26 @@ func _show_shop_event() -> void:
 	if not content_container:
 		return
 	
+	# 古董店：出售“全套满级圣遗物”（当前角色专属），售价1000，仅限一次（one_time_only 由 EventRegistry 控制）
+	if current_event_id == "antique_shop":
+		var shop_label = Label.new()
+		shop_label.text = "古董店老板拿出压箱底的藏品。"
+		shop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		content_container.add_child(shop_label)
+		
+		var buy_button = Button.new()
+		buy_button.text = "购买（1000摩拉）"
+		buy_button.custom_minimum_size = Vector2(240, 50)
+		buy_button.pressed.connect(_on_antique_shop_buy_pressed)
+		content_container.add_child(buy_button)
+		
+		var leave_button = Button.new()
+		leave_button.text = "离开"
+		leave_button.custom_minimum_size = Vector2(200, 50)
+		leave_button.pressed.connect(_complete_event)
+		content_container.add_child(leave_button)
+		return
+	
 	var shop_label = Label.new()
 	shop_label.text = "特殊商店（功能待实现）"
 	shop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -497,14 +517,14 @@ func _show_upgrade_event() -> void:
 		return
 	
 	var upgrade_label = Label.new()
-	upgrade_label.text = "你获得了升级机会！"
+	upgrade_label.text = "你获得了升级奖励！"
 	upgrade_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content_container.add_child(upgrade_label)
 	
 	var upgrade_button = Button.new()
-	upgrade_button.text = "选择升级"
+	upgrade_button.text = "获得升级"
 	upgrade_button.custom_minimum_size = Vector2(200, 50)
-	upgrade_button.pressed.connect(_on_upgrade_confirmed)
+	upgrade_button.pressed.connect(_on_upgrade_reward_confirmed)
 	content_container.add_child(upgrade_button)
 
 ## 显示随机事件
@@ -753,24 +773,25 @@ func _on_rest_confirmed() -> void:
 	if not current_event:
 		return
 	
-	# 检查是否需要支付成本
-	if current_event_id == "liyue_inn":
-		# 璃月客栈需要支付200摩拉
-		if not RunManager.spend_gold(200):
-			print("摩拉不足，无法在客栈休息")
-			return
-		# 生命值全满
-		RunManager.heal(RunManager.max_health)
-	else:
-		# 其他休息事件根据reward_value恢复
-		_apply_reward(current_event.reward_type, current_event.reward_value, current_event)
-	
+	# 休息事件改为数据驱动：直接按 reward_type/reward_value 执行（支持 MULTIPLE 内 gold 为负表示成本）
+	if not _can_afford_reward(current_event.reward_type, current_event.reward_value, current_event):
+		_show_event_warning("摩拉不足，无法休息")
+		return
+	_apply_reward(current_event.reward_type, current_event.reward_value, current_event)
+	_update_gold_label()
 	_complete_event()
 
 
 func _on_rest_skipped() -> void:
 	if not current_event:
 		return
+	_complete_event()
+
+
+func _on_upgrade_reward_confirmed() -> void:
+	if not current_event:
+		return
+	_apply_reward(current_event.reward_type, current_event.reward_value, current_event)
 	_complete_event()
 
 ## 确认升级
@@ -799,9 +820,17 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 	match reward_type:
 		EventData.RewardType.GOLD:
 			if actual_value is int or actual_value is float:
-				RunManager.add_gold(int(actual_value))
-				print("获得摩拉：", actual_value)
-				_update_gold_label()
+				var amount := int(actual_value)
+				if amount < 0:
+					# 负数表示花费
+					if not RunManager.spend_gold(abs(amount)):
+						print("摩拉不足，无法支付：", abs(amount))
+						return
+					_update_gold_label()
+				else:
+					RunManager.add_gold(amount)
+					print("获得摩拉：", amount)
+					_update_gold_label()
 		
 		EventData.RewardType.HEALTH:
 			if actual_value is int or actual_value is float:
@@ -871,8 +900,15 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 							print("获得摩拉：", random_gold)
 							_update_gold_label()
 						else:
-							RunManager.add_gold(int(value))
-							_update_gold_label()
+							var gold_amount := int(value)
+							if gold_amount < 0:
+								if not RunManager.spend_gold(abs(gold_amount)):
+									print("摩拉不足，无法支付：", abs(gold_amount))
+									return
+								_update_gold_label()
+							else:
+								RunManager.add_gold(gold_amount)
+								_update_gold_label()
 					elif key == "health":
 						if value is float and value < 0:
 							# 负数表示扣血
@@ -912,6 +948,60 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 							print("获得圣遗物：%s（%s）" % [artifact.name, slot_name])
 	
 	emit_signal("reward_given", reward_type, actual_value)
+
+
+func _can_afford_reward(reward_type: EventData.RewardType, reward_value: Variant, event_data: EventData = null) -> bool:
+	if not RunManager:
+		return false
+	# 对 REST/SHOP 等场景，需要在结算前判断是否能支付成本（gold为负数）
+	if reward_type == EventData.RewardType.GOLD and (reward_value is int or reward_value is float):
+		return int(reward_value) >= 0 or RunManager.gold >= abs(int(reward_value))
+	if reward_type == EventData.RewardType.MULTIPLE and reward_value is Dictionary:
+		if reward_value.has("gold"):
+			var gv: Variant = reward_value.get("gold")
+			if gv is int or gv is float:
+				var g := int(gv)
+				if g < 0 and RunManager.gold < abs(g):
+					return false
+		return true
+	return true
+
+
+func _show_event_warning(text: String) -> void:
+	if not is_instance_valid(content_container):
+		return
+	# 避免重复堆叠提示
+	var existing := content_container.get_node_or_null("EventWarning") as Label
+	if existing:
+		existing.text = text
+		return
+	var warn := Label.new()
+	warn.name = "EventWarning"
+	warn.text = text
+	warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warn.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
+	content_container.add_child(warn)
+
+
+func _on_antique_shop_buy_pressed() -> void:
+	if not RunManager:
+		return
+	if not RunManager.current_character or not RunManager.current_character.artifact_set:
+		_show_event_warning("当前角色没有专属圣遗物套装")
+		return
+	if not RunManager.spend_gold(1000):
+		_show_event_warning("摩拉不足，无法购买")
+		return
+	_update_gold_label()
+	# 购买全套满级：每个槽位给2次（触发100%效果），并装备
+	for slot in ArtifactSlot.get_all_slots():
+		var a: ArtifactData = RunManager.current_character.artifact_set.get_artifact(slot)
+		if a == null:
+			continue
+		RunManager.add_artifact_to_inventory(a, slot)
+		RunManager.add_artifact_to_inventory(a, slot)
+		RunManager.equip_artifact_to_character(a, slot)
+	_complete_event()
 
 ## 获取实际奖励值（处理随机范围）
 func _get_actual_reward_value(reward_type: EventData.RewardType, reward_value: Variant, event_data: EventData) -> Variant:

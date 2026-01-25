@@ -198,8 +198,28 @@ func _ready() -> void:
 	_load_cg_gallery_panel()
 	_load_shop_panel()
 	_update_cg_button_enabled_state_from_settings()
+	_consume_open_character_select_request()
 	
 	print("主界面脚本已加载，帮助弹窗已初始化")
+
+
+func _consume_open_character_select_request() -> void:
+	if not GameManager:
+		return
+	if not GameManager.has_method("consume_open_character_select_on_main_menu"):
+		return
+	if not bool(GameManager.consume_open_character_select_on_main_menu()):
+		return
+	call_deferred("_open_character_select_panel_after_intro")
+
+
+func _open_character_select_panel_after_intro() -> void:
+	await get_tree().process_frame
+	if _intro_tween and _intro_tween.is_running():
+		await _intro_tween.finished
+	await get_tree().process_frame
+	_setup_right_overlay_initial_state()
+	_on_start_button_pressed()
 
 
 func _setup_announcement_bar() -> void:

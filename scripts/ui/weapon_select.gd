@@ -206,5 +206,9 @@ func _on_confirm_pressed() -> void:
 
 func _on_back_pressed() -> void:
 	# 返回角色选择，让玩家重新选角色/武器
-	if GameManager:
-		GameManager.go_to_character_select()
+	if not GameManager:
+		return
+	if GameManager.has_method("go_to_main_menu_open_character_select"):
+		GameManager.go_to_main_menu_open_character_select()
+	else:
+		GameManager.go_to_main_menu()

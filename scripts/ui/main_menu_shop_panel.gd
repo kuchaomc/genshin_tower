@@ -300,6 +300,8 @@ func _refresh_weapon_list() -> void:
 		# 无锋剑默认拥有，不在商店出售
 		if str(wid) == "wufeng_sword":
 			continue
+		if str(wid) == "apprentice_notes":
+			continue
 		var btn := Button.new()
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.custom_minimum_size = Vector2(0, 52)
