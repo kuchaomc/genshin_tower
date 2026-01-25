@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CharacterStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/characters/character_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+max_health = 100.0
+defense_percent = 0.0
+attack = 25.0
+attack_speed = 1.0
+knockback_force = 150.0
+crit_rate = 0.05
+crit_damage = 0.5
+move_speed = 90.0
+pickup_range = 80.0

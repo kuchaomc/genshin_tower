@@ -140,6 +140,10 @@ func _refresh_weapon_list() -> void:
 		return
 
 	for wid in weapon_ids:
+		# 兜底：按当前角色武器类型过滤，避免出现“法器角色能选单手剑”等情况
+		if RunManager and RunManager.has_method("is_weapon_compatible_with_current_character"):
+			if not bool(RunManager.is_weapon_compatible_with_current_character(wid)):
+				continue
 		_create_weapon_button(wid)
 
 func _create_weapon_button(weapon_id: String) -> void:

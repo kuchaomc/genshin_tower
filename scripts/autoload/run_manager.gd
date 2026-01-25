@@ -96,15 +96,20 @@ func _initialize_weapon_registry() -> void:
 
 	var icon_wufeng: Texture2D = preload("res://textures/ui/武器/单手剑/无锋剑.png")
 	var icon_mistsplitter: Texture2D = preload("res://textures/ui/武器/单手剑/雾切之回光.png")
+	var icon_apprentice_notes: Texture2D = preload("res://textures/ui/武器/法器/学徒笔记.png")
+	var icon_thousand_floating_dreams: Texture2D = preload("res://textures/ui/武器/法器/千夜浮梦.png")
 	# 手持世界贴图：使用 effects 目录（用于角色手里显示）
 	var world_wufeng: Texture2D = preload("res://textures/effects/无锋剑.png")
 	var world_mistsplitter: Texture2D = preload("res://textures/effects/雾切之回光.png")
+	var world_apprentice_notes: Texture2D = preload("res://textures/effects/学徒笔记.png")
+	var world_thousand_floating_dreams: Texture2D = preload("res://textures/effects/千夜浮梦.png")
 
 	_weapon_registry["wufeng_sword"] = {
 		"display_name": "无锋剑",
 		"description": "无锋剑\n\n无任何效果。",
 		"icon": icon_wufeng,
 		"world_texture": world_wufeng,
+		"weapon_type": CharacterData.WeaponType.SWORD,
 	}
 
 	_weapon_registry["mistsplitter"] = {
@@ -112,6 +117,25 @@ func _initialize_weapon_registry() -> void:
 		"description": "雾切之回光\n\n常驻：造成的伤害提高10%。\n雾切之巴印：持有1/2/3层时，造成的伤害提高10%/20%/30%。\n\n获得巴印：\n- 普通攻击造成伤害时：获得1层，持续5秒。\n- 施放元素爆发时：获得1层，持续10秒。\n- 元素能量低于100%时：获得1层，能量充满时消失。\n\n每层持续时间独立计算。",
 		"icon": icon_mistsplitter,
 		"world_texture": world_mistsplitter,
+		"weapon_type": CharacterData.WeaponType.SWORD,
+	}
+
+	_weapon_registry["apprentice_notes"] = {
+		"display_name": "学徒笔记",
+		"description": "学徒笔记\n\n无任何效果。",
+		"icon": icon_apprentice_notes,
+		"world_texture": world_apprentice_notes,
+		"weapon_type": CharacterData.WeaponType.CATALYST,
+	}
+
+	_weapon_registry["thousand_floating_dreams"] = {
+		"display_name": "千夜浮梦",
+		"description": "千夜浮梦\n\n攻击力+30。\n技能和大招伤害提高20%。",
+		"icon": icon_thousand_floating_dreams,
+		"world_texture": world_thousand_floating_dreams,
+		"weapon_type": CharacterData.WeaponType.CATALYST,
+		"attack_flat_bonus": 30.0,
+		"skill_burst_damage_mult": 1.2,
 	}
 
 ## 获取 RNG（统一随机入口）
@@ -128,8 +152,8 @@ func start_new_run(character: CharacterData) -> void:
 	
 	# 清空圣遗物库存
 	artifact_inventory.clear()
-	# 初始化本局武器装备：默认装备无锋剑
-	_initialize_weapon_equip_for_character(character.id)
+	# 初始化本局武器装备：按角色武器类型选择默认武器
+	_initialize_weapon_equip_for_character(character)
 	map_seed = -1  # 重置地图种子，新游戏会生成新地图
 	gold = 0
 	primogems_earned = 0
@@ -162,18 +186,26 @@ func start_new_run(character: CharacterData) -> void:
 
 
 ## 初始化某角色的默认装备
-func _initialize_weapon_equip_for_character(character_id: String) -> void:
+func _initialize_weapon_equip_for_character(character: CharacterData) -> void:
+	if not character:
+		return
+	var character_id := character.id
 	if character_id.is_empty():
 		return
-	if not _equipped_weapon.has(character_id):
-		_equipped_weapon[character_id] = "wufeng_sword"
+	if _equipped_weapon.has(character_id):
+		return
+	_equipped_weapon[character_id] = _get_default_weapon_id_for_character(character)
 
 
 ## 获取当前角色已拥有武器ID列表
 func get_owned_weapon_ids() -> Array[String]:
 	if not current_character:
 		return []
-	var out: Array[String] = ["wufeng_sword"]
+	var out: Array[String] = []
+	# 根据角色武器类型发放“初始基础武器”
+	var default_weapon_id := _get_default_weapon_id_for_character(current_character)
+	if not default_weapon_id.is_empty():
+		out.append(default_weapon_id)
 	# 其它武器由跨局存档解锁决定
 	if GameManager and GameManager.has_method("get_unlocked_shop_weapon_ids"):
 		var unlocked_any: Variant = GameManager.call("get_unlocked_shop_weapon_ids")
@@ -181,6 +213,8 @@ func get_owned_weapon_ids() -> Array[String]:
 			for wid in unlocked_any:
 				var s := str(wid)
 				if s.is_empty():
+					continue
+				if not _is_weapon_compatible_with_character(s, current_character):
 					continue
 				if not (s in out):
 					out.append(s)
@@ -204,11 +238,48 @@ func equip_weapon(weapon_id: String) -> void:
 		return
 	if not _weapon_registry.has(weapon_id):
 		return
+	# 武器类型必须与角色匹配
+	if not _is_weapon_compatible_with_character(weapon_id, current_character):
+		return
 	# 必须已解锁/已拥有
 	var owned := get_owned_weapon_ids()
 	if not (weapon_id in owned):
 		return
 	_equipped_weapon[current_character.id] = weapon_id
+	# 武器可能带属性加成：若角色节点已生成，立即重新应用一次升级/属性
+	if current_character_node:
+		apply_upgrades_to_character(current_character_node)
+
+
+## 获取武器类型
+func get_weapon_type(weapon_id: String) -> CharacterData.WeaponType:
+	if weapon_id.is_empty():
+		return CharacterData.WeaponType.SWORD
+	var data: Dictionary = _weapon_registry.get(weapon_id, {})
+	return int(data.get("weapon_type", int(CharacterData.WeaponType.SWORD)))
+
+
+func _get_default_weapon_id_for_character(character: CharacterData) -> String:
+	if not character:
+		return ""
+	match character.weapon_type:
+		CharacterData.WeaponType.CATALYST:
+			return "apprentice_notes"
+		_:
+			return "wufeng_sword"
+
+
+func _is_weapon_compatible_with_character(weapon_id: String, character: CharacterData) -> bool:
+	if weapon_id.is_empty() or not character:
+		return true
+	if not _weapon_registry.has(weapon_id):
+		return true
+	return int(get_weapon_type(weapon_id)) == int(character.weapon_type)
+
+
+## 提供给 UI/其它系统的兼容性判断
+func is_weapon_compatible_with_current_character(weapon_id: String) -> bool:
+	return _is_weapon_compatible_with_character(weapon_id, current_character)
 
 
 ## 获取当前角色装备的武器ID
@@ -250,6 +321,20 @@ func get_weapon_world_texture(weapon_id: String) -> Texture2D:
 	var data: Dictionary = _weapon_registry.get(weapon_id, {})
 	var t: Variant = data.get("world_texture", null)
 	return t as Texture2D
+
+
+func get_weapon_attack_flat_bonus(weapon_id: String) -> float:
+	if weapon_id.is_empty():
+		return 0.0
+	var data: Dictionary = _weapon_registry.get(weapon_id, {})
+	return float(data.get("attack_flat_bonus", 0.0))
+
+
+func get_weapon_skill_burst_damage_multiplier(weapon_id: String) -> float:
+	if weapon_id.is_empty():
+		return 1.0
+	var data: Dictionary = _weapon_registry.get(weapon_id, {})
+	return float(data.get("skill_burst_damage_mult", 1.0))
 
 
 ## 设置击败者（最后伤害来源）
@@ -358,8 +443,8 @@ func get_upgrade_level(upgrade_id: String) -> int:
 ## 设置当前角色节点引用
 func set_character_node(character: Node) -> void:
 	current_character_node = character
-	# 应用已有升级
-	if current_character_node and upgrades.size() > 0:
+	# 应用已有升级/武器加成（即使 upgrades 为空也需要应用武器属性）
+	if current_character_node:
 		apply_upgrades_to_character(current_character_node)
 
 # ========== 升级计算系统 ==========

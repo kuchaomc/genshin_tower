@@ -1,0 +1,94 @@
+[gd_scene load_steps=13 format=3 uid="uid://btfytblxfls07"]
+
+[ext_resource type="Script" uid="uid://q73r7fbjgeou" path="res://scripts/characters/nahida_character.gd" id="1_nahida_script"]
+[ext_resource type="Texture2D" uid="uid://6p6q2ljxtu5w" path="res://textures/characters/nahida/sprites/nahida_idle.png" id="2_idle"]
+[ext_resource type="Texture2D" uid="uid://dnh61b8c57y5t" path="res://textures/characters/nahida/sprites/nahida_move.png" id="3_move"]
+[ext_resource type="Texture2D" uid="uid://cfh7af1xu5i4b" path="res://textures/effects/学徒笔记.png" id="4_apprentice_notes"]
+[ext_resource type="Texture2D" uid="uid://iw56optyitph" path="res://textures/characters/nahida/effects/技能.png" id="5_nahida_skill"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_idle_0"]
+atlas = ExtResource("2_idle")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_idle_1"]
+atlas = ExtResource("2_idle")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_move_0"]
+atlas = ExtResource("3_move")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_move_1"]
+atlas = ExtResource("3_move")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_nahida"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_idle_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_idle_1")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 2.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_move_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_move_1")
+}],
+"loop": true,
+"name": &"run",
+"speed": 5.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_skill"]
+radius = 90.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_player"]
+radius = 1.5046294
+height = 6.249999
+
+[node name="nahida" type="CharacterBody2D" node_paths=PackedStringArray("skill_orbit_pivot", "skill_area", "animator")]
+script = ExtResource("1_nahida_script")
+skill_orbit_pivot = NodePath("SkillOrbitPivot")
+skill_area = NodePath("SkillOrbitPivot/SkillArea")
+animator = NodePath("AnimatedSprite2D")
+weapon_follow_offset = Vector2(20.325, -35.24)
+weapon_follow_opposite_facing = true
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_nahida")
+animation = &"idle"
+autoplay = "idle"
+
+[node name="WeaponSprite" type="Sprite2D" parent="."]
+scale = Vector2(0.22, 0.22)
+texture = ExtResource("4_apprentice_notes")
+
+[node name="SkillOrbitPivot" type="Node2D" parent="."]
+visible = false
+
+[node name="SkillArea" type="Area2D" parent="SkillOrbitPivot"]
+visible = false
+position = Vector2(85, 0)
+monitoring = false
+monitorable = false
+
+[node name="Sprite2D" type="Sprite2D" parent="SkillOrbitPivot/SkillArea"]
+modulate = Color(0.35, 1, 0.55, 1)
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("5_nahida_skill")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SkillOrbitPivot/SkillArea"]
+shape = SubResource("CircleShape2D_skill")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 4.0000005)
+scale = Vector2(8.640002, 8.640002)
+shape = SubResource("CapsuleShape2D_player")

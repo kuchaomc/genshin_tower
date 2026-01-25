@@ -4,6 +4,12 @@ class_name CharacterData
 ## 角色数据Resource类
 ## 用于存储角色的基础属性和配置信息
 
+## 武器类型（用于限制可选武器）
+enum WeaponType {
+	SWORD,
+	CATALYST,
+}
+
 ## 角色唯一标识符
 @export var id: String = ""
 ## 角色显示名称
@@ -12,6 +18,9 @@ class_name CharacterData
 @export var description: String = ""
 ## 角色图标
 @export var icon: Texture2D
+
+## 角色可使用的武器类型
+@export var weapon_type: WeaponType = WeaponType.SWORD
 
 # ========== 统一属性系统 ==========
 ## 角色属性（必填）

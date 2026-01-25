@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bcr0dwflbafi8"
-path="res://.godot/imported/nahida_idle.png-c4dfda73403b3f689a80498d952b8fa3.ctex"
+uid="uid://6p6q2ljxtu5w"
+path="res://.godot/imported/nahida_idle.png-1f204265fb4664316221593e136c2035.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/characters/Nahida/sprites/nahida_idle.png"
-dest_files=["res://.godot/imported/nahida_idle.png-c4dfda73403b3f689a80498d952b8fa3.ctex"]
+source_file="res://textures/characters/nahida/sprites/nahida_idle.png"
+dest_files=["res://.godot/imported/nahida_idle.png-1f204265fb4664316221593e136c2035.ctex"]
 
 [params]
 

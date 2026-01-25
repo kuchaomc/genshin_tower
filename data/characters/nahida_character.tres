@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/characters/character_data.gd" id="1_char_data"]
+[ext_resource type="Resource" path="res://data/characters/nahida_stats.tres" id="2_stats"]
+
+[resource]
+script = ExtResource("1_char_data")
+id = "nahida"
+display_name = "纳西妲"
+description = "使用法器进行远程攻击的角色"
+weapon_type = 1
+stats = ExtResource("2_stats")
+scene_path = "res://scenes/characters/nahida.tscn"

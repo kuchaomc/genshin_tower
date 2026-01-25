@@ -1014,7 +1014,7 @@ func _handle_skill_hit(target: Node2D) -> void:
 	# 造成伤害
 	if target.has_method("take_damage"):
 		# 使用统一伤害计算系统（技能伤害通过攻击力提升）
-		var damage_result = deal_damage_to(target, skill_damage_multiplier)
+		var damage_result = deal_damage_to(target, skill_damage_multiplier * get_weapon_skill_burst_damage_multiplier())
 		var damage = damage_result[0]
 		var is_crit = damage_result[1]
 		
@@ -1122,11 +1122,11 @@ func use_burst() -> void:
 	
 	# 设置角色引用和伤害倍率（用于deal_damage_to）
 	burst_instance.owner_character = self
-	burst_instance.damage_multiplier = burst_damage_multiplier
+	burst_instance.damage_multiplier = burst_damage_multiplier * get_weapon_skill_burst_damage_multiplier()
 	
 	# 预计算伤害用于显示（可选，用于调试）
 	if current_stats:
-		var damage_result = current_stats.calculate_damage(burst_damage_multiplier, 0.0, false, false)
+		var damage_result = current_stats.calculate_damage(burst_instance.damage_multiplier, 0.0, false, false)
 		burst_instance.damage = damage_result[0]
 		burst_instance.is_crit = damage_result[1]
 	else:

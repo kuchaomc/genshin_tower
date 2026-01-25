@@ -8,6 +8,7 @@ class_name BattleManager
 const LEVEL_GOAL_COMPLETED_TEXT: String = "已完成当前层级目标"
 const VICTORY_NOTIFY_SECONDS: float = 1.2
 const VICTORY_TRANSITION_SECONDS: float = 0.6
+const BOSS_LOOT_SECONDS: float = 30.0  # BOSS战胜利后拾取阶段：给玩家捡掉落的时间
 
 # 战斗场景准星贴图
 const CROSSHAIR_TEXTURE := preload("res://textures/effects/mouse.png")
@@ -42,6 +43,9 @@ var is_battle_victory: bool = false  # 标记是否通过得分获得胜利（�
 
 # BOSS战模式
 var is_boss_battle: bool = false  # 是否为BOSS战模式
+
+# BOSS战胜利后拾取阶段：给玩家捡掉落的时间
+var _boss_loot_phase_active: bool = false
 
 var _bloom_enabled: bool = true
 
@@ -119,6 +123,7 @@ func _ready() -> void:
 	_apply_crosshair_cursor()
 	_apply_bloom_enabled_from_settings()
 	_apply_nsfw_enabled_from_settings()
+	_boss_loot_phase_active = false
 	
 	# 播放转场淡入动画（如果TransitionManager存在）
 	# 同时在转场期间显示“正在进入第N层”提示（居中显示）
@@ -138,6 +143,30 @@ func _ready() -> void:
 		show_floor_notification()
 	
 	print("战斗管理器已初始化")
+
+func _process(_delta: float) -> void:
+	if not _boss_loot_phase_active:
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	var primogems := tree.get_nodes_in_group("primogem_pickups")
+	if primogems.is_empty():
+		_end_boss_loot_phase()
+
+
+func _end_boss_loot_phase() -> void:
+	if not _boss_loot_phase_active:
+		return
+	_boss_loot_phase_active = false
+	if game_over_timer:
+		game_over_timer.stop()
+	if RunManager:
+		# 只在结束拾取阶段时结算，避免重复调用 end_run()
+		RunManager.end_run(true)
+	if game_over_timer:
+		game_over_timer.wait_time = VICTORY_NOTIFY_SECONDS
+		game_over_timer.start()
 
 func _apply_bloom_enabled_from_settings() -> void:
 	var config := ConfigFile.new()
@@ -786,17 +815,18 @@ func battle_victory() -> void:
 	
 	_show_level_goal_completed_notification()
 	
-	# BOSS战胜利：结束游戏并标记为胜利
 	if is_boss_battle:
-		print("BOSS战胜利！游戏完成！")
-		# 结束游戏并标记为胜利
-		RunManager.end_run(true)
+		_boss_loot_phase_active = true
+		if game_over_timer:
+			game_over_timer.wait_time = BOSS_LOOT_SECONDS
+			game_over_timer.start()
 	else:
 		print("战斗胜利！当前得分：", current_score, "。即将进入升级选择...")
 	
 	# 先短暂显示“层级目标完成”提示，再转场进入升级选择
-	game_over_timer.wait_time = VICTORY_NOTIFY_SECONDS
-	game_over_timer.start()
+	if not is_boss_battle:
+		game_over_timer.wait_time = VICTORY_NOTIFY_SECONDS
+		game_over_timer.start()
 
 ## 清除场上所有敌人
 func clear_all_enemies() -> void:
@@ -827,6 +857,10 @@ func game_over() -> void:
 
 ## 游戏结束计时器回调
 func _on_game_over_timer_timeout() -> void:
+	if is_battle_victory and is_boss_battle and _boss_loot_phase_active:
+		_end_boss_loot_phase()
+		return
+
 	# 使用明确的胜利标志判断是胜利还是失败
 	# 只有通过击杀足够数量的敌人正常结束战斗才算胜利
 	# 玩家死亡则无论击杀数多少都算失败
@@ -1260,6 +1294,8 @@ func _get_skill_icon_path(character_id: String) -> String:
 	match character_id:
 		"kamisato_ayaka":
 			return "res://textures/icons/神里技能图标.png"
+		"nahida":
+			return "res://textures/icons/nahida/技能图标.png"
 		_:
 			# 默认尝试根据角色ID构建路径
 			return "res://textures/icons/%s技能图标.png" % character_id
@@ -1269,6 +1305,8 @@ func _get_burst_icon_path(character_id: String) -> String:
 	match character_id:
 		"kamisato_ayaka":
 			return "res://textures/icons/ayaka大招图标.png"
+		"nahida":
+			return "res://textures/icons/nahida/大招图标.png"
 		_:
 			# 默认尝试根据角色ID构建路径
 			return "res://textures/icons/%s大招图标.png" % character_id

@@ -17,6 +17,8 @@ uniform float radius : hint_range(0.0, 6.0) = 3.0;
 // 阈值软过渡（减少硬边），越大过渡越柔
 uniform float soft_knee : hint_range(0.0, 1.0) = 0.5;
 
+uniform float bloom_limit : hint_range(0.0, 2.0) = 0.35;
+
 // 调试模式：
 // 0 = 正常输出
 // 1 = 仅显示原图
@@ -48,6 +50,12 @@ void fragment() {
 	float b = soft_threshold(lum, threshold, soft_knee);
 	float inv_lum = 1.0 / max(lum, 1e-5);
 	vec3 bloom = blurred * (b * inv_lum);
+	vec3 bloom_rgb = bloom * intensity;
+	if (bloom_limit > 0.0) {
+		float bloom_l = luma(bloom_rgb);
+		float scale = bloom_limit / (bloom_limit + bloom_l);
+		bloom_rgb *= scale;
+	}
 
 	int dbg = int(debug_mode + 0.5);
 
@@ -63,10 +71,10 @@ void fragment() {
 		out_rgb = vec3(clamp(b, 0.0, 1.0));
 		out_a = 1.0;
 	} else if (dbg == 4) {
-		out_rgb = bloom * intensity;
+		out_rgb = bloom_rgb;
 		out_a = 1.0;
 	} else {
-		out_rgb = base.rgb + bloom * intensity;
+		out_rgb = base.rgb + bloom_rgb * (vec3(1.0) - base.rgb);
 		out_a = base.a;
 	}
 

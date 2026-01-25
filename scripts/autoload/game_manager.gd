@@ -77,6 +77,7 @@ const SCENE_RESULT = SCENE_PATHS[GameState.RESULT]
 
 # 存档路径
 const SAVE_FILE_PATH = "user://save_data.json"
+const SAVE_DATA_VERSION: String = "v2.2"
 
 # 结算记录
 var run_records: Array = []
@@ -732,17 +733,24 @@ func _make_death_cg_key(character_id: String, enemy_id: String) -> String:
 func _get_death_cg_candidate_paths(character_id: String, enemy_id: String, enemy_name: String) -> Array[String]:
 	var paths: Array[String] = []
 	if not character_id.is_empty():
-		# 1) 你当前的命名规则：被<敌人名>击败.png
-		if not enemy_name.is_empty():
-			paths.append("%s/%s/death/被%s击败.png" % [_CHARACTER_DEATH_CG_DIR, character_id, enemy_name])
-		# 1.1) 备用：被<enemy_id>击败.png（当 display_name 与文件命名不一致时可用）
-		if not enemy_id.is_empty():
-			paths.append("%s/%s/death/被%s击败.png" % [_CHARACTER_DEATH_CG_DIR, character_id, enemy_id])
-		# 2) 备用：按 enemy_id
-		if not enemy_id.is_empty():
-			paths.append("%s/%s/death/%s.png" % [_CHARACTER_DEATH_CG_DIR, character_id, enemy_id])
-		# 3) 默认图
-		paths.append("%s/%s/death/default.png" % [_CHARACTER_DEATH_CG_DIR, character_id])
+		# 角色目录名兜底：历史资源可能使用了不同大小写。
+		# - 目前纳西妲资源目录为 Nahida（大写），但角色id为 nahida（小写）。
+		var character_dir_names: Array[String] = [character_id]
+		if character_id == "nahida":
+			character_dir_names.append("Nahida")
+
+		for dir_name in character_dir_names:
+			# 1) 你当前的命名规则：被<敌人名>击败.png
+			if not enemy_name.is_empty():
+				paths.append("%s/%s/death/被%s击败.png" % [_CHARACTER_DEATH_CG_DIR, dir_name, enemy_name])
+			# 1.1) 备用：被<enemy_id>击败.png（当 display_name 与文件命名不一致时可用）
+			if not enemy_id.is_empty():
+				paths.append("%s/%s/death/被%s击败.png" % [_CHARACTER_DEATH_CG_DIR, dir_name, enemy_id])
+			# 2) 备用：按 enemy_id
+			if not enemy_id.is_empty():
+				paths.append("%s/%s/death/%s.png" % [_CHARACTER_DEATH_CG_DIR, dir_name, enemy_id])
+			# 3) 默认图
+			paths.append("%s/%s/death/default.png" % [_CHARACTER_DEATH_CG_DIR, dir_name])
 	# 4) 兼容旧全局CG
 	if not enemy_id.is_empty():
 		paths.append("%s/%s.png" % [_CG_TEXTURE_DIR, enemy_id])
@@ -776,7 +784,7 @@ func save_data() -> void:
 		"shop_cg_unlocks": shop_cg_unlocks.keys(),
 		"shop_weapon_unlocks": shop_weapon_unlocks.keys(),
 		"primogems_total": primogems_total,
-		"version": "1.0"
+		"version": SAVE_DATA_VERSION
 	}
 	
 	var file = FileAccess.open(SAVE_FILE_PATH, FileAccess.WRITE)
@@ -801,6 +809,11 @@ func load_save_data() -> void:
 		var error = json.parse(json_string)
 		if error == OK:
 			var data = json.data
+			var has_version: bool = false
+			var save_version: String = ""
+			if data is Dictionary:
+				has_version = (data as Dictionary).has("version")
+				save_version = str((data as Dictionary).get("version", ""))
 			run_records = data.get("run_records", [])
 			cg_unlocks.clear()
 			var unlocked: Array = data.get("cg_unlocks", [])
@@ -816,6 +829,14 @@ func load_save_data() -> void:
 				shop_weapon_unlocks[str(w)] = true
 			primogems_total = int(data.get("primogems_total", 0))
 			emit_signal("primogems_total_changed", primogems_total)
+			if not has_version:
+				# 旧存档兼容：没有 version 字段则按当前版本覆盖写回，避免后续版本核查/升级逻辑缺字段。
+				save_data()
+				if DebugLogger:
+					DebugLogger.log_warning("检测到旧存档缺少版本号，已按当前版本覆盖写回", "GameManager")
+			elif (not save_version.is_empty()) and save_version != SAVE_DATA_VERSION:
+				if DebugLogger:
+					DebugLogger.log_warning("存档版本不匹配：%s（当前：%s）" % [save_version, SAVE_DATA_VERSION], "GameManager")
 			if DebugLogger:
 				DebugLogger.log_info("存档加载成功，记录数：%d" % run_records.size(), "GameManager")
 		else:

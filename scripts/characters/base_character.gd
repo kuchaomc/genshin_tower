@@ -109,6 +109,17 @@ var _attack_button_pressed: bool = false
 # ========== 碰撞箱引用 ==========
 var collision_shape: CollisionShape2D
 
+# ========== 武器显示（可选） ==========
+# 约定：如果角色场景中存在名为 WeaponSprite 的 Sprite2D，则用于显示“手持武器贴图”。
+# - 剑类角色（如绫华）通常有自己专用的 SwordArea/Sprite2D，不使用此逻辑。
+@export var weapon_follow_offset: Vector2 = Vector2(10.0, -22.0)
+@export var weapon_follow_opposite_facing: bool = false
+@export var weapon_follow_speed: float = 18.0
+@export var weapon_overlap_back_distance: float = 8.0
+@export var weapon_z_front_offset: int = 1
+@export var weapon_z_back_offset: int = -1
+var _weapon_sprite: Sprite2D = null
+
 # ========== 击退效果 ==========
 var knockback_velocity: Vector2 = Vector2.ZERO
 var is_knockback_active: bool = false
@@ -209,6 +220,13 @@ func _ready() -> void:
 	# 如果没有手动分配动画器，则自动查找
 	if animator == null:
 		animator = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	_weapon_sprite = get_node_or_null("WeaponSprite") as Sprite2D
+	if is_instance_valid(_weapon_sprite):
+		_weapon_sprite.top_level = true
+		_weapon_sprite.z_as_relative = false
+		# 初始化位置：避免开启 top_level 后第一帧“跳一下”
+		_weapon_sprite.global_position = global_position + weapon_follow_offset
+	_apply_equipped_weapon_visual_to_weapon_sprite()
 	
 	# 获取碰撞箱引用
 	collision_shape = get_node_or_null("CollisionShape2D") as CollisionShape2D
@@ -241,6 +259,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if is_game_over:
 		return
+	_update_weapon_sprite_follow(delta)
 	
 	# 更新击退计时器
 	_update_knockback(delta)
@@ -256,6 +275,63 @@ func _physics_process(delta: float) -> void:
 
 func set_movement_trail_enabled(is_enabled: bool) -> void:
 	dodge_afterimage_enabled = is_enabled
+
+
+func _apply_equipped_weapon_visual_to_weapon_sprite() -> void:
+	if not is_instance_valid(_weapon_sprite):
+		return
+	if not RunManager:
+		return
+	if not RunManager.has_method("get_equipped_weapon_id"):
+		return
+	if not RunManager.has_method("get_weapon_world_texture"):
+		return
+	var weapon_id := str(RunManager.get_equipped_weapon_id())
+	if weapon_id.is_empty():
+		return
+	var tex: Texture2D = RunManager.get_weapon_world_texture(weapon_id)
+	if tex:
+		_weapon_sprite.texture = tex
+
+
+func _update_weapon_sprite_follow(delta: float) -> void:
+	if not is_instance_valid(_weapon_sprite):
+		return
+
+	# 如果中途换武器，这里也能自动刷新贴图（成本很低）
+	_apply_equipped_weapon_visual_to_weapon_sprite()
+
+	var offset := weapon_follow_offset
+	# 简单处理左右翻转：跟随动画器的 flip_h
+	# - weapon_follow_opposite_facing=false：武器在“面朝方向”一侧
+	# - weapon_follow_opposite_facing=true：武器在“面朝方向的反侧”（例如朝左时在右侧）
+	if is_instance_valid(animator):
+		var abs_x := absf(offset.x)
+		if animator.flip_h:
+			offset.x = abs_x if weapon_follow_opposite_facing else -abs_x
+		else:
+			offset.x = -abs_x if weapon_follow_opposite_facing else abs_x
+	var target_global := global_position + offset
+	# 使用指数平滑，帧率变化时手感更一致；speed 越小越“黏滞/拖拽”。
+	var follow_speed := maxf(0.0, weapon_follow_speed)
+	var t := 1.0 - exp(-follow_speed * delta)
+	_weapon_sprite.global_position = _weapon_sprite.global_position.lerp(target_global, t)
+	_update_weapon_sprite_z_order()
+
+
+func _update_weapon_sprite_z_order() -> void:
+	if not is_instance_valid(_weapon_sprite):
+		return
+	var base_z: int = 0
+	var base_pos: Vector2 = global_position
+	if is_instance_valid(animator):
+		base_z = animator.z_index
+		base_pos = animator.global_position
+	var threshold := maxf(0.0, weapon_overlap_back_distance)
+	if threshold > 0.0 and _weapon_sprite.global_position.distance_to(base_pos) <= threshold:
+		_weapon_sprite.z_index = base_z + weapon_z_back_offset
+	else:
+		_weapon_sprite.z_index = base_z + weapon_z_front_offset
 
 func _dodge_afterimage_enabled_from_settings() -> void:
 	var config := ConfigFile.new()
@@ -1017,10 +1093,39 @@ func apply_upgrades(run_manager: Node) -> void:
 	# 应用圣遗物属性加成
 	_apply_artifact_bonuses()
 	
+	# 应用武器属性加成（如攻击力+30等）
+	_apply_weapon_bonuses(run_manager)
+	
 	# 同步属性到角色
 	_sync_stats_to_character()
 	
 	print("角色升级已应用：", current_stats.get_summary())
+
+
+func _apply_weapon_bonuses(run_manager: Node) -> void:
+	if not current_stats:
+		return
+	if not (run_manager and run_manager.has_method("get_equipped_weapon_id")):
+		return
+	if not run_manager.has_method("get_weapon_attack_flat_bonus"):
+		return
+	var weapon_id := str(run_manager.call("get_equipped_weapon_id"))
+	if weapon_id.is_empty():
+		return
+	var atk_bonus: float = float(run_manager.call("get_weapon_attack_flat_bonus", weapon_id))
+	if atk_bonus != 0.0:
+		current_stats.attack += atk_bonus
+
+
+func get_weapon_skill_burst_damage_multiplier() -> float:
+	if not RunManager:
+		return 1.0
+	if not RunManager.has_method("get_equipped_weapon_id"):
+		return 1.0
+	if not RunManager.has_method("get_weapon_skill_burst_damage_multiplier"):
+		return 1.0
+	var weapon_id := str(RunManager.get_equipped_weapon_id())
+	return float(RunManager.get_weapon_skill_burst_damage_multiplier(weapon_id))
 
 ## 应用通用属性升级（所有角色都拥有的基础属性）
 func _apply_common_upgrades(run_manager: Node) -> void:

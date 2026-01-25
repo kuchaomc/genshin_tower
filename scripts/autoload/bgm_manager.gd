@@ -37,8 +37,10 @@ const SOUND_HIT: String = "res://voice/击中.WAV"
 
 # 角色语音（Voice）
 const VOICE_ROOT_AYAKA: String = "res://voice/characters/ayaka"
+const VOICE_ROOT_NAHIDA: String = "res://voice/characters/nahida"
 const CHARACTER_VOICE_ROOTS: Dictionary = {
 	"kamisato_ayaka": VOICE_ROOT_AYAKA,
+	"nahida": VOICE_ROOT_NAHIDA,
 }
 
 
@@ -47,39 +49,83 @@ var _voice_fallback_dir_files: Dictionary = {
 		"res://voice/characters/ayaka/受伤/9mo5r7q7ds63swfvuhe4rz19od32qxk.mp3",
 		"res://voice/characters/ayaka/受伤/i4fkego6ji6sf96j1v9oo7lxb50hj6c.mp3",
 	]),
+	"res://voice/characters/nahida/受伤/": PackedStringArray([
+		"res://voice/characters/nahida/受伤/803a65c8cb872ec0e0038ff35db35cc4_2447311778799308880.mp3",
+		"res://voice/characters/nahida/受伤/d9f3e353f1b71d3c601cfa28f15e8ed5_1074679710559344807.mp3",
+	]),
 	"res://voice/characters/ayaka/技能/": PackedStringArray([
 		"res://voice/characters/ayaka/技能/9moyz93pctyky5llhlr5bcuxnt5oh9v.mp3",
 		"res://voice/characters/ayaka/技能/gqwg4whduw8bjm1t7ru2q3tu2tkvb8w.mp3",
 		"res://voice/characters/ayaka/技能/jgb5aficqguoap19il4zihhowm73wpk.mp3",
+	]),
+	"res://voice/characters/nahida/技能/": PackedStringArray([
+		"res://voice/characters/nahida/技能/06a6fda8919bfef6bfff5199c437d032_2713778252536393556.mp3",
+		"res://voice/characters/nahida/技能/1f7eaf7451f9cfcbd3e8cd844b28b17e_6176061356688600031.mp3",
+		"res://voice/characters/nahida/技能/349d2de21774da45c1e97745b365ee1f_4992449842647632459.mp3",
+		"res://voice/characters/nahida/技能/830ee05eba1aacc607dff41e51516f5e_4807239196801935478.mp3",
+		"res://voice/characters/nahida/技能/d1919304f637ea8dc455dc92afe2ff6e_1431902895779023323.mp3",
+		"res://voice/characters/nahida/技能/df32f2eab30a7f5879c4606dc09a0502_3078148866148088063.mp3",
 	]),
 	"res://voice/characters/ayaka/大招/": PackedStringArray([
 		"res://voice/characters/ayaka/大招/050wfiw8vcbg30tfac0eg7g07rjtvmg.mp3",
 		"res://voice/characters/ayaka/大招/ap0txbic0g2ct3grvn9xvy3zt4zoc7r.mp3",
 		"res://voice/characters/ayaka/大招/errycwgf5e3w64maxkyetavyt3dfnvh.mp3",
 	]),
+	"res://voice/characters/nahida/大招/": PackedStringArray([
+		"res://voice/characters/nahida/大招/11c664bd848770184eca5dfd66e89c51_5444646554291536369.mp3",
+		"res://voice/characters/nahida/大招/6c346a693c656f3f116d3d428b8b3438_3072149138534909048.mp3",
+		"res://voice/characters/nahida/大招/e61ce14dd018af855e212944c3a86e07_6946138339125005920.mp3",
+	]),
 	"res://voice/characters/ayaka/死亡/": PackedStringArray([
 		"res://voice/characters/ayaka/死亡/9gb6dmk33gavl1hgf1irakp9xymdbkc.mp3",
 		"res://voice/characters/ayaka/死亡/9xc364amcn2a9xcnnlldqt593pqel20.mp3",
 		"res://voice/characters/ayaka/死亡/k64b8m8p95ndjax3m37ob5twkfgb37z.mp3",
 	]),
+	"res://voice/characters/nahida/死亡/": PackedStringArray([
+		"res://voice/characters/nahida/死亡/24ad23ef5fde4fead48b52e4492562a8_8054702825063625720.mp3",
+		"res://voice/characters/nahida/死亡/b84885f5b6a2ebd7bc377984b641ea80_1270250062214132580.mp3",
+		"res://voice/characters/nahida/死亡/f876c09d556b23b9231e9df8d39be246_4572440346090611863.mp3",
+	]),
 	"res://voice/characters/ayaka/选中角色/": PackedStringArray([
 		"res://voice/characters/ayaka/选中角色/hx23f7cf96qrxdedj1x8km0ksmc8fwq.mp3",
+	]),
+	"res://voice/characters/nahida/选中角色/": PackedStringArray([
+		"res://voice/characters/nahida/选中角色/ddf937ea4aac1282901270ba491ece88_986083904906531255.mp3",
+		"res://voice/characters/nahida/选中角色/f514abfbe4a9358e96038850d6d64742_5784748521077424357.mp3",
+		"res://voice/characters/nahida/选中角色/f5b6ddb7454cbb750e6c02d258c3e03d_8129408147390523371.mp3",
 	]),
 }
 
 const _VOICE_FALLBACK_PRELOADS: Array[AudioStream] = [
 	preload("res://voice/characters/ayaka/受伤/9mo5r7q7ds63swfvuhe4rz19od32qxk.mp3"),
 	preload("res://voice/characters/ayaka/受伤/i4fkego6ji6sf96j1v9oo7lxb50hj6c.mp3"),
+	preload("res://voice/characters/nahida/受伤/803a65c8cb872ec0e0038ff35db35cc4_2447311778799308880.mp3"),
+	preload("res://voice/characters/nahida/受伤/d9f3e353f1b71d3c601cfa28f15e8ed5_1074679710559344807.mp3"),
 	preload("res://voice/characters/ayaka/技能/9moyz93pctyky5llhlr5bcuxnt5oh9v.mp3"),
 	preload("res://voice/characters/ayaka/技能/gqwg4whduw8bjm1t7ru2q3tu2tkvb8w.mp3"),
 	preload("res://voice/characters/ayaka/技能/jgb5aficqguoap19il4zihhowm73wpk.mp3"),
+	preload("res://voice/characters/nahida/技能/06a6fda8919bfef6bfff5199c437d032_2713778252536393556.mp3"),
+	preload("res://voice/characters/nahida/技能/1f7eaf7451f9cfcbd3e8cd844b28b17e_6176061356688600031.mp3"),
+	preload("res://voice/characters/nahida/技能/349d2de21774da45c1e97745b365ee1f_4992449842647632459.mp3"),
+	preload("res://voice/characters/nahida/技能/830ee05eba1aacc607dff41e51516f5e_4807239196801935478.mp3"),
+	preload("res://voice/characters/nahida/技能/d1919304f637ea8dc455dc92afe2ff6e_1431902895779023323.mp3"),
+	preload("res://voice/characters/nahida/技能/df32f2eab30a7f5879c4606dc09a0502_3078148866148088063.mp3"),
 	preload("res://voice/characters/ayaka/大招/050wfiw8vcbg30tfac0eg7g07rjtvmg.mp3"),
 	preload("res://voice/characters/ayaka/大招/ap0txbic0g2ct3grvn9xvy3zt4zoc7r.mp3"),
 	preload("res://voice/characters/ayaka/大招/errycwgf5e3w64maxkyetavyt3dfnvh.mp3"),
+	preload("res://voice/characters/nahida/大招/11c664bd848770184eca5dfd66e89c51_5444646554291536369.mp3"),
+	preload("res://voice/characters/nahida/大招/6c346a693c656f3f116d3d428b8b3438_3072149138534909048.mp3"),
+	preload("res://voice/characters/nahida/大招/e61ce14dd018af855e212944c3a86e07_6946138339125005920.mp3"),
 	preload("res://voice/characters/ayaka/死亡/9gb6dmk33gavl1hgf1irakp9xymdbkc.mp3"),
 	preload("res://voice/characters/ayaka/死亡/9xc364amcn2a9xcnnlldqt593pqel20.mp3"),
 	preload("res://voice/characters/ayaka/死亡/k64b8m8p95ndjax3m37ob5twkfgb37z.mp3"),
+	preload("res://voice/characters/nahida/死亡/24ad23ef5fde4fead48b52e4492562a8_8054702825063625720.mp3"),
+	preload("res://voice/characters/nahida/死亡/b84885f5b6a2ebd7bc377984b641ea80_1270250062214132580.mp3"),
+	preload("res://voice/characters/nahida/死亡/f876c09d556b23b9231e9df8d39be246_4572440346090611863.mp3"),
 	preload("res://voice/characters/ayaka/选中角色/hx23f7cf96qrxdedj1x8km0ksmc8fwq.mp3"),
+	preload("res://voice/characters/nahida/选中角色/ddf937ea4aac1282901270ba491ece88_986083904906531255.mp3"),
+	preload("res://voice/characters/nahida/选中角色/f514abfbe4a9358e96038850d6d64742_5784748521077424357.mp3"),
+	preload("res://voice/characters/nahida/选中角色/f5b6ddb7454cbb750e6c02d258c3e03d_8129408147390523371.mp3"),
 ]
 
 var _player: AudioStreamPlayer

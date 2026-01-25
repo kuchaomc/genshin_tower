@@ -26,6 +26,16 @@ var sprite: Sprite2D
 func set_primogem_amount(amount: int) -> void:
 	primogem_amount = amount
 
+func apply_spawn_spray(offset: Vector2, duration: float = 0.18) -> void:
+	if offset == Vector2.ZERO:
+		return
+	if duration <= 0.0:
+		return
+	var t := create_tween()
+	t.set_trans(Tween.TRANS_QUAD)
+	t.set_ease(Tween.EASE_OUT)
+	t.tween_property(self, "global_position", global_position + offset, duration)
+
 func _ready() -> void:
 	# 添加到组（用于屏幕指示器/管理）
 	add_to_group("primogem_pickups")

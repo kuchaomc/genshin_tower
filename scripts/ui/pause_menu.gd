@@ -679,6 +679,8 @@ func _get_character_portrait_path(character_id: String) -> String:
 	match character_id:
 		"kamisato_ayaka":
 			return "res://textures/characters/kamisato_ayaka/portraits/ayaka角色立绘.png"
+		"nahida":
+			return "res://textures/characters/nahida/portraits/nahida角色立绘.png"
 		_:
 			return ""
 

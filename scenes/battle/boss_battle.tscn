@@ -37,10 +37,11 @@ corner_radius_bottom_left = 10
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_Bloom"]
 shader = ExtResource("9_bloom_shader")
-shader_parameter/threshold = 0.38800001843
-shader_parameter/intensity = 0.4070000193325
-shader_parameter/radius = 2.5650001218375
-shader_parameter/soft_knee = 0.2850000135375
+shader_parameter/threshold = 0.62
+shader_parameter/intensity = 0.25
+shader_parameter/radius = 3.2
+shader_parameter/soft_knee = 0.65
+shader_parameter/bloom_limit = 0.25
 shader_parameter/debug_mode = 0.0
 
 [node name="Node2D" type="Node2D"]

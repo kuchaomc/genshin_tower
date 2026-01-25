@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bx4b0jb1fgs0c"
-path="res://.godot/imported/nahida_move.png-836afaf6ad6aa443cfd05fae2c51881e.ctex"
+uid="uid://dnh61b8c57y5t"
+path="res://.godot/imported/nahida_move.png-63c086125e35605f47939821928ba034.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/characters/Nahida/sprites/nahida_move.png"
-dest_files=["res://.godot/imported/nahida_move.png-836afaf6ad6aa443cfd05fae2c51881e.ctex"]
+source_file="res://textures/characters/nahida/sprites/nahida_move.png"
+dest_files=["res://.godot/imported/nahida_move.png-63c086125e35605f47939821928ba034.ctex"]
 
 [params]
 

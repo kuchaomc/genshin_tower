@@ -232,6 +232,8 @@ func _get_character_portrait_path(character_id: String) -> String:
 	match character_id:
 		"kamisato_ayaka":
 			return "res://textures/characters/kamisato_ayaka/portraits/ayaka角色立绘.png"
+		"nahida":
+			return "res://textures/characters/nahida/portraits/nahida角色立绘.png"
 		_:
 			return ""
 
@@ -243,7 +245,7 @@ func _on_character_selected(character: CharacterData, pressed_button: Button) ->
 	
 	# 播放选中角色语音
 	if BGMManager and character and not character.id.is_empty():
-		BGMManager.play_character_voice(character.id, "选中角色", 0.0, 0.2, true)
+		BGMManager.play_character_voice(character.id, "选中角色", 0.0, 0.0, true)
 	
 	# 更新描述
 	if description_label:

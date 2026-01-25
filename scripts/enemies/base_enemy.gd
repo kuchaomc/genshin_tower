@@ -453,8 +453,11 @@ func on_death() -> void:
 	if enemy_data and enemy_data.drop_gold > 0:
 		_drop_gold(enemy_data.drop_gold)
 	
-	# 掉落原石（10%概率）
-	_try_drop_primogems(0.10, 10)
+	if enemy_data and enemy_data.enemy_type == "boss":
+		_drop_boss_primogems(300, 30)
+	else:
+		# 掉落原石（10%概率）
+		_try_drop_primogems(0.10, 10)
 	
 	# 通知战斗管理器计分/胜利逻辑
 	if battle_manager and battle_manager.has_method("on_enemy_killed"):
@@ -467,6 +470,66 @@ func on_death() -> void:
 	
 	# 兜底：未接入对象池时按原逻辑释放
 	queue_free()
+
+
+## BOSS 固定掉落原石（喷出多个拾取物）
+func _drop_boss_primogems(total_amount: int, pieces: int) -> void:
+	if total_amount <= 0:
+		return
+	if pieces <= 0:
+		return
+	
+	# 如果节点已不在场景树中（例如胜利清场/对象池回收），无法实例化掉落，直接给原石
+	if not is_inside_tree() or get_tree() == null:
+		if RunManager:
+			RunManager.add_primogems(total_amount)
+		return
+	
+	# 加载原石场景（使用DataManager缓存）
+	var primogem_pickup_scene: PackedScene = null
+	if DataManager:
+		primogem_pickup_scene = DataManager.get_packed_scene("res://scenes/items/primogem_pickup.tscn")
+	else:
+		primogem_pickup_scene = load("res://scenes/items/primogem_pickup.tscn") as PackedScene
+	
+	if not primogem_pickup_scene:
+		if RunManager:
+			RunManager.add_primogems(total_amount)
+		return
+	
+	var current_scene := get_tree().current_scene
+	if not current_scene:
+		if RunManager:
+			RunManager.add_primogems(total_amount)
+		return
+	
+	# 固定为“每个10原石”，满足 300=30*10 的需求
+	var amount_per_piece: int = int(total_amount / pieces)
+	if amount_per_piece <= 0:
+		amount_per_piece = 1
+	
+	# 统一随机入口
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng()
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	
+	for i in range(pieces):
+		var primogem_pickup = primogem_pickup_scene.instantiate()
+		if primogem_pickup and primogem_pickup.has_method("set_primogem_amount"):
+			primogem_pickup.set_primogem_amount(amount_per_piece)
+			primogem_pickup.global_position = global_position
+			current_scene.add_child(primogem_pickup)
+			if primogem_pickup.has_method("apply_spawn_spray"):
+				var angle := rng.randf_range(0.0, TAU)
+				var dist := rng.randf_range(40.0, 160.0)
+				var offset := Vector2.RIGHT.rotated(angle) * dist
+				primogem_pickup.apply_spawn_spray(offset, 0.18)
+		else:
+			if RunManager:
+				RunManager.add_primogems(amount_per_piece)
 
 ## 对象池：准备回收（从树上移除前调用）
 func prepare_for_pool() -> void:
