@@ -557,12 +557,6 @@ func _show_weather_change_event() -> void:
 			if RunManager:
 				RunManager.take_damage(RunManager.max_health * 0.10)
 			_complete_event()
-
-
-func _on_rest_skipped() -> void:
-	if not current_event:
-		return
-	_complete_event()
 		)
 		content_container.add_child(result_label)
 		content_container.add_child(confirm_button)
@@ -765,6 +759,12 @@ func _on_rest_confirmed() -> void:
 		# 其他休息事件根据reward_value恢复
 		_apply_reward(current_event.reward_type, current_event.reward_value, current_event)
 	
+	_complete_event()
+
+
+func _on_rest_skipped() -> void:
+	if not current_event:
+		return
 	_complete_event()
 
 ## 确认升级
