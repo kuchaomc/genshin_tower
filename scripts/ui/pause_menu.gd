@@ -172,6 +172,8 @@ func _setup_weapon_ui() -> void:
 
 	_weapon_tooltip_label = Label.new()
 	_weapon_tooltip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_weapon_tooltip_label.custom_minimum_size = Vector2(360, 0)
+	_weapon_tooltip_label.size_flags_horizontal = Control.SIZE_FILL
 	_weapon_tooltip_label.add_theme_font_size_override("font_size", 18)
 	margin.add_child(_weapon_tooltip_label)
 

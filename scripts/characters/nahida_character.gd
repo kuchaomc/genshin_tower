@@ -59,6 +59,25 @@ var _weapon_shake_last_offset: Vector2 = Vector2.ZERO
 @export var skill_damage_multiplier: float = 1.2
 @export var skill_duration: float = 3.0
 @export var skill_radius: float = 90.0
+@export_group("E长按瞄准")
+
+	# 长按判定阈值：按住超过该时间则进入瞄准状态
+@export var skill_aim_hold_threshold: float = 0.35
+	# 瞄准状态最大持续时间：到时自动结束瞄准
+@export var skill_aim_max_duration: float = 2.0
+	# 鼠标悬停判定半径：鼠标距离敌人中心 <= 该半径则视为“瞄准到”
+@export var skill_aim_hover_radius: float = 70.0
+	# 瞄准结束后延迟爆炸时间
+@export var skill_seed_explode_delay: float = 3.0
+	# 爆炸伤害倍率（走 BaseCharacter 的统一伤害系统）
+@export var skill_seed_explode_damage_multiplier: float = 1.6
+	# 蕴种印图标贴图（默认复用 技能.png）
+@export var skill_seed_mark_texture: Texture2D = preload("res://textures/characters/nahida/effects/技能.png")
+	# 图标在敌人本地坐标系的偏移（一般向上抬一点）
+@export var skill_seed_mark_offset: Vector2 = Vector2(0.0, 0.0)
+@export var skill_seed_mark_scale: float = 0.45
+@export var skill_seed_mark_alpha: float = 0.95
+@export_group("")
 ## 同一敌人的受击冷却（去抖）：避免同一帧/短时间内重复触发；下一次再次进入时可再次受伤
 @export var skill_tick_interval: float = 0.1
 ## 环绕圈数：总旋转角度 = TAU * 圈数；圈数越少环绕越慢（在持续时间不变的情况下）
@@ -73,6 +92,22 @@ var skill_next_ready_ms: int = 0
 var _skill_next_hit_ms_by_enemy_id: Dictionary = {}
 var _skill_orbit_tween: Tween = null
 
+	# E长按：按压/瞄准状态机
+var _skill_press_start_ms: int = 0
+var _is_skill_pressing: bool = false
+var _is_skill_aiming: bool = false
+var _skill_aim_remaining: float = 0.0
+	# 瞄准结束到爆炸触发前，技能锁定不可再次使用
+var _is_skill_seed_explosion_pending: bool = false
+	# 扫描状态的屏幕泛绿特效（运行期动态创建/销毁）
+var _skill_aim_overlay_layer: CanvasLayer
+	# Key: enemy instance_id (int) -> Value: enemy Node2D
+var _skill_seeded_enemies_by_id: Dictionary = {}
+	# 约定：蕴种印图标节点名（挂到敌人节点下）
+const _SKILL_SEED_MARK_NODE_NAME: StringName = &"NahidaSeedMark"
+	# 注意：has_node/get_node_or_null 的参数类型是 NodePath，不能直接传 StringName
+const _SKILL_SEED_MARK_NODE_PATH: NodePath = ^"NahidaSeedMark"
+
 signal skill_cooldown_changed(remaining_time: float, cooldown_time: float)
 
 # ========== Q大招（先做最小版：区域持续伤害） ==========
@@ -81,6 +116,7 @@ signal skill_cooldown_changed(remaining_time: float, cooldown_time: float)
 @export var burst_duration: float = 5.0
 @export var burst_radius: float = 180.0
 @export var burst_tick_interval: float = 0.5
+@export_range(0.0, 1.0) var burst_resistance_reduction: float = 0.20
 @export var energy_per_hit: float = 10.0
 
 var burst_current_energy: float = 0.0
@@ -131,6 +167,7 @@ func _physics_process(delta: float) -> void:
 
 	if not is_game_over:
 		_handle_skill_input()
+		_update_skill_aim(delta)
 		_handle_burst_input()
 		_update_skill_cooldown_display()
 		_update_burst_energy_display()
@@ -389,15 +426,214 @@ func _update_charged_charge_indicator() -> void:
 # =============================
 
 func _handle_skill_input() -> void:
-	var e_pressed := Input.is_physical_key_pressed(KEY_E)
-	if (Input.is_action_just_pressed("ui_select") or (e_pressed and not _last_e_pressed)):
-		if _is_skill_ready() and can_move():
-			_use_skill_short_press()
-	_last_e_pressed = e_pressed
+	var e_pressed: bool = Input.is_physical_key_pressed(KEY_E)
+	var select_pressed: bool = Input.is_action_pressed("ui_select")
+	var skill_pressed: bool = e_pressed or select_pressed
+	var now_ms: int = Time.get_ticks_msec()
+	if skill_pressed and not _last_e_pressed:
+		_is_skill_pressing = true
+		_skill_press_start_ms = now_ms
+
+	if skill_pressed and _is_skill_pressing and (not _is_skill_aiming):
+		var hold_sec: float = float(now_ms - _skill_press_start_ms) / 1000.0
+		if hold_sec >= maxf(0.01, skill_aim_hold_threshold):
+			if _is_skill_ready() and can_move():
+				_start_skill_aim()
+
+	if (not skill_pressed) and _last_e_pressed:
+		if _is_skill_aiming:
+			_end_skill_aim()
+		elif _is_skill_pressing:
+			var hold_sec: float = float(now_ms - _skill_press_start_ms) / 1000.0
+			if hold_sec < maxf(0.01, skill_aim_hold_threshold):
+				if _is_skill_ready() and can_move():
+					_use_skill_short_press()
+		_is_skill_pressing = false
+
+	_last_e_pressed = skill_pressed
+
+
+func _start_skill_aim() -> void:
+	_is_skill_aiming = true
+	_skill_aim_remaining = maxf(0.01, skill_aim_max_duration)
+	_is_skill_pressing = false
+	_is_skill_seed_explosion_pending = true
+	_show_skill_aim_overlay()
+
+	if BGMManager and character_data and not character_data.id.is_empty():
+		BGMManager.play_character_voice(character_data.id, "技能", 0.0, 0.2)
+
+	# 注意：长按的冷却规则改为“爆炸后固定3秒冷却”，因此这里不设置 skill_next_ready_ms。
+	_skill_next_hit_ms_by_enemy_id.clear()
+	_skill_seeded_enemies_by_id.clear()
+
+
+func _update_skill_aim(delta: float) -> void:
+	if not _is_skill_aiming:
+		return
+	if get_tree().paused:
+		return
+	_skill_aim_remaining -= delta
+	_try_seed_enemy_under_mouse()
+	if _skill_aim_remaining <= 0.0:
+		_end_skill_aim()
+
+
+func _try_seed_enemy_under_mouse() -> void:
+	var enemies := get_tree().get_nodes_in_group("enemies")
+	if enemies.is_empty():
+		return
+	var mouse_pos := get_global_mouse_position()
+	var best: Node2D = null
+	var best_d: float = INF
+	var r: float = maxf(0.0, skill_aim_hover_radius)
+	if r <= 0.0:
+		return
+	for e in enemies:
+		var n := e as Node2D
+		if n == null:
+			continue
+		var d: float = (n.global_position - mouse_pos).length()
+		if d <= r and d < best_d:
+			best_d = d
+			best = n
+	if best == null:
+		return
+	_apply_skill_seed_mark(best)
+
+
+func _apply_skill_seed_mark(enemy: Node2D) -> void:
+	if not is_instance_valid(enemy):
+		return
+	if not enemy.is_in_group("enemies"):
+		return
+	var enemy_id: int = int(enemy.get_instance_id())
+	if _skill_seeded_enemies_by_id.has(enemy_id):
+		return
+	_skill_seeded_enemies_by_id[enemy_id] = enemy
+	_spawn_skill_seed_mark_icon(enemy)
+
+
+func _spawn_skill_seed_mark_icon(enemy: Node2D) -> void:
+	if skill_seed_mark_texture == null:
+		return
+	if enemy.has_node(_SKILL_SEED_MARK_NODE_PATH):
+		return
+	var spr := Sprite2D.new()
+	spr.name = _SKILL_SEED_MARK_NODE_NAME
+	spr.texture = skill_seed_mark_texture
+	spr.z_as_relative = false
+	spr.z_index = 60
+
+	# 约定：敌人一般有 AnimatedSprite2D 或 Sprite2D 作为可视节点。
+	# 以可视节点的 position 为中心点，保证图标更接近“敌人正中间”。
+	var visual := enemy.get_node_or_null("AnimatedSprite2D") as Node2D
+	if visual == null:
+		visual = enemy.get_node_or_null("Sprite2D") as Node2D
+	if visual != null:
+		spr.position = visual.position + skill_seed_mark_offset
+	else:
+		spr.position = skill_seed_mark_offset
+	spr.scale = Vector2.ONE * maxf(0.01, skill_seed_mark_scale)
+	spr.modulate = Color(1.0, 1.0, 1.0, clampf(skill_seed_mark_alpha, 0.0, 1.0))
+	enemy.add_child(spr)
+
+
+func _remove_skill_seed_mark_icon(enemy: Node2D) -> void:
+	if not is_instance_valid(enemy):
+		return
+	var node := enemy.get_node_or_null(_SKILL_SEED_MARK_NODE_PATH)
+	if node:
+		node.queue_free()
+
+
+func _end_skill_aim() -> void:
+	if not _is_skill_aiming:
+		return
+	_is_skill_aiming = false
+	_skill_aim_remaining = 0.0
+	_hide_skill_aim_overlay()
+	_schedule_skill_seed_explosion()
+
+
+func _schedule_skill_seed_explosion() -> void:
+	# 无目标时也需要解除锁定并进入冷却，避免“空扫描”导致技能永久不可用。
+	if _skill_seeded_enemies_by_id.is_empty():
+		_is_skill_seed_explosion_pending = false
+		skill_next_ready_ms = Time.get_ticks_msec() + int(3.0 * 1000.0)
+		return
+	var delay: float = maxf(0.01, skill_seed_explode_delay)
+	var timer := get_tree().create_timer(delay)
+	timer.timeout.connect(_trigger_skill_seed_explosion)
+
+
+func _trigger_skill_seed_explosion() -> void:
+	# 进入爆炸结算：无论是否有有效目标，都在结束后解除锁定并进入冷却。
+	var targets: Array[Node2D] = []
+	for k in _skill_seeded_enemies_by_id.keys():
+		var n := _skill_seeded_enemies_by_id.get(k) as Node2D
+		if is_instance_valid(n):
+			targets.append(n)
+	_skill_seeded_enemies_by_id.clear()
+	_is_skill_seed_explosion_pending = false
+	skill_next_ready_ms = Time.get_ticks_msec() + int(3.0 * 1000.0)
+	if targets.is_empty():
+		return
+
+	for t in targets:
+		if not is_instance_valid(t):
+			continue
+		_remove_skill_seed_mark_icon(t)
+		deal_damage_to(t, skill_seed_explode_damage_multiplier * get_weapon_skill_burst_damage_multiplier(), false, false, false, true)
+		_add_burst_energy(energy_per_hit * get_energy_gain_multiplier())
 
 
 func _is_skill_ready() -> bool:
+	if _is_skill_aiming:
+		return false
+	if _is_skill_seed_explosion_pending:
+		return false
 	return Time.get_ticks_msec() >= skill_next_ready_ms
+
+
+	# 扫描期间不允许移动（通过覆盖 BaseCharacter 的输入方向获取来实现）
+func _get_input_direction() -> Vector2:
+	if _is_skill_aiming:
+		return Vector2.ZERO
+	return super._get_input_direction()
+
+
+	# 扫描期间不允许闪避
+func _is_dodge_pressed() -> bool:
+	if _is_skill_aiming:
+		return false
+	return super._is_dodge_pressed()
+
+
+
+func _show_skill_aim_overlay() -> void:
+	if is_instance_valid(_skill_aim_overlay_layer):
+		return
+	var tree := get_tree()
+	if tree == null or tree.current_scene == null:
+		return
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	layer.name = "NahidaAimOverlay"
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.color = Color(0.15, 1.0, 0.25, 0.22)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(rect)
+	tree.current_scene.add_child(layer)
+	_skill_aim_overlay_layer = layer
+
+
+func _hide_skill_aim_overlay() -> void:
+	if not is_instance_valid(_skill_aim_overlay_layer):
+		return
+	_skill_aim_overlay_layer.queue_free()
+	_skill_aim_overlay_layer = null
 
 
 func _use_skill_short_press() -> void:
@@ -513,41 +749,21 @@ func _use_burst() -> void:
 	if character_data and not character_data.id.is_empty():
 		emit_signal("burst_used", character_data.id)
 
-	var burst_area := Area2D.new()
-	burst_area.name = "NahidaBurstArea"
-	burst_area.collision_mask = 2
-	burst_area.monitoring = true
-	burst_area.monitorable = true
-	burst_area.global_position = global_position
-	get_parent().add_child(burst_area)
+	var field := NahidaBurstField.new()
+	field.name = "NahidaBurstField"
+	field.owner_character = self
+	field.damage_multiplier = burst_damage_multiplier
+	field.duration = burst_duration
+	field.radius = burst_radius
+	field.tick_interval = burst_tick_interval
+	field.resistance_reduction = burst_resistance_reduction
+	field.global_position = global_position
 
-	var shape := CollisionShape2D.new()
-	var circle := CircleShape2D.new()
-	circle.radius = burst_radius
-	shape.shape = circle
-	burst_area.add_child(shape)
-
-	# 视觉：用半透明绿色圆形（先用技能图标放大占位）
-	var spr := Sprite2D.new()
-	spr.texture = preload("res://textures/characters/nahida/effects/技能.png")
-	spr.modulate = Color(0.25, 1.0, 0.35, 0.35)
-	spr.scale = Vector2(4.0, 4.0)
-	burst_area.add_child(spr)
-
-	var tick_count := int(ceil(burst_duration / maxf(0.05, burst_tick_interval)))
-	for i in range(tick_count):
-		var t := get_tree().create_timer(float(i) * burst_tick_interval)
-		t.timeout.connect(func() -> void:
-			if not is_instance_valid(burst_area):
-				return
-			_apply_burst_tick(burst_area)
-		)
-
-	var end_timer := get_tree().create_timer(burst_duration)
-	end_timer.timeout.connect(func() -> void:
-		if is_instance_valid(burst_area):
-			burst_area.queue_free()
-	)
+	var p := get_parent()
+	if p:
+		p.add_child(field)
+	else:
+		get_tree().root.add_child(field)
 
 
 func _apply_burst_tick(area: Area2D) -> void:

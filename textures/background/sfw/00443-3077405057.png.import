@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dhnwcndiw2se8"
-path="res://.godot/imported/ayaka大招动画图片.png-0ce4901114e86dbf5470b3187f415edd.ctex"
+uid="uid://bgmdh3od558ro"
+path="res://.godot/imported/00443-3077405057.png-0e33986b3c600eaa4d8dec698542eac4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/characters/nahida/effects/ayaka大招动画图片.png"
-dest_files=["res://.godot/imported/ayaka大招动画图片.png-0ce4901114e86dbf5470b3187f415edd.ctex"]
+source_file="res://textures/background/sfw/00443-3077405057.png"
+dest_files=["res://.godot/imported/00443-3077405057.png-0e33986b3c600eaa4d8dec698542eac4.ctex"]
 
 [params]
 

@@ -109,7 +109,8 @@ func _ready() -> void:
 	# 注意：启动阶段窗口可能尚未完成初始化，这里延迟到下一帧应用更稳定。
 	call_deferred("_apply_window_title")
 	load_save_data()
-	_ensure_dev_overlay()
+	if OS.has_feature("editor"):
+		_ensure_dev_overlay()
 	_ensure_ui_overlay_layer()
 	_ensure_cg_unlock_overlay()
 	_ensure_death_cg_prompt()
@@ -152,6 +153,8 @@ func _apply_window_title() -> void:
 
 func _ensure_dev_overlay() -> void:
 	# 只创建一次，跨场景常驻
+	if not OS.has_feature("editor"):
+		return
 	if is_instance_valid(_dev_overlay):
 		# 已经在树上就不重复挂载
 		if _dev_overlay.is_inside_tree():

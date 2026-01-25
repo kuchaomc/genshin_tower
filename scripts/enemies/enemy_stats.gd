@@ -24,7 +24,7 @@ class_name EnemyStats
 ## raw_damage: 原始伤害值
 ## 返回值: 实际受到的伤害
 func calculate_damage_taken(raw_damage: float) -> float:
-	var defense_multiplier = 1.0 - clamp(defense_percent, 0.0, 1.0)
+	var defense_multiplier: float = 1.0 - clampf(defense_percent, 0.0, 1.0)
 	return raw_damage * defense_multiplier
 
 ## 创建属性的副本（用于运行时修改）

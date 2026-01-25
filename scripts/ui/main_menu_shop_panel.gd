@@ -17,6 +17,10 @@ const _CG_FALLBACK_PATHS: PackedStringArray = [
 	"res://textures/cg/神里绫华-普通.png",
 	"res://textures/cg/神里绫华-校服.png",
 	"res://textures/cg/神里绫华-泳装.png",
+	"res://textures/cg/纳西妲-女仆装.png",
+	"res://textures/cg/纳西妲-普通.png",
+	"res://textures/cg/纳西妲-校服.png",
+	"res://textures/cg/纳西妲-泳装.png",
 ]
 const _CG_FALLBACK_PRELOADS: Array[Texture2D] = [
 	preload("res://textures/cg/神里绫华-女仆装.png"),
@@ -24,6 +28,10 @@ const _CG_FALLBACK_PRELOADS: Array[Texture2D] = [
 	preload("res://textures/cg/神里绫华-普通.png"),
 	preload("res://textures/cg/神里绫华-校服.png"),
 	preload("res://textures/cg/神里绫华-泳装.png"),
+	preload("res://textures/cg/纳西妲-女仆装.png"),
+	preload("res://textures/cg/纳西妲-普通.png"),
+	preload("res://textures/cg/纳西妲-校服.png"),
+	preload("res://textures/cg/纳西妲-泳装.png"),
 ]
 
 const _SETTINGS_FILE_PATH: String = "user://settings.cfg"

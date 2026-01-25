@@ -13,6 +13,12 @@ var base_stats: EnemyStats = null
 ## 当前属性（运行时可被 buff/debuff 修改）
 var current_stats: EnemyStats = null
 
+# ========== 抗性/减伤变更（debuff） ==========
+# 说明：当前项目将 EnemyStats.defense_percent 作为“伤害减免/抗性”。
+# 纳西妲 Q 会降低该值，从而让敌人受到更多伤害。
+var _resistance_reduction_by_source_id: Dictionary = {}
+var _original_defense_percent: float = 0.0
+
 # ========== 血量属性 ==========
 var current_health: float = 100.0
 var max_health: float = 100.0
@@ -65,6 +71,9 @@ func initialize(data: EnemyData) -> void:
 	# 初始化属性系统
 	base_stats = data.get_stats()
 	current_stats = base_stats.duplicate_stats()
+	_original_defense_percent = current_stats.defense_percent if current_stats else 0.0
+	_resistance_reduction_by_source_id.clear()
+	_reapply_resistance_reduction()
 	
 	# 应用属性到敌人
 	_apply_stats_to_enemy()
@@ -102,6 +111,9 @@ func _ready() -> void:
 		current_stats = EnemyStats.new()
 		current_stats.max_health = max_health
 		base_stats = current_stats.duplicate_stats()
+		_original_defense_percent = current_stats.defense_percent
+		_resistance_reduction_by_source_id.clear()
+		_reapply_resistance_reduction()
 	
 	current_health = max_health
 	
@@ -368,7 +380,7 @@ func take_damage(damage_amount: float, knockback: Vector2 = Vector2.ZERO, apply_
 		actual_damage = current_stats.calculate_damage_taken(damage_amount)
 	
 	current_health -= actual_damage
-	current_health = max(0, current_health)
+	current_health = maxf(0.0, current_health)
 	
 	update_hp_display()
 	
@@ -391,6 +403,39 @@ func get_defense_percent() -> float:
 	if current_stats:
 		return current_stats.defense_percent
 	return 0.0
+
+
+## 施加“抗性降低/减伤降低”（可叠加，多来源共存）
+## source_id: 来源唯一ID（例如领域节点 instance_id）
+## amount: 0~1，表示降低多少 defense_percent
+func apply_resistance_reduction(source_id: int, amount: float) -> void:
+	if source_id == 0:
+		return
+	if amount <= 0.0:
+		return
+	_resistance_reduction_by_source_id[source_id] = clampf(amount, 0.0, 1.0)
+	_reapply_resistance_reduction()
+
+
+## 移除某个来源的“抗性降低/减伤降低”
+func remove_resistance_reduction(source_id: int) -> void:
+	if source_id == 0:
+		return
+	if not _resistance_reduction_by_source_id.has(source_id):
+		return
+	_resistance_reduction_by_source_id.erase(source_id)
+	_reapply_resistance_reduction()
+
+
+func _reapply_resistance_reduction() -> void:
+	if current_stats == null:
+		return
+	var total: float = 0.0
+	for v in _resistance_reduction_by_source_id.values():
+		total += float(v)
+	# 最低保底：不让 defense_percent 变成负数；总降低也做上限避免极端值
+	total = clampf(total, 0.0, 0.95)
+	current_stats.defense_percent = maxf(0.0, _original_defense_percent - total)
 
 ## 施加击退效果
 func apply_knockback(knockback_offset: Vector2, duration: float = 0.12) -> void:
@@ -548,11 +593,20 @@ func prepare_for_pool() -> void:
 	is_stunned = false
 	stun_timer = 0.0
 	_recently_damaged_bodies.clear()
+
+	# 清理减抗：避免对象池复用后残留
+	_resistance_reduction_by_source_id.clear()
+	if current_stats:
+		current_stats.defense_percent = _original_defense_percent
 	
 	# 清理警告图标（复用时会重新创建）
 	if warning_sprite:
 		warning_sprite.queue_free()
 		warning_sprite = null
+
+	var seed_mark := get_node_or_null("NahidaSeedMark") as Node
+	if seed_mark:
+		seed_mark.queue_free()
 	
 	_set_enemy_visible(false)
 
@@ -571,6 +625,12 @@ func reset_for_reuse() -> void:
 	is_stunned = false
 	stun_timer = 0.0
 	_recently_damaged_bodies.clear()
+
+	# 复位减抗
+	_resistance_reduction_by_source_id.clear()
+	if current_stats:
+		_original_defense_percent = current_stats.defense_percent
+	_reapply_resistance_reduction()
 	
 	# 复位血量（initialize 可能刚刚改过 stats/max_health）
 	if current_stats:
@@ -582,6 +642,10 @@ func reset_for_reuse() -> void:
 	if warning_sprite:
 		warning_sprite.queue_free()
 		warning_sprite = null
+
+	var seed_mark := get_node_or_null("NahidaSeedMark") as Node
+	if seed_mark:
+		seed_mark.queue_free()
 	_create_warning_sprite()
 	_set_enemy_visible(false)
 	var timer = get_tree().create_timer(warning_duration)

@@ -80,6 +80,69 @@ offset_left = -64.0
 grow_vertical = 2
 mouse_filter = 2
 
+[node name="AnnouncementBar" type="Control" parent="CanvasLayer"]
+layout_mode = 0
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -560.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 496.0
+
+[node name="ToggleButton" type="Button" parent="CanvasLayer/AnnouncementBar"]
+layout_mode = 0
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -160.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 44.0
+text = "公告"
+
+[node name="Panel" type="PanelContainer" parent="CanvasLayer/AnnouncementBar"]
+visible = false
+layout_mode = 0
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -544.0
+offset_top = 52.0
+offset_right = 0.0
+offset_bottom = 480.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_1")
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/AnnouncementBar/Panel"]
+layout_mode = 2
+
+[node name="TopBar" type="HBoxContainer" parent="CanvasLayer/AnnouncementBar/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="CanvasLayer/AnnouncementBar/Panel/VBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "公告"
+
+[node name="CloseButton" type="Button" parent="CanvasLayer/AnnouncementBar/Panel/VBox/TopBar"]
+layout_mode = 2
+text = "收起"
+
+[node name="Scroll" type="ScrollContainer" parent="CanvasLayer/AnnouncementBar/Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Content" type="RichTextLabel" parent="CanvasLayer/AnnouncementBar/Panel/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+
 [node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/LeftMenu"]
 layout_mode = 0
 anchor_right = 1.0
@@ -100,14 +163,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 50
 text = "杀原戮神尖塔
-v2.1 R18分支
-
-本次密码
-kuchao
-nsfw在设置中
-左上角开发者
-可调试角色属性
-
+v2.2 nsfw分支
 "
 
 [node name="Spacer" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer"]

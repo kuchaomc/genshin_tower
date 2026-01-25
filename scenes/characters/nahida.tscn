@@ -6,45 +6,45 @@
 [ext_resource type="Texture2D" uid="uid://cfh7af1xu5i4b" path="res://textures/effects/学徒笔记.png" id="4_apprentice_notes"]
 [ext_resource type="Texture2D" uid="uid://iw56optyitph" path="res://textures/characters/nahida/effects/技能.png" id="5_nahida_skill"]
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_idle_0"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_65bxy"]
 atlas = ExtResource("2_idle")
 region = Rect2(0, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_idle_1"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_kjknt"]
 atlas = ExtResource("2_idle")
 region = Rect2(64, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_move_0"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_m7ndo"]
 atlas = ExtResource("3_move")
 region = Rect2(0, 0, 64, 64)
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_move_1"]
+[sub_resource type="AtlasTexture" id="AtlasTexture_htcqc"]
 atlas = ExtResource("3_move")
-region = Rect2(64, 0, 64, 64)
+region = Rect2(128, 0, 64, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_nahida"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_idle_0")
+"texture": SubResource("AtlasTexture_65bxy")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_idle_1")
+"texture": SubResource("AtlasTexture_kjknt")
 }],
 "loop": true,
 "name": &"idle",
-"speed": 2.0
+"speed": 1.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_move_0")
+"texture": SubResource("AtlasTexture_m7ndo")
 }, {
 "duration": 1.0,
-"texture": SubResource("AtlasTexture_move_1")
+"texture": SubResource("AtlasTexture_htcqc")
 }],
 "loop": true,
 "name": &"run",
-"speed": 5.0
+"speed": 9.0
 }]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_skill"]
@@ -56,6 +56,7 @@ height = 6.249999
 
 [node name="nahida" type="CharacterBody2D" node_paths=PackedStringArray("skill_orbit_pivot", "skill_area", "animator")]
 script = ExtResource("1_nahida_script")
+charged_splash_radius = 150.0
 skill_orbit_pivot = NodePath("SkillOrbitPivot")
 skill_area = NodePath("SkillOrbitPivot/SkillArea")
 animator = NodePath("AnimatedSprite2D")
@@ -64,8 +65,9 @@ weapon_follow_opposite_facing = true
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_nahida")
-animation = &"idle"
+animation = &"run"
 autoplay = "idle"
+frame_progress = 0.40493935
 
 [node name="WeaponSprite" type="Sprite2D" parent="."]
 scale = Vector2(0.22, 0.22)

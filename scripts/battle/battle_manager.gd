@@ -1213,6 +1213,14 @@ func _get_burst_cutin_texture_path(character_id: String) -> String:
 			if ResourceLoader.exists(p_effect):
 				return p_effect
 			return "res://textures/cg/神里绫华-普通.png"
+		"nahida":
+			var p_effect := "res://textures/characters/nahida/effects/nahida大招动画图片.png"
+			if ResourceLoader.exists(p_effect):
+				return p_effect
+			var p_fallback := "res://textures/characters/nahida/effects/ayaka大招动画图片.png"
+			if ResourceLoader.exists(p_fallback):
+				return p_fallback
+			return "res://textures/characters/nahida/portraits/nahida角色立绘.png"
 		_:
 			return ""
 

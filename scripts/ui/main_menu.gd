@@ -9,24 +9,44 @@ const _MAIN_MENU_BG_SFW_FALLBACK_PATHS: PackedStringArray = [
 	"res://textures/background/sfw/00042-2778858687.png",
 	"res://textures/background/sfw/00046-2778858689.png",
 	"res://textures/background/sfw/00048-2778858690.png",
+	"res://textures/background/sfw/00098-2778858715.png",
+	"res://textures/background/sfw/00109-3361230695.png",
+	"res://textures/background/sfw/00121-3361230707.png",
+	"res://textures/background/sfw/00133-3361230719.png",
+	"res://textures/background/sfw/00142-3361230728.png",
+	"res://textures/background/sfw/00443-3077405057.png",
+	"res://textures/background/sfw/00454-3077405068.png",
+	"res://textures/background/sfw/00456-3077405070.png",
 ]
 
 const _MAIN_MENU_BG_SFW_FALLBACK_PRELOADS: Array[Texture2D] = [
 	preload("res://textures/background/sfw/00042-2778858687.png"),
 	preload("res://textures/background/sfw/00046-2778858689.png"),
 	preload("res://textures/background/sfw/00048-2778858690.png"),
+	preload("res://textures/background/sfw/00098-2778858715.png"),
+	preload("res://textures/background/sfw/00109-3361230695.png"),
+	preload("res://textures/background/sfw/00121-3361230707.png"),
+	preload("res://textures/background/sfw/00133-3361230719.png"),
+	preload("res://textures/background/sfw/00142-3361230728.png"),
+	preload("res://textures/background/sfw/00443-3077405057.png"),
+	preload("res://textures/background/sfw/00454-3077405068.png"),
+	preload("res://textures/background/sfw/00456-3077405070.png"),
 ]
 
 const _MAIN_MENU_BG_FALLBACK_PATHS: PackedStringArray = [
 	"res://textures/background/00131-3390311460.png",
 	"res://textures/background/00161-1240093822.png",
 	"res://textures/background/00183-1277078224.png",
+	"res://textures/background/00461-3782371904.png",
+	"res://textures/background/00463-3782371906.png",
 ]
 
 const _MAIN_MENU_BG_FALLBACK_PRELOADS: Array[Texture2D] = [
 	preload("res://textures/background/00131-3390311460.png"),
 	preload("res://textures/background/00161-1240093822.png"),
 	preload("res://textures/background/00183-1277078224.png"),
+	preload("res://textures/background/00461-3782371904.png"),
+	preload("res://textures/background/00463-3782371906.png"),
 ]
 
 const _BG_HISTORY_FILE_PATH: String = "user://main_menu_bg.cfg"
@@ -57,6 +77,13 @@ var game_scene = preload("res://scenes/battle/battle_scene.tscn")
 @onready var right_drawer: Control = $CanvasLayer/RightOverlay/Drawer
 @onready var right_mask: ColorRect = $CanvasLayer/RightOverlay/Drawer/Mask
 @onready var right_content_holder: Control = $CanvasLayer/RightOverlay/Drawer/ContentHolder
+
+# 右上角公告栏引用
+@onready var announcement_bar: Control = $CanvasLayer/AnnouncementBar
+@onready var announcement_toggle_button: Button = $CanvasLayer/AnnouncementBar/ToggleButton
+@onready var announcement_panel: PanelContainer = $CanvasLayer/AnnouncementBar/Panel
+@onready var announcement_close_button: Button = $CanvasLayer/AnnouncementBar/Panel/VBox/TopBar/CloseButton
+@onready var announcement_content: RichTextLabel = $CanvasLayer/AnnouncementBar/Panel/VBox/Scroll/Content
 
 # 游戏说明节点引用（已放入右侧抽屉内）
 @onready var help_panel: Panel = $CanvasLayer/RightOverlay/Drawer/ContentHolder/Panel
@@ -91,6 +118,18 @@ var _intro_tween: Tween = null
 
 # 右侧抽屉动画Tween
 var _overlay_tween: Tween = null
+
+# 公告栏动画Tween
+var _announcement_tween: Tween = null
+var _announcement_open: bool = false
+var _announcement_panel_final_left: float = 0.0
+var _announcement_panel_final_right: float = 0.0
+var _announcement_panel_w: float = 0.0
+
+const _ANNOUNCEMENT_TEXT_BBCODE: String = "[b]更新公告[/b]\n\n" \
+	+ "1. 主界面新增公告栏：右上角点击展开，支持滑动。\n" \
+	+ "2. Android 触控可直接拖动滚动内容。\n\n" \
+	+ "[color=#aaaaaa]（后续可改为从本地配置/网络拉取）[/color]"
 
 # 左侧边缘强度（1=显示像素边缘，0=完全隐藏）
 var _left_edge_strength: float = 1.0
@@ -143,6 +182,9 @@ func _ready() -> void:
 	# 绑定菜单项悬停效果：蓝色方块出现 + 推挤文字
 	_setup_menu_hover_effects()
 	
+	# 初始化右上角公告栏
+	_setup_announcement_bar()
+	
 	# 加载设置界面
 	_load_settings_menu()
 	_load_character_select_panel()
@@ -151,6 +193,95 @@ func _ready() -> void:
 	_update_cg_button_enabled_state_from_settings()
 	
 	print("主界面脚本已加载，帮助弹窗已初始化")
+
+
+func _setup_announcement_bar() -> void:
+	# 公告栏为纯UI，不依赖目录枚举；默认使用内置文本，确保导出后也稳定。
+	if not is_instance_valid(announcement_bar) or not is_instance_valid(announcement_toggle_button) or not is_instance_valid(announcement_panel):
+		return
+	if is_instance_valid(announcement_content):
+		announcement_content.text = _ANNOUNCEMENT_TEXT_BBCODE
+		announcement_content.scroll_active = false
+		announcement_content.fit_content = true
+
+	# 记录展开态的位置与宽度，然后把面板挪到屏幕外作为“隐藏态”。
+	_announcement_panel_final_left = announcement_panel.offset_left
+	_announcement_panel_final_right = announcement_panel.offset_right
+	_announcement_panel_w = _announcement_panel_final_right - _announcement_panel_final_left
+	if _announcement_panel_w <= 0.0:
+		_announcement_panel_w = 544.0
+
+	announcement_panel.visible = false
+	announcement_panel.modulate.a = 0.0
+	announcement_panel.offset_left = _announcement_panel_final_left + _announcement_panel_w
+	announcement_panel.offset_right = _announcement_panel_final_right + _announcement_panel_w
+	_announcement_open = false
+	announcement_toggle_button.text = "公告"
+
+	if not announcement_toggle_button.pressed.is_connected(_on_announcement_toggle_pressed):
+		announcement_toggle_button.pressed.connect(_on_announcement_toggle_pressed)
+	if is_instance_valid(announcement_close_button):
+		if not announcement_close_button.pressed.is_connected(_on_announcement_close_pressed):
+			announcement_close_button.pressed.connect(_on_announcement_close_pressed)
+
+
+func _on_announcement_toggle_pressed() -> void:
+	if _announcement_open:
+		_close_announcement_panel()
+	else:
+		_open_announcement_panel()
+
+
+func _on_announcement_close_pressed() -> void:
+	_close_announcement_panel()
+
+
+func _open_announcement_panel() -> void:
+	if not is_instance_valid(announcement_panel):
+		return
+	if _announcement_tween and _announcement_tween.is_running():
+		_announcement_tween.kill()
+
+	announcement_panel.visible = true
+	announcement_panel.offset_left = _announcement_panel_final_left + _announcement_panel_w
+	announcement_panel.offset_right = _announcement_panel_final_right + _announcement_panel_w
+	announcement_panel.modulate.a = 0.0
+
+	_announcement_tween = create_tween()
+	_announcement_tween.set_trans(Tween.TRANS_CUBIC)
+	_announcement_tween.set_ease(Tween.EASE_OUT)
+	_announcement_tween.parallel().tween_property(announcement_panel, "offset_left", _announcement_panel_final_left, 0.22)
+	_announcement_tween.parallel().tween_property(announcement_panel, "offset_right", _announcement_panel_final_right, 0.22)
+	_announcement_tween.parallel().tween_property(announcement_panel, "modulate:a", 1.0, 0.18)
+
+	_announcement_open = true
+	if is_instance_valid(announcement_toggle_button):
+		announcement_toggle_button.text = "公告▲"
+
+
+func _close_announcement_panel() -> void:
+	if not is_instance_valid(announcement_panel):
+		return
+	if _announcement_tween and _announcement_tween.is_running():
+		_announcement_tween.kill()
+
+	var hidden_left := _announcement_panel_final_left + _announcement_panel_w
+	var hidden_right := _announcement_panel_final_right + _announcement_panel_w
+
+	_announcement_tween = create_tween()
+	_announcement_tween.set_trans(Tween.TRANS_CUBIC)
+	_announcement_tween.set_ease(Tween.EASE_OUT)
+	_announcement_tween.parallel().tween_property(announcement_panel, "offset_left", hidden_left, 0.18)
+	_announcement_tween.parallel().tween_property(announcement_panel, "offset_right", hidden_right, 0.18)
+	_announcement_tween.parallel().tween_property(announcement_panel, "modulate:a", 0.0, 0.14)
+	_announcement_tween.finished.connect(func() -> void:
+		if is_instance_valid(announcement_panel):
+			announcement_panel.visible = false
+	)
+
+	_announcement_open = false
+	if is_instance_valid(announcement_toggle_button):
+		announcement_toggle_button.text = "公告"
 
 func _apply_random_background() -> void:
 	if not is_instance_valid(background_rect):
