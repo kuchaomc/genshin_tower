@@ -453,6 +453,9 @@ func on_death() -> void:
 	if enemy_data and enemy_data.drop_gold > 0:
 		_drop_gold(enemy_data.drop_gold)
 	
+	# 掉落原石（10%概率）
+	_try_drop_primogems(0.10, 10)
+	
 	# 通知战斗管理器计分/胜利逻辑
 	if battle_manager and battle_manager.has_method("on_enemy_killed"):
 		battle_manager.call("on_enemy_killed", score)
@@ -558,6 +561,57 @@ func _drop_gold(amount: int) -> void:
 		# 如果实例化失败，直接添加到RunManager
 		if RunManager:
 			RunManager.add_gold(amount)
+
+
+## 尝试掉落原石
+func _try_drop_primogems(drop_chance: float, amount: int) -> void:
+	if amount <= 0:
+		return
+	if drop_chance <= 0.0:
+		return
+
+	# 统一随机入口
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng()
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+
+	if rng.randf() > drop_chance:
+		return
+
+	# 如果节点已不在场景树中（例如胜利清场/对象池回收），无法实例化掉落，直接给原石
+	if not is_inside_tree() or get_tree() == null:
+		if RunManager:
+			RunManager.add_primogems(amount)
+		return
+
+	# 加载原石场景（使用DataManager缓存）
+	var primogem_pickup_scene: PackedScene = null
+	if DataManager:
+		primogem_pickup_scene = DataManager.get_packed_scene("res://scenes/items/primogem_pickup.tscn")
+	else:
+		primogem_pickup_scene = load("res://scenes/items/primogem_pickup.tscn") as PackedScene
+
+	if not primogem_pickup_scene:
+		if RunManager:
+			RunManager.add_primogems(amount)
+		return
+
+	var primogem_pickup = primogem_pickup_scene.instantiate()
+	if primogem_pickup and primogem_pickup.has_method("set_primogem_amount"):
+		primogem_pickup.set_primogem_amount(amount)
+		primogem_pickup.global_position = global_position
+		var current_scene = get_tree().current_scene
+		if current_scene:
+			current_scene.add_child(primogem_pickup)
+		else:
+			if RunManager:
+				RunManager.add_primogems(amount)
+	else:
+		if RunManager:
+			RunManager.add_primogems(amount)
 
 ## 身体进入回调函数（检测与玩家的碰撞）
 func _on_body_entered(body: Node2D) -> void:

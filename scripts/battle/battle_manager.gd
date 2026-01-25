@@ -54,6 +54,9 @@ var enemy_kill_counter_label: Label
 # 摩拉显示UI引用
 var gold_label: Label
 var gold_icon: TextureRect
+# 原石显示UI引用
+var primogem_label: Label
+var primogem_icon: TextureRect
 # 技能UI引用
 var skill_ui: SkillUI
 # 大招UI引用
@@ -162,6 +165,8 @@ func _initialize_ui_components() -> void:
 	face_display = get_node_or_null("CanvasLayer/FaceDisplay") as TextureRect
 	gold_label = get_node_or_null("CanvasLayer/GoldDisplay/Label") as Label
 	gold_icon = get_node_or_null("CanvasLayer/GoldDisplay/Icon") as TextureRect
+	primogem_label = get_node_or_null("CanvasLayer/PrimogemDisplay/Label") as Label
+	primogem_icon = get_node_or_null("CanvasLayer/PrimogemDisplay/Icon") as TextureRect
 	debug_toggle_button = get_node_or_null("CanvasLayer/DebugToggle") as Button
 	if debug_toggle_button:
 		debug_toggle_button.pressed.connect(_on_debug_toggle_pressed)
@@ -203,6 +208,7 @@ func _initialize_battle_conditions() -> void:
 		required_score = 5 + (current_floor - 1) * 5
 	update_enemy_kill_counter_display()
 	_update_gold_display()
+	_update_primogem_display()
 
 ## 初始化敌人生成系统
 func _initialize_enemy_spawning() -> void:
@@ -313,6 +319,8 @@ func _calculate_enemy_stat_multipliers(current_floor: int) -> Array:
 func _connect_signals() -> void:
 	RunManager.health_changed.connect(_on_player_health_changed)
 	RunManager.gold_changed.connect(_on_gold_changed)
+	if GameManager and GameManager.has_signal("primogems_total_changed"):
+		GameManager.primogems_total_changed.connect(_on_primogems_total_changed)
 
 func _exit_tree() -> void:
 	_restore_floor_notification_from_transition_layer()
@@ -666,6 +674,16 @@ func _update_gold_display() -> void:
 	if gold_label:
 		gold_label.text = str(RunManager.gold)
 
+
+## 更新原石显示
+func _update_primogem_display() -> void:
+	if not primogem_label:
+		return
+	if not GameManager:
+		primogem_label.text = "0"
+		return
+	primogem_label.text = str(GameManager.get_primogems_total())
+
 ## 敌人被击杀回调（由敌人死亡时调用）
 ## score: 该敌人的分值
 func on_enemy_killed(score: int = 1) -> void:
@@ -917,6 +935,55 @@ func _on_player_death_cleanup() -> void:
 	if game_over_timer:
 		game_over_timer.stop()
 
+
+## 供 GameManager 在死亡转场后调用：淡出战斗HUD
+## 注意：这里只做视觉收尾，不负责场景切换。
+func fade_out_hud(duration: float = 0.35) -> void:
+	var hud_layer := get_node_or_null("CanvasLayer") as Node
+	if not hud_layer:
+		return
+	
+	var items: Array[CanvasItem] = []
+	var seen: Dictionary = {}
+	
+	# 先收集 HUD CanvasLayer 下所有 CanvasItem
+	for child in hud_layer.get_children():
+		if child is CanvasItem:
+			var ci := child as CanvasItem
+			if not seen.has(ci.get_instance_id()):
+				seen[ci.get_instance_id()] = true
+				items.append(ci)
+	
+	# 再补充可能被临时移走的UI节点（例如 FloorNotification 可能被移动到 TransitionLayer）
+	if is_instance_valid(floor_notification) and floor_notification is CanvasItem:
+		var fn := floor_notification as CanvasItem
+		if not seen.has(fn.get_instance_id()):
+			seen[fn.get_instance_id()] = true
+			items.append(fn)
+	if is_instance_valid(enemy_kill_counter) and enemy_kill_counter is CanvasItem:
+		var ek := enemy_kill_counter as CanvasItem
+		if not seen.has(ek.get_instance_id()):
+			seen[ek.get_instance_id()] = true
+			items.append(ek)
+
+	if items.is_empty():
+		return
+
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_IN)
+	for ci in items:
+		if not is_instance_valid(ci):
+			continue
+		# 如果本来就不可见，则跳过
+		if not ci.visible:
+			continue
+		tween.parallel().tween_property(ci, "modulate:a", 0.0, duration)
+	await tween.finished
+	for ci in items:
+		if is_instance_valid(ci):
+			ci.visible = false
+
 ## 金币变化回调
 func _on_gold_changed(gold: int) -> void:
 	# 更新摩拉显示
@@ -925,6 +992,11 @@ func _on_gold_changed(gold: int) -> void:
 	
 	# 初始化时也更新一次
 	_update_gold_display()
+
+
+## 原石总数变化回调
+func _on_primogems_total_changed(_total: int) -> void:
+	_update_primogem_display()
 
 ## 调试开关：显示/隐藏判定与碰撞箱
 func _on_debug_toggle_pressed() -> void:

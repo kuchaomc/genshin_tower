@@ -8,6 +8,7 @@ signal gold_changed(gold: int)
 signal health_changed(current: float, maximum: float)
 signal upgrade_added(upgrade_id: String)
 signal upgrades_applied  # 升级应用完成信号
+signal primogems_earned_changed(amount: int)
 
 # ========== 随机数（统一入口，避免到处 randomize/seed） ==========
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -25,6 +26,9 @@ var map_seed: int = -1  # 地图随机种子，用于保持地图一致性
 var gold: int = 0
 var health: float = 100.0
 var max_health: float = 100.0
+
+# 原石：本局获得数量（跨局总数由 GameManager 持久化）
+var primogems_earned: int = 0
 
 # 升级和状态
 var upgrades: Dictionary = {}  # upgrade_id -> level
@@ -92,6 +96,7 @@ func start_new_run(character: CharacterData) -> void:
 	artifact_inventory.clear()
 	map_seed = -1  # 重置地图种子，新游戏会生成新地图
 	gold = 0
+	primogems_earned = 0
 	
 	# 从角色属性获取最大生命值
 	var char_stats = character.get_stats()
@@ -114,6 +119,7 @@ func start_new_run(character: CharacterData) -> void:
 	
 	emit_signal("health_changed", health, max_health)
 	emit_signal("gold_changed", gold)
+	emit_signal("primogems_earned_changed", primogems_earned)
 	if DebugLogger:
 		DebugLogger.log_info("开始新的一局游戏，角色：%s" % character.display_name, "RunManager")
 
@@ -140,6 +146,7 @@ func end_run(victory: bool = false) -> void:
 		"floors_cleared": current_floor,
 		"enemies_killed": enemies_killed,
 		"gold_earned": gold,
+		"primogems_earned": primogems_earned,
 		"damage_dealt": damage_dealt,
 		"damage_taken": damage_taken,
 		"time_elapsed": run_time,
@@ -162,6 +169,16 @@ func set_floor(floor_num: int) -> void:
 func add_gold(amount: int) -> void:
 	gold += amount
 	emit_signal("gold_changed", gold)
+
+
+## 增加原石（本局统计 + 跨局持久化累计）
+func add_primogems(amount: int) -> void:
+	if amount <= 0:
+		return
+	primogems_earned += amount
+	emit_signal("primogems_earned_changed", primogems_earned)
+	if GameManager:
+		GameManager.add_primogems(amount)
 
 ## 消耗金币
 func spend_gold(amount: int) -> bool:

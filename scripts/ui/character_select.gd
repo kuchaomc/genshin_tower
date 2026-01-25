@@ -97,7 +97,7 @@ func create_default_character() -> void:
 	var default_char = CharacterData.new()
 	default_char.id = "kamisato_ayaka"
 	default_char.display_name = "神里绫华"
-	default_char.description = "使用剑进行近战攻击的角色（Kamisato Ayaka）"
+	default_char.description = "使用剑进行近战攻击的角色"
 	
 	# 创建默认属性
 	var default_stats = CharacterStats.new()

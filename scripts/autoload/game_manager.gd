@@ -4,6 +4,8 @@ extends Node
 ## 负责游戏状态管理、场景切换、存档等全局功能
 
 signal scene_changed(scene_name: String)
+signal primogems_total_changed(total: int)
+signal death_cg_choice_made(view_cg: bool)
 
 # 游戏对外显示名（用于窗口标题等不影响 user:// 数据目录的展示）
 const GAME_DISPLAY_NAME: String = "杀原戮神尖塔"
@@ -79,10 +81,16 @@ var run_records: Array = []
 # CG解锁记录：enemy_id -> true
 var cg_unlocks: Dictionary = {}
 
+# 原石总数（跨局持久化）
+var primogems_total: int = 0
+
 var _cg_unlock_overlay: CanvasLayer = null
 const CG_UNLOCK_OVERLAY_SCRIPT: Script = preload("res://scripts/ui/cg_unlock_overlay.gd")
 const _CG_TEXTURE_DIR: String = "res://textures/cg"
 const _CHARACTER_DEATH_CG_DIR: String = "res://textures/characters"
+
+var _death_cg_prompt: ConfirmationDialog = null
+var _prompt_layer: CanvasLayer = null
 
 const _SETTINGS_FILE_PATH: String = "user://settings.cfg"
 const _SETTINGS_SECTION_UI: String = "ui"
@@ -96,6 +104,7 @@ func _ready() -> void:
 	_ensure_dev_overlay()
 	_ensure_ui_overlay_layer()
 	_ensure_cg_unlock_overlay()
+	_ensure_death_cg_prompt()
 	if DebugLogger:
 		DebugLogger.log_info("初始化完成", "GameManager")
 
@@ -151,6 +160,81 @@ func _ensure_ui_overlay_layer() -> void:
 	_ui_overlay_layer.name = "UIOverlay"
 	_ui_overlay_layer.layer = 40
 	get_tree().root.add_child.call_deferred(_ui_overlay_layer)
+
+
+func _ensure_prompt_layer() -> void:
+	if is_instance_valid(_prompt_layer):
+		if _prompt_layer.is_inside_tree():
+			return
+		return
+	_prompt_layer = CanvasLayer.new()
+	_prompt_layer.name = "PromptLayer"
+	# 必须高于 TransitionManager(100)，否则会被黑屏遮挡
+	_prompt_layer.layer = 180
+	get_tree().root.add_child.call_deferred(_prompt_layer)
+
+
+func _ensure_death_cg_prompt() -> void:
+	if is_instance_valid(_death_cg_prompt):
+		if _death_cg_prompt.is_inside_tree():
+			return
+		return
+	_ensure_prompt_layer()
+	_death_cg_prompt = ConfirmationDialog.new()
+	_death_cg_prompt.name = "DeathCGPrompt"
+	_death_cg_prompt.title = "提示"
+	_death_cg_prompt.dialog_text = "是否查看CG？"
+	_death_cg_prompt.ok_button_text = "查看"
+	_death_cg_prompt.cancel_button_text = "不看"
+	_death_cg_prompt.process_mode = Node.PROCESS_MODE_ALWAYS
+	_death_cg_prompt.visible = false
+	_death_cg_prompt.confirmed.connect(func() -> void: death_cg_choice_made.emit(true))
+	_death_cg_prompt.canceled.connect(func() -> void: death_cg_choice_made.emit(false))
+	_death_cg_prompt.close_requested.connect(func() -> void: death_cg_choice_made.emit(false))
+	if is_instance_valid(_prompt_layer):
+		_prompt_layer.add_child.call_deferred(_death_cg_prompt)
+	else:
+		get_tree().root.add_child.call_deferred(_death_cg_prompt)
+
+
+func _fade_out_current_scene_ui(duration: float = 0.35) -> void:
+	var current := get_tree().current_scene
+	if not current:
+		return
+	if current.has_method("fade_out_hud"):
+		await current.call("fade_out_hud", duration)
+
+
+func _ask_death_cg() -> bool:
+	_ensure_death_cg_prompt()
+	if not is_instance_valid(_death_cg_prompt):
+		return false
+	# 弹窗阶段视为死亡结算的一部分：切换到结算/地图BGM
+	if BGMManager:
+		BGMManager.play_track(BGM_TRACK_MAP)
+	# 弹窗交互阶段：恢复默认鼠标（战斗场景可能设置了自定义准星）
+	var current := get_tree().current_scene
+	if current and current.has_method("_restore_default_cursor"):
+		current.call("_restore_default_cursor")
+	else:
+		Input.set_custom_mouse_cursor(null)
+	_death_cg_prompt.popup_centered(Vector2i(480, 180))
+	var awaited = await death_cg_choice_made
+	var res: bool = false
+	if awaited is Array:
+		var arr := awaited as Array
+		if arr.size() > 0:
+			res = bool(arr[0])
+	else:
+		res = bool(awaited)
+	if is_instance_valid(_death_cg_prompt):
+		_death_cg_prompt.hide()
+	# 兜底再恢复一次，避免窗口关闭后仍残留自定义鼠标
+	if current and current.has_method("_restore_default_cursor"):
+		current.call("_restore_default_cursor")
+	else:
+		Input.set_custom_mouse_cursor(null)
+	return res
 
 func _is_map_scene_loaded() -> bool:
 	var current := get_tree().current_scene
@@ -393,14 +477,44 @@ func game_over() -> void:
 	if RunManager:
 		RunManager.end_run(false)
 	
-	# 若存在对应CG，则先展示CG（并解锁），由玩家手动进入结算
-	if _is_nsfw_enabled_from_settings():
-		if await _try_show_death_cg_unlock_overlay():
-			show_result(false)
-			return
+	# 死亡过渡：黑色出现并向中心汇聚（保持黑屏，交由目标场景 fade_in 撤黑）
+	if TransitionManager and TransitionManager.has_method("iris_close_to_center"):
+		await TransitionManager.iris_close_to_center(2.0)
+	elif TransitionManager:
+		await TransitionManager.fade_out(2.0)
+	
+	# 注意：按需求，汇聚动画播放完后再淡出死亡时的UI
+	await _fade_out_current_scene_ui(0.35)
+	
+	# NSFW开启时：若存在对应CG，先询问是否查看；无CG则直接进入结算
+	if _is_nsfw_enabled_from_settings() and RunManager:
+		var enemy_id: String = str(RunManager.last_defeated_by_enemy_id)
+		var enemy_name: String = str(RunManager.last_defeated_by_enemy_name)
+		var character_id: String = ""
+		var character_name: String = ""
+		if RunManager.current_character:
+			character_id = str(RunManager.current_character.id)
+			character_name = str(RunManager.current_character.display_name)
+		if not character_id.is_empty() and not enemy_id.is_empty():
+			var tex: Texture2D = get_death_cg_texture(character_id, enemy_id, enemy_name)
+			if tex != null:
+				unlock_death_cg(character_id, enemy_id)
+				var want_view: bool = await _ask_death_cg()
+				if want_view:
+					if not is_instance_valid(_cg_unlock_overlay):
+						_ensure_cg_unlock_overlay()
+					if is_instance_valid(_cg_unlock_overlay):
+						if not _cg_unlock_overlay.is_inside_tree():
+							await get_tree().process_frame
+						if _cg_unlock_overlay.has_method("show_cg"):
+							_cg_unlock_overlay.call("show_cg", character_id, character_name, enemy_id, enemy_name)
+						if _cg_unlock_overlay.has_signal("exit_to_result_requested"):
+							await _cg_unlock_overlay.exit_to_result_requested
+						show_result(false)
+						return
 	
 	# 延迟后显示结算
-	await get_tree().create_timer(2.0).timeout
+	await get_tree().create_timer(0.25).timeout
 	show_result(false)
 
 
@@ -596,6 +710,7 @@ func save_data() -> void:
 	var save_dict = {
 		"run_records": run_records,
 		"cg_unlocks": cg_unlocks.keys(),
+		"primogems_total": primogems_total,
 		"version": "1.0"
 	}
 	
@@ -626,6 +741,8 @@ func load_save_data() -> void:
 			var unlocked: Array = data.get("cg_unlocks", [])
 			for k in unlocked:
 				cg_unlocks[str(k)] = true
+			primogems_total = int(data.get("primogems_total", 0))
+			emit_signal("primogems_total_changed", primogems_total)
 			if DebugLogger:
 				DebugLogger.log_info("存档加载成功，记录数：%d" % run_records.size(), "GameManager")
 		else:
@@ -633,8 +750,26 @@ func load_save_data() -> void:
 				DebugLogger.log_error("无法解析存档JSON", "GameManager")
 			run_records = []
 			cg_unlocks.clear()
+			primogems_total = 0
+			emit_signal("primogems_total_changed", primogems_total)
 	else:
 		if DebugLogger:
 			DebugLogger.log_info("存档文件不存在，使用默认值", "GameManager")
 		run_records = []
 		cg_unlocks.clear()
+		primogems_total = 0
+		emit_signal("primogems_total_changed", primogems_total)
+
+
+## 获取原石总数
+func get_primogems_total() -> int:
+	return primogems_total
+
+
+## 增加原石（跨局持久化）
+func add_primogems(amount: int) -> void:
+	if amount <= 0:
+		return
+	primogems_total += amount
+	emit_signal("primogems_total_changed", primogems_total)
+	save_data()

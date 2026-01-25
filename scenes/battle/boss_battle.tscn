@@ -1,5 +1,5 @@
 
-[gd_scene load_steps=13 format=3 uid="uid://boss_battle_scene"]
+[gd_scene load_steps=16 format=3 uid="uid://boss_battle_scene"]
 
 [ext_resource type="Script" uid="uid://bwlkkwfk4bcuy" path="res://scripts/battle/battle_manager.gd" id="1_battle"]
 [ext_resource type="Texture2D" uid="uid://bnoahwud6qeff" path="res://textures/effects/战斗场景.png" id="2_3ma01"]
@@ -10,6 +10,9 @@
 [ext_resource type="PackedScene" uid="uid://b8k3j2h4m5n6p" path="res://scenes/ui/enemy_indicator.tscn" id="7_indicator"]
 [ext_resource type="Texture2D" uid="uid://wewl3oalmili" path="res://textures/ui/摩拉.png" id="8_gold"]
 [ext_resource type="Shader" path="res://shaders/bloom_canvas.gdshader" id="9_bloom_shader"]
+[ext_resource type="Texture2D" path="res://textures/ui/原石.png" id="10_primogem"]
+[ext_resource type="Script" path="res://scripts/ui/primogem_indicator_manager.gd" id="11_primogem_indicator_manager"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pickup_indicator.tscn" id="12_pickup_indicator"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_HPBackground"]
 bg_color = Color(0.2, 0.2, 0.2, 1)
@@ -182,6 +185,34 @@ theme_override_font_sizes/font_size = 32
 text = "0"
 vertical_alignment = 1
 
+[node name="PrimogemDisplay" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 20.0
+offset_top = 90.0
+offset_right = 200.0
+offset_bottom = 150.0
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="CanvasLayer/PrimogemDisplay"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 50.0
+offset_bottom = 50.0
+texture = ExtResource("10_primogem")
+
+[node name="Label" type="Label" parent="CanvasLayer/PrimogemDisplay"]
+layout_mode = 0
+offset_left = 75.0
+offset_top = 11.0
+offset_right = 195.0
+offset_bottom = 71.0
+theme_override_colors/font_color = Color(0.2, 0.6, 1, 1)
+theme_override_font_sizes/font_size = 32
+text = "0"
+vertical_alignment = 1
+
 [node name="SkillUIContainer" type="Control" parent="CanvasLayer"]
 layout_mode = 3
 anchors_preset = 3
@@ -246,6 +277,17 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("6_indicator_manager")
 indicator_scene = ExtResource("7_indicator")
+
+[node name="PrimogemIndicatorManager" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("11_primogem_indicator_manager")
+indicator_scene = ExtResource("12_pickup_indicator")
 
 [node name="FloorNotification" type="Control" parent="CanvasLayer"]
 visible = false

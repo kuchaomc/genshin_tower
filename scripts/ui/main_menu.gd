@@ -21,6 +21,7 @@ const _BG_HISTORY_SECTION: String = "main_menu"
 const _BG_HISTORY_KEY_LAST_BG: String = "last_background"
 
 const _SETTINGS_SCENE: PackedScene = preload("res://scenes/ui/settings.tscn")
+const _CHARACTER_SELECT_PANEL_SCENE: PackedScene = preload("res://scenes/ui/character_select_panel.tscn")
 
 # 预加载游戏场景
 var game_scene = preload("res://scenes/battle/battle_scene.tscn")
@@ -49,6 +50,9 @@ var game_scene = preload("res://scenes/battle/battle_scene.tscn")
 
 # 设置界面引用
 var settings_menu: Control = null
+
+# 角色选择面板引用（嵌入右侧抽屉，不切场景）
+var character_select_panel: Control = null
 
 # 菜单按钮引用（在_ready里赋值，避免场景结构变动导致的硬路径问题）
 var _start_button: Button = null
@@ -122,6 +126,7 @@ func _ready() -> void:
 	
 	# 加载设置界面
 	_load_settings_menu()
+	_load_character_select_panel()
 	_load_cg_gallery_panel()
 	_update_cg_button_enabled_state_from_settings()
 	
@@ -247,6 +252,8 @@ func _show_right_overlay(show_help: bool, show_settings: bool, show_cg: bool) ->
 		settings_menu.visible = show_settings
 	if is_instance_valid(cg_gallery_panel):
 		cg_gallery_panel.visible = show_cg
+	if is_instance_valid(character_select_panel) and (show_help or show_settings or show_cg):
+		character_select_panel.visible = false
 
 	await get_tree().process_frame
 	var w := _get_right_drawer_width()
@@ -343,6 +350,23 @@ func _load_cg_gallery_panel() -> void:
 		cg_gallery_panel.visible = false
 		cg_gallery_panel.closed.connect(_on_cg_gallery_closed)
 
+func _load_character_select_panel() -> void:
+	if character_select_panel != null:
+		return
+	if not _CHARACTER_SELECT_PANEL_SCENE:
+		return
+	character_select_panel = _CHARACTER_SELECT_PANEL_SCENE.instantiate()
+	if character_select_panel == null:
+		return
+	if is_instance_valid(right_content_holder):
+		right_content_holder.add_child(character_select_panel)
+		character_select_panel.visible = false
+		if character_select_panel.has_signal("closed"):
+			character_select_panel.closed.connect(_on_character_select_closed)
+
+func _on_character_select_closed() -> void:
+	_hide_right_overlay()
+
 func _bind_hover_for_button(button: Button) -> void:
 	# 通过按钮父节点(HBoxContainer)定位IndicatorSpace与Indicator
 	var row := button.get_parent() as Node
@@ -432,12 +456,21 @@ func _load_settings_menu() -> void:
 # 开始游戏按钮回调
 func _on_start_button_pressed() -> void:
 	print("开始游戏按钮被点击")
-	# 切换到角色选择界面
-	if GameManager:
-		GameManager.go_to_character_select()
-	else:
-		# 如果没有GameManager，直接进入游戏场景
-		get_tree().change_scene_to_packed(game_scene)
+	# 打开右侧抽屉显示角色选择（不切场景）
+	if character_select_panel and character_select_panel.has_method("show_panel"):
+		character_select_panel.show_panel()
+	_show_right_overlay(false, false, false)
+	if is_instance_valid(help_panel):
+		help_panel.visible = false
+	if is_instance_valid(settings_menu):
+		settings_menu.visible = false
+	if is_instance_valid(cg_gallery_panel):
+		cg_gallery_panel.visible = false
+	if is_instance_valid(character_select_panel):
+		character_select_panel.visible = true
+	# 复用同款抽屉动画
+	await get_tree().process_frame
+	_show_right_overlay(false, false, false)
 
 # 游戏说明按钮回调
 func _on_help_button_pressed() -> void:

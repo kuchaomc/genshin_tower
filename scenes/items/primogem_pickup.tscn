@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://primogem_pickup_001"]
+
+[ext_resource type="Script" path="res://scripts/items/primogem_pickup.gd" id="1_primogem_pickup"]
+
+[node name="PrimogemPickup" type="Area2D"]
+script = ExtResource("1_primogem_pickup")

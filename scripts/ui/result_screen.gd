@@ -2,13 +2,31 @@ extends Node2D
 
 ## 结算界面脚本
 
-@onready var victory_label: Label = $CanvasLayer/VBoxContainer/TitleLabel
-@onready var stats_container: VBoxContainer = $CanvasLayer/VBoxContainer/StatsContainer
-@onready var continue_button: Button = $CanvasLayer/VBoxContainer/ContinueButton
+@onready var background: ColorRect = $CanvasLayer/Background
+@onready var result_panel: PanelContainer = $CanvasLayer/CenterContainer/ResultPanel
+@onready var victory_label: Label = $CanvasLayer/CenterContainer/ResultPanel/MarginContainer/Content/TitleLabel
+@onready var stats_container: VBoxContainer = $CanvasLayer/CenterContainer/ResultPanel/MarginContainer/Content/StatsContainer
+@onready var continue_button: Button = $CanvasLayer/CenterContainer/ResultPanel/MarginContainer/Content/ButtonContainer/ContinueButton
 
 var run_record: Dictionary = {}
 
+
+func _enter_tree() -> void:
+	# 尽可能早地把UI置为透明，避免首帧闪烁
+	var bg := get_node_or_null("CanvasLayer/Background") as CanvasItem
+	if bg:
+		bg.modulate.a = 0.0
+	var panel := get_node_or_null("CanvasLayer/CenterContainer/ResultPanel") as CanvasItem
+	if panel:
+		panel.modulate.a = 0.0
+
 func _ready() -> void:
+	# 防止进入结算时闪一下：先把UI设为透明，再等待转场黑屏淡出
+	if is_instance_valid(background):
+		background.modulate.a = 0.0
+	if is_instance_valid(result_panel):
+		result_panel.modulate.a = 0.0
+
 	load_run_record()
 	display_results()
 	
@@ -19,6 +37,24 @@ func _ready() -> void:
 	# 约定：发起方只负责 fade_out；目标场景在 _ready() 检测 is_transitioning 后执行 fade_in
 	if TransitionManager != null and TransitionManager.is_transitioning:
 		await TransitionManager.fade_in(0.4)
+	await get_tree().process_frame
+	_play_show_animation()
+
+
+func _play_show_animation() -> void:
+	if not result_panel:
+		return
+	# 背景遮罩与面板一起淡入
+	if is_instance_valid(background):
+		background.modulate.a = 0.0
+	result_panel.modulate.a = 0.0
+	result_panel.scale = Vector2.ONE
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT)
+	if is_instance_valid(background):
+		tween.parallel().tween_property(background, "modulate:a", 1.0, 0.35)
+	tween.tween_property(result_panel, "modulate:a", 1.0, 0.35)
 
 ## 加载结算记录
 func load_run_record() -> void:
@@ -33,6 +69,9 @@ func display_results() -> void:
 		victory_label.text = "游戏结束"
 		return
 	
+	for child in stats_container.get_children():
+		child.queue_free()
+	
 	var victory = run_record.get("victory", false)
 	if victory:
 		victory_label.text = "胜利！"
@@ -46,6 +85,7 @@ func display_results() -> void:
 	display_stat("到达楼层", str(run_record.get("floors_cleared", 0)))
 	display_stat("击杀敌人", str(run_record.get("enemies_killed", 0)))
 	display_stat("获得金币", str(run_record.get("gold_earned", 0)))
+	display_stat("获得原石", str(run_record.get("primogems_earned", 0)))
 	display_stat("造成伤害", "%.1f" % run_record.get("damage_dealt", 0.0))
 	display_stat("受到伤害", "%.1f" % run_record.get("damage_taken", 0.0))
 	
@@ -60,15 +100,18 @@ func display_stat(label_text: String, value_text: String) -> void:
 		return
 	
 	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 10)
 	stats_container.add_child(hbox)
 	
 	var label = Label.new()
 	label.text = label_text + ":"
-	label.custom_minimum_size = Vector2(150, 30)
+	label.custom_minimum_size = Vector2(220, 30)
 	hbox.add_child(label)
 	
 	var value = Label.new()
 	value.text = value_text
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(value)
 
 ## 继续按钮
