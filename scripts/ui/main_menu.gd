@@ -6,6 +6,8 @@ const MAIN_MENU_BACKGROUND_SFW_DIR: String = "res://textures/background/sfw"
 const _MAIN_MENU_BG_EXTS: PackedStringArray = ["png", "jpg", "jpeg", "webp"]
 
 const _ANNOUNCEMENT_LOCAL_FILE_PATH: String = "res://data/config/announcement.bbcode"
+const _ANNOUNCEMENT_CACHE_FILE_PATH: String = "user://announcement_cache.bbcode"
+const _ANNOUNCEMENT_REMOTE_URL: String = "https://raw.githubusercontent.com/kuchaomc/genshin_tower/main/data/config/announcement.bbcode"
 
 const _MAIN_MENU_BG_SFW_FALLBACK_PATHS: PackedStringArray = [
 	"res://textures/background/sfw/00042-2778858687.png",
@@ -128,6 +130,9 @@ var _announcement_panel_final_left: float = 0.0
 var _announcement_panel_final_right: float = 0.0
 var _announcement_panel_w: float = 0.0
 
+# 公告远端拉取请求（B方案：本地优先显示，后台拉取远端并缓存）
+var _announcement_http_request: HTTPRequest = null
+
 const _ANNOUNCEMENT_TEXT_BBCODE: String = "[b]更新公告[/b]\n\n" \
 	+ "1. 主界面新增公告栏：右上角点击展开，支持滑动。\n" \
 	+ "2. Android 触控可直接拖动滚动内容。\n\n" \
@@ -226,6 +231,10 @@ func _setup_announcement_bar() -> void:
 		if not announcement_close_button.pressed.is_connected(_on_announcement_close_pressed):
 			announcement_close_button.pressed.connect(_on_announcement_close_pressed)
 
+	# 后台拉取远端公告；失败不影响本地显示。
+	_ensure_announcement_http_request()
+	_request_remote_announcement()
+
 
 func _load_announcement_text_bbcode() -> String:
 	# 优先从本地文件读取，方便你提交到 GitHub 后也能用 raw 链接同步内容。
@@ -236,7 +245,66 @@ func _load_announcement_text_bbcode() -> String:
 			var text: String = file.get_as_text()
 			if not text.strip_edges().is_empty():
 				return text
+	# 本地文件不存在时，尝试读取上次成功拉取的缓存。
+	var cached: String = _load_cached_announcement_text_bbcode()
+	if not cached.is_empty():
+		return cached
 	return _ANNOUNCEMENT_TEXT_BBCODE
+
+
+func _load_cached_announcement_text_bbcode() -> String:
+	if not FileAccess.file_exists(_ANNOUNCEMENT_CACHE_FILE_PATH):
+		return ""
+	var file := FileAccess.open(_ANNOUNCEMENT_CACHE_FILE_PATH, FileAccess.READ)
+	if not file:
+		return ""
+	var text: String = file.get_as_text()
+	if text.strip_edges().is_empty():
+		return ""
+	return text
+
+
+func _save_announcement_cache(text: String) -> void:
+	if text.strip_edges().is_empty():
+		return
+	var file := FileAccess.open(_ANNOUNCEMENT_CACHE_FILE_PATH, FileAccess.WRITE)
+	if not file:
+		return
+	file.store_string(text)
+
+
+func _ensure_announcement_http_request() -> void:
+	if is_instance_valid(_announcement_http_request):
+		return
+	_announcement_http_request = HTTPRequest.new()
+	add_child(_announcement_http_request)
+	if not _announcement_http_request.request_completed.is_connected(_on_announcement_request_completed):
+		_announcement_http_request.request_completed.connect(_on_announcement_request_completed)
+
+
+func _request_remote_announcement() -> void:
+	# GitHub raw 有较强缓存；加一个时间戳参数，降低命中旧缓存的概率。
+	if not is_instance_valid(_announcement_http_request):
+		return
+	var url: String = _ANNOUNCEMENT_REMOTE_URL + "?t=" + str(Time.get_unix_time_from_system())
+	var err: Error = _announcement_http_request.request(url)
+	if err != OK:
+		# 网络请求失败不影响公告栏可用性（仍然显示本地/缓存/内置）。
+		return
+
+
+func _on_announcement_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS:
+		return
+	if response_code < 200 or response_code >= 300:
+		return
+	var text: String = body.get_string_from_utf8()
+	if text.strip_edges().is_empty():
+		return
+	_save_announcement_cache(text)
+	if is_instance_valid(announcement_content):
+		# 远端公告用于“热更新”，会覆盖初始显示的本地内容。
+		announcement_content.text = text
 
 
 func _on_announcement_toggle_pressed() -> void:
