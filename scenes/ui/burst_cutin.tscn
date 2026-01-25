@@ -1,0 +1,56 @@
+[gd_scene load_steps=2 format=3 uid="uid://d0qv8o4p2j2gk"]
+
+[ext_resource type="Script" path="res://scripts/ui/burst_cutin.gd" id="1_burst_cutin_script"]
+
+[node name="BurstCutin" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_burst_cutin_script")
+
+# 确保遮罩/弹出动画显示在战斗UI之上
+z_index = 1000
+
+[node name="ScreenMask" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="CutinContainer" type="Control" parent="."]
+custom_minimum_size = Vector2(360, 120)
+anchors_preset = 2
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -380.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 140.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="Image" type="TextureRect" parent="CutinContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ImageShade" type="ColorRect" parent="CutinContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0)

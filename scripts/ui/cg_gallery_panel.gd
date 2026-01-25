@@ -120,11 +120,14 @@ func refresh() -> void:
 		_preview.texture = null
 		return
 
-	var entries: Array = []
+	var death_entries: Array = []
 	if GameManager.has_method("get_unlocked_death_cg_entries"):
-		entries = GameManager.call("get_unlocked_death_cg_entries")
+		death_entries = GameManager.call("get_unlocked_death_cg_entries")
+	var shop_entries: Array = []
+	if GameManager.has_method("get_unlocked_shop_cg_entries"):
+		shop_entries = GameManager.call("get_unlocked_shop_cg_entries")
 
-	if entries.is_empty():
+	if death_entries.is_empty() and shop_entries.is_empty():
 		var empty := Label.new()
 		empty.text = "暂无已解锁CG"
 		empty.add_theme_font_size_override("font_size", 20)
@@ -133,7 +136,7 @@ func refresh() -> void:
 		_preview.texture = null
 		return
 
-	for e in entries:
+	for e in death_entries:
 		var character_id := str(e.get("character_id", ""))
 		var character_name := str(e.get("character_name", ""))
 		var enemy_id := str(e.get("enemy_id", ""))
@@ -148,6 +151,20 @@ func refresh() -> void:
 		btn.pressed.connect(_on_select_cg.bind(character_id, character_name, enemy_id, enemy_name))
 		_list_vbox.add_child(btn)
 
+	if not shop_entries.is_empty():
+		var sep := Label.new()
+		sep.text = "商店CG"
+		sep.add_theme_font_size_override("font_size", 18)
+		_list_vbox.add_child(sep)
+		for se in shop_entries:
+			var cg_id := str(se.get("cg_id", ""))
+			var name := str(se.get("display_name", ""))
+			var btn2 := Button.new()
+			btn2.text = name if not name.is_empty() else cg_id
+			btn2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn2.pressed.connect(_on_select_shop_cg.bind(cg_id))
+			_list_vbox.add_child(btn2)
+
 	_preview_title.text = ""
 	_preview.texture = null
 
@@ -156,6 +173,12 @@ func _on_select_cg(character_id: String, character_name: String, enemy_id: Strin
 	_preview.texture = null
 	if GameManager and GameManager.has_method("show_death_cg_fullscreen"):
 		await GameManager.show_death_cg_fullscreen(character_id, character_name, enemy_id, enemy_name)
+
+func _on_select_shop_cg(cg_id: String) -> void:
+	_preview_title.text = ""
+	_preview.texture = null
+	if GameManager and GameManager.has_method("show_shop_cg_fullscreen"):
+		await GameManager.call("show_shop_cg_fullscreen", cg_id)
 
 func _on_back_pressed() -> void:
 	hide_panel()

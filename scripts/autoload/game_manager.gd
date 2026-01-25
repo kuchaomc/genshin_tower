@@ -31,6 +31,7 @@ var _pending_bgm_track: StringName = &""
 enum GameState {
 	MAIN_MENU,
 	CHARACTER_SELECT,
+	WEAPON_SELECT,
 	MAP_VIEW,
 	BATTLE,
 	TREASURE,
@@ -48,6 +49,7 @@ var current_state: GameState = GameState.MAIN_MENU
 const SCENE_PATHS: Dictionary = {
 	GameState.MAIN_MENU: "res://scenes/ui/main_menu.tscn",
 	GameState.CHARACTER_SELECT: "res://scenes/ui/character_select.tscn",
+	GameState.WEAPON_SELECT: "res://scenes/ui/weapon_select.tscn",
 	GameState.MAP_VIEW: "res://scenes/ui/map_view.tscn",
 	GameState.BATTLE: "res://scenes/battle/battle_scene.tscn",
 	GameState.SHOP: "res://scenes/ui/shop.tscn",
@@ -80,6 +82,11 @@ const SAVE_FILE_PATH = "user://save_data.json"
 var run_records: Array = []
 # CG解锁记录：enemy_id -> true
 var cg_unlocks: Dictionary = {}
+# 主界面商店CG解锁记录：cg_resource_path -> true
+var shop_cg_unlocks: Dictionary = {}
+
+# 主界面商店武器解锁记录：weapon_id -> true
+var shop_weapon_unlocks: Dictionary = {}
 
 # 原石总数（跨局持久化）
 var primogems_total: int = 0
@@ -277,6 +284,15 @@ func _close_ui_overlay() -> void:
 	_pending_bgm_track = _get_bgm_track_for_state(GameState.MAP_VIEW)
 	_apply_pending_bgm()
 
+func _clear_ui_overlay_for_scene_change() -> void:
+	# 注意：这里仅清理 UIOverlay 的节点/缓存，不修改 current_state/BGM。
+	# 用于“切换主场景”前的兜底清理：避免叠加UI跨场景残留遮挡，表现为无法跳转。
+	if is_instance_valid(_ui_overlay_node):
+		_ui_overlay_node.queue_free()
+	_ui_overlay_node = null
+	_map_process_mode_cached = false
+	_map_prev_process_mode = Node.PROCESS_MODE_INHERIT
+
 func _raise_overlay_canvas_layers(root_node: Node) -> void:
 	if root_node == null:
 		return
@@ -319,7 +335,7 @@ func _open_ui_overlay(scene_path: String, overlay_state: GameState) -> void:
 
 func _get_bgm_track_for_state(state: GameState) -> StringName:
 	match state:
-		GameState.MAIN_MENU, GameState.CHARACTER_SELECT:
+		GameState.MAIN_MENU, GameState.CHARACTER_SELECT, GameState.WEAPON_SELECT:
 			return BGM_TRACK_MAIN_MENU
 		GameState.BATTLE, GameState.BOSS_BATTLE, GameState.GAME_OVER:
 			return BGM_TRACK_BATTLE
@@ -336,6 +352,9 @@ func _apply_pending_bgm() -> void:
 
 ## 切换场景
 func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
+	# 统一兜底：任何主场景切换前都先清理叠加UI。
+	# 否则从事件/商店/休息等 Overlay 内触发跳转时，会因为 UIOverlay 跨场景保留而遮挡新场景。
+	_clear_ui_overlay_for_scene_change()
 	# 如果需要转场动画（仅用于战斗场景）
 	if use_transition and TransitionManager:
 		# 播放淡出动画
@@ -415,6 +434,10 @@ func go_to_main_menu() -> void:
 ## 切换到角色选择
 func go_to_character_select() -> void:
 	_change_scene_by_state(GameState.CHARACTER_SELECT)
+
+## 切换到武器选择
+func go_to_weapon_select() -> void:
+	_change_scene_by_state(GameState.WEAPON_SELECT)
 
 ## 切换到地图界面
 func go_to_map_view() -> void:
@@ -750,6 +773,8 @@ func save_data() -> void:
 	var save_dict = {
 		"run_records": run_records,
 		"cg_unlocks": cg_unlocks.keys(),
+		"shop_cg_unlocks": shop_cg_unlocks.keys(),
+		"shop_weapon_unlocks": shop_weapon_unlocks.keys(),
 		"primogems_total": primogems_total,
 		"version": "1.0"
 	}
@@ -781,6 +806,14 @@ func load_save_data() -> void:
 			var unlocked: Array = data.get("cg_unlocks", [])
 			for k in unlocked:
 				cg_unlocks[str(k)] = true
+			shop_cg_unlocks.clear()
+			var shop_unlocked: Array = data.get("shop_cg_unlocks", [])
+			for k2 in shop_unlocked:
+				shop_cg_unlocks[str(k2)] = true
+			shop_weapon_unlocks.clear()
+			var weapon_unlocked: Array = data.get("shop_weapon_unlocks", [])
+			for w in weapon_unlocked:
+				shop_weapon_unlocks[str(w)] = true
 			primogems_total = int(data.get("primogems_total", 0))
 			emit_signal("primogems_total_changed", primogems_total)
 			if DebugLogger:
@@ -790,6 +823,8 @@ func load_save_data() -> void:
 				DebugLogger.log_error("无法解析存档JSON", "GameManager")
 			run_records = []
 			cg_unlocks.clear()
+			shop_cg_unlocks.clear()
+			shop_weapon_unlocks.clear()
 			primogems_total = 0
 			emit_signal("primogems_total_changed", primogems_total)
 	else:
@@ -797,6 +832,8 @@ func load_save_data() -> void:
 			DebugLogger.log_info("存档文件不存在，使用默认值", "GameManager")
 		run_records = []
 		cg_unlocks.clear()
+		shop_cg_unlocks.clear()
+		shop_weapon_unlocks.clear()
 		primogems_total = 0
 		emit_signal("primogems_total_changed", primogems_total)
 
@@ -813,3 +850,103 @@ func add_primogems(amount: int) -> void:
 	primogems_total += amount
 	emit_signal("primogems_total_changed", primogems_total)
 	save_data()
+
+
+## 消耗原石（跨局持久化）
+func spend_primogems(amount: int) -> bool:
+	if amount <= 0:
+		return true
+	if primogems_total < amount:
+		return false
+	primogems_total -= amount
+	emit_signal("primogems_total_changed", primogems_total)
+	save_data()
+	return true
+
+
+## 主界面商店：解锁指定CG（用资源路径作为ID）
+func unlock_shop_cg(cg_id: String) -> void:
+	if cg_id.is_empty():
+		return
+	shop_cg_unlocks[cg_id] = true
+	save_data()
+
+
+## 主界面商店：是否已解锁指定CG
+func is_shop_cg_unlocked(cg_id: String) -> bool:
+	if cg_id.is_empty():
+		return false
+	return shop_cg_unlocks.has(cg_id)
+
+
+## 主界面商店：解锁指定武器（用 weapon_id 作为ID）
+func unlock_shop_weapon(weapon_id: String) -> void:
+	if weapon_id.is_empty():
+		return
+	if shop_weapon_unlocks.has(weapon_id):
+		return
+	shop_weapon_unlocks[weapon_id] = true
+	save_data()
+
+
+## 主界面商店：是否已解锁指定武器
+func is_shop_weapon_unlocked(weapon_id: String) -> bool:
+	if weapon_id.is_empty():
+		return false
+	return shop_weapon_unlocks.has(weapon_id)
+
+
+## 获取已解锁的武器ID列表
+func get_unlocked_shop_weapon_ids() -> Array[String]:
+	var out: Array[String] = []
+	for k in shop_weapon_unlocks.keys():
+		out.append(str(k))
+	out.sort()
+	return out
+
+
+func get_unlocked_shop_cg_entries() -> Array:
+	var entries: Array = []
+	var stale: Array[String] = []
+	for k in shop_cg_unlocks.keys():
+		var path := str(k)
+		if path.is_empty():
+			continue
+		if not ResourceLoader.exists(path):
+			stale.append(path)
+			continue
+		var name := path.get_file().get_basename()
+		entries.append({
+			"cg_id": path,
+			"display_name": name,
+		})
+	if not stale.is_empty():
+		for s in stale:
+			shop_cg_unlocks.erase(s)
+		save_data()
+	return entries
+
+
+func show_shop_cg_fullscreen(cg_path: String) -> void:
+	if cg_path.is_empty():
+		return
+	if not ResourceLoader.exists(cg_path):
+		return
+	if not is_instance_valid(_cg_unlock_overlay):
+		_ensure_cg_unlock_overlay()
+	if not is_instance_valid(_cg_unlock_overlay):
+		return
+	if not _cg_unlock_overlay.is_inside_tree():
+		await get_tree().process_frame
+	var tex: Texture2D = null
+	if DataManager and DataManager.has_method("get_texture"):
+		tex = DataManager.get_texture(cg_path)
+	else:
+		tex = load(cg_path) as Texture2D
+	var title := cg_path.get_file().get_basename()
+	if _cg_unlock_overlay.has_method("set_exit_button_text"):
+		_cg_unlock_overlay.call("set_exit_button_text", "返回")
+	if _cg_unlock_overlay.has_method("show_custom_texture"):
+		_cg_unlock_overlay.call("show_custom_texture", title, tex)
+	if _cg_unlock_overlay.has_signal("exit_to_result_requested"):
+		await _cg_unlock_overlay.exit_to_result_requested

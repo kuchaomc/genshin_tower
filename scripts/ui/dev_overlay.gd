@@ -24,6 +24,11 @@ var _rm_health: SpinBox
 var _rm_max_health: SpinBox
 var _rm_floor: SpinBox
 var _rm_node_id: LineEdit
+var _rm_primogems_earned: SpinBox
+
+# ---- Persistent tab widgets ----
+var _gm_primogems_total: SpinBox
+var _clear_save_confirm: ConfirmationDialog
 
 var _player_stat_inputs: Dictionary = {} # name -> Control (SpinBox)
 var _teleport_x: SpinBox
@@ -75,6 +80,7 @@ func _build_ui() -> void:
 
 	_build_password_window()
 	_build_panel_window()
+	_build_clear_save_confirm()
 
 func _build_password_window() -> void:
 	_pwd_window = Window.new()
@@ -179,6 +185,7 @@ func _build_panel_window() -> void:
 	_tabs.add_child(_build_tab_upgrades())
 	_tabs.add_child(_build_tab_artifacts())
 	_tabs.add_child(_build_tab_teleport())
+	_tabs.add_child(_build_tab_persistent())
 
 func _on_dev_button_pressed() -> void:
 	if _unlocked:
@@ -211,6 +218,7 @@ func _open_panel() -> void:
 func _refresh_all_views() -> void:
 	_refresh_runmanager_fields()
 	_refresh_player_stat_fields()
+	_refresh_persistent_fields()
 
 func _get_player() -> BaseCharacter:
 	# 优先：RunManager.current_character_node
@@ -273,12 +281,14 @@ func _build_tab_stats() -> Control:
 	_rm_health = _spin(0, 999999, 1, false)
 	_rm_max_health = _spin(1, 999999, 1, false)
 	_rm_floor = _spin(1, 999, 1, true)
+	_rm_primogems_earned = _spin(0, 999999999, 1, true)
 	_rm_node_id = LineEdit.new()
 	_rm_node_id.placeholder_text = "当前地图节点ID（可空）"
 
 	content.add_child(_build_kv_row("摩拉", _rm_gold))
 	content.add_child(_build_kv_row("当前生命", _rm_health))
 	content.add_child(_build_kv_row("最大生命", _rm_max_health))
+	content.add_child(_build_kv_row("本局原石", _rm_primogems_earned))
 	content.add_child(_build_kv_row("当前楼层", _rm_floor))
 	content.add_child(_build_kv_row("当前节点ID", _rm_node_id))
 
@@ -343,13 +353,93 @@ func _build_tab_stats() -> Control:
 
 	return tab
 
+
+# =========================
+# Tab: 存档
+# =========================
+func _build_tab_persistent() -> Control:
+	var tab := VBoxContainer.new()
+	tab.name = "存档"
+	tab.add_theme_constant_override("separation", 10)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tab.add_child(scroll)
+
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 12)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
+
+	content.add_child(_build_section_title("跨局数据（GameManager）"))
+
+	_gm_primogems_total = _spin(0, 999999999, 1, true)
+	content.add_child(_build_kv_row("原石总数", _gm_primogems_total))
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	content.add_child(row)
+
+	var apply_btn := Button.new()
+	apply_btn.text = "应用原石"
+	apply_btn.pressed.connect(_apply_primogems_total)
+	row.add_child(apply_btn)
+
+	var add160 := Button.new()
+	add160.text = "+160"
+	add160.pressed.connect(func():
+		if not _gm_primogems_total:
+			return
+		_gm_primogems_total.value = int(_gm_primogems_total.value) + 160
+		_apply_primogems_total()
+	)
+	row.add_child(add160)
+
+	var sub160 := Button.new()
+	sub160.text = "-160"
+	sub160.pressed.connect(func():
+		if not _gm_primogems_total:
+			return
+		_gm_primogems_total.value = maxi(0, int(_gm_primogems_total.value) - 160)
+		_apply_primogems_total()
+	)
+	row.add_child(sub160)
+
+	var zero := Button.new()
+	zero.text = "清零"
+	zero.pressed.connect(func():
+		if not _gm_primogems_total:
+			return
+		_gm_primogems_total.value = 0
+		_apply_primogems_total()
+	)
+	row.add_child(zero)
+
+	content.add_child(_build_section_title("存档管理"))
+
+	var warn := Label.new()
+	warn.text = "警告：清理后会回到主菜单，且不可撤销。"
+	warn.add_theme_color_override("font_color", Color(1.0, 0.6, 0.3))
+	content.add_child(warn)
+
+	var clear_btn := Button.new()
+	clear_btn.text = "清理全部存档"
+	clear_btn.pressed.connect(func():
+		if _clear_save_confirm:
+			_clear_save_confirm.popup_centered()
+	)
+	content.add_child(clear_btn)
+
+	return tab
+
 func _refresh_runmanager_fields() -> void:
 	if not RunManager:
 		return
 	_rm_gold.value = RunManager.gold
 	_rm_health.value = RunManager.health
 	_rm_max_health.value = RunManager.max_health
-	_rm_floor.value = max(1, RunManager.current_floor)
+	_rm_primogems_earned.value = RunManager.primogems_earned
+	_rm_floor.value = maxi(1, RunManager.current_floor)
 	_rm_node_id.text = RunManager.current_node_id
 
 func _apply_runmanager_fields() -> void:
@@ -358,6 +448,10 @@ func _apply_runmanager_fields() -> void:
 	RunManager.gold = int(_rm_gold.value)
 	if RunManager.has_signal("gold_changed"):
 		RunManager.emit_signal("gold_changed", RunManager.gold)
+
+	RunManager.primogems_earned = maxi(0, int(_rm_primogems_earned.value))
+	if RunManager.has_signal("primogems_earned_changed"):
+		RunManager.emit_signal("primogems_earned_changed", RunManager.primogems_earned)
 
 	RunManager.current_node_id = _rm_node_id.text.strip_edges()
 	RunManager.set_floor(int(_rm_floor.value))
@@ -420,6 +514,57 @@ func _apply_player_stats() -> void:
 		RunManager.set_health(p.current_health, p.max_health)
 
 	_refresh_player_stat_fields()
+
+func _refresh_persistent_fields() -> void:
+	if not GameManager:
+		return
+	if _gm_primogems_total:
+		_gm_primogems_total.value = GameManager.get_primogems_total()
+
+func _apply_primogems_total() -> void:
+	if not GameManager or not _gm_primogems_total:
+		return
+	var total := maxi(0, int(_gm_primogems_total.value))
+	GameManager.primogems_total = total
+	if GameManager.has_signal("primogems_total_changed"):
+		GameManager.emit_signal("primogems_total_changed", total)
+	GameManager.save_data()
+	_refresh_persistent_fields()
+
+func _build_clear_save_confirm() -> void:
+	_clear_save_confirm = ConfirmationDialog.new()
+	_clear_save_confirm.title = "确认清理存档"
+	_clear_save_confirm.ok_button_text = "确认清理"
+	_clear_save_confirm.cancel_button_text = "取消"
+	_clear_save_confirm.dialog_text = "此操作会删除 user:// 下的存档与配置文件（save_data.json / settings.cfg / main_menu_bg.cfg），不可撤销。\n\n是否继续？"
+	_clear_save_confirm.visible = false
+	_clear_save_confirm.process_mode = Node.PROCESS_MODE_ALWAYS
+	_clear_save_confirm.confirmed.connect(_on_clear_save_confirmed)
+	_root.add_child(_clear_save_confirm)
+
+func _on_clear_save_confirmed() -> void:
+	_clear_all_saves()
+
+func _try_remove_user_file(file_name: String) -> bool:
+	var dir := DirAccess.open("user://")
+	if dir == null:
+		return false
+	if not dir.file_exists(file_name):
+		return true
+	var err: Error = dir.remove(file_name)
+	return err == OK
+
+func _clear_all_saves() -> void:
+	var ok_save := _try_remove_user_file("save_data.json")
+	var ok_settings := _try_remove_user_file("settings.cfg")
+	var ok_bg := _try_remove_user_file("main_menu_bg.cfg")
+	if DebugLogger:
+		DebugLogger.log_info("清理存档完成：save=%s settings=%s bg=%s" % [str(ok_save), str(ok_settings), str(ok_bg)], "DevOverlay")
+	if GameManager:
+		GameManager.load_save_data()
+		GameManager.go_to_main_menu()
+	if _panel_window:
+		_panel_window.hide()
 
 # =========================
 # Tab: 升级
@@ -530,7 +675,7 @@ func _build_tab_upgrades() -> Control:
 func _set_upgrade_level(upgrade_id: String, level: int) -> void:
 	if not RunManager:
 		return
-	level = max(0, level)
+	level = maxi(0, level)
 	RunManager.upgrades[upgrade_id] = level
 	# 重新计算并应用（开发者面板允许调用“约定私有”方法）
 	if RunManager.has_method("_recalculate_stat_bonuses"):

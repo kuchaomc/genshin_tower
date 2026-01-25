@@ -628,6 +628,11 @@ func _refresh_invincible_state() -> void:
 
 # ========== 统一伤害计算系统 ==========
 
+## 获取武器伤害倍率（子类可重写）
+## 返回值为“最终乘区倍率”，例如 1.10 表示 +10% 伤害。
+func get_weapon_damage_multiplier() -> float:
+	return 1.0
+
 ## 计算并造成伤害（核心方法）
 ## target: 目标节点（必须有 take_damage 方法和可选的 get_defense_percent 方法）
 ## damage_multiplier: 伤害倍率（普攻 1.0，技能可能 1.5、2.0 等）
@@ -654,6 +659,9 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 	if RunManager:
 		var damage_upgrade = RunManager.get_upgrade_level("damage")
 		final_damage *= (1.0 + damage_upgrade * 0.1)  # 每级 +10% 伤害
+	
+	# 应用武器加成（统一入口）
+	final_damage *= get_weapon_damage_multiplier()
 	
 	# 对目标造成伤害
 	var damage_dealt: bool = false

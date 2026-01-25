@@ -98,6 +98,17 @@ func show_cg(character_id: String, character_name: String, enemy_id: String, ene
 	await get_tree().process_frame
 	_exit_button.grab_focus()
 
+func show_custom_texture(title: String, tex: Texture2D) -> void:
+	if PostProcessManager and PostProcessManager.has_method("push_temp_disable_crt"):
+		if _crt_temp_disable_token <= 0:
+			_crt_temp_disable_token = int(PostProcessManager.call("push_temp_disable_crt"))
+	_title_label.text = title
+	_cg_texture_rect.texture = tex
+	_hint_label.text = "" if tex else "未找到CG资源"
+	show()
+	await get_tree().process_frame
+	_exit_button.grab_focus()
+
 func _exit_tree() -> void:
 	_release_crt_temp_disable()
 

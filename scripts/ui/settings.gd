@@ -277,6 +277,7 @@ func load_settings() -> void:
 		_apply_movement_trail(true)
 		_apply_audio_volumes(1.0, 1.0, 1.0)
 		update_ui_state()
+		_save_settings_now()
 
 ## 保存设置
 func save_settings() -> void:

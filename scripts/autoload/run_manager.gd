@@ -39,6 +39,13 @@ var visited_nodes: Array[String] = []  # 已访问的地图节点ID
 ## 格式: {ArtifactSlot.SlotType: Array[ArtifactData]}
 var artifact_inventory: Dictionary = {}
 
+# ========== 武器系统 ==========
+## 武器注册表：weapon_id -> data
+## data 格式：{ display_name, description, icon(Texture2D), world_texture(Texture2D) }
+var _weapon_registry: Dictionary = {}
+## 当前装备：character_id -> weapon_id
+var _equipped_weapon: Dictionary = {}
+
 # ========== 升级加成缓存 ==========
 ## 存储各属性的总加成值（每次升级后重新计算）
 var _stat_bonuses: Dictionary = {}
@@ -79,6 +86,33 @@ var _run_ended: bool = false
 func _ready() -> void:
 	# Autoload 初始化时随机化一次即可；后续所有随机都走 _rng
 	_rng.randomize()
+	_initialize_weapon_registry()
+
+
+## 初始化武器注册表（显式 preload，确保导出打包）
+func _initialize_weapon_registry() -> void:
+	if not _weapon_registry.is_empty():
+		return
+
+	var icon_wufeng: Texture2D = preload("res://textures/ui/武器/单手剑/无锋剑.png")
+	var icon_mistsplitter: Texture2D = preload("res://textures/ui/武器/单手剑/雾切之回光.png")
+	# 手持世界贴图：使用 effects 目录（用于角色手里显示）
+	var world_wufeng: Texture2D = preload("res://textures/effects/无锋剑.png")
+	var world_mistsplitter: Texture2D = preload("res://textures/effects/雾切之回光.png")
+
+	_weapon_registry["wufeng_sword"] = {
+		"display_name": "无锋剑",
+		"description": "无锋剑\n\n无任何效果。",
+		"icon": icon_wufeng,
+		"world_texture": world_wufeng,
+	}
+
+	_weapon_registry["mistsplitter"] = {
+		"display_name": "雾切之回光",
+		"description": "雾切之回光\n\n常驻：造成的伤害提高10%。\n雾切之巴印：持有1/2/3层时，造成的伤害提高10%/20%/30%。\n\n获得巴印：\n- 普通攻击造成伤害时：获得1层，持续5秒。\n- 施放元素爆发时：获得1层，持续10秒。\n- 元素能量低于100%时：获得1层，能量充满时消失。\n\n每层持续时间独立计算。",
+		"icon": icon_mistsplitter,
+		"world_texture": world_mistsplitter,
+	}
 
 ## 获取 RNG（统一随机入口）
 func get_rng() -> RandomNumberGenerator:
@@ -94,6 +128,8 @@ func start_new_run(character: CharacterData) -> void:
 	
 	# 清空圣遗物库存
 	artifact_inventory.clear()
+	# 初始化本局武器装备：默认装备无锋剑
+	_initialize_weapon_equip_for_character(character.id)
 	map_seed = -1  # 重置地图种子，新游戏会生成新地图
 	gold = 0
 	primogems_earned = 0
@@ -122,6 +158,98 @@ func start_new_run(character: CharacterData) -> void:
 	emit_signal("primogems_earned_changed", primogems_earned)
 	if DebugLogger:
 		DebugLogger.log_info("开始新的一局游戏，角色：%s" % character.display_name, "RunManager")
+
+
+
+## 初始化某角色的默认装备
+func _initialize_weapon_equip_for_character(character_id: String) -> void:
+	if character_id.is_empty():
+		return
+	if not _equipped_weapon.has(character_id):
+		_equipped_weapon[character_id] = "wufeng_sword"
+
+
+## 获取当前角色已拥有武器ID列表
+func get_owned_weapon_ids() -> Array[String]:
+	if not current_character:
+		return []
+	var out: Array[String] = ["wufeng_sword"]
+	# 其它武器由跨局存档解锁决定
+	if GameManager and GameManager.has_method("get_unlocked_shop_weapon_ids"):
+		var unlocked_any: Variant = GameManager.call("get_unlocked_shop_weapon_ids")
+		if unlocked_any is Array:
+			for wid in unlocked_any:
+				var s := str(wid)
+				if s.is_empty():
+					continue
+				if not (s in out):
+					out.append(s)
+	return out
+
+
+## 获取所有武器ID（用于商店展示）
+func get_all_weapon_ids() -> Array[String]:
+	var out: Array[String] = []
+	for k in _weapon_registry.keys():
+		out.append(str(k))
+	out.sort()
+	return out
+
+
+## 装备武器（对当前角色生效）
+func equip_weapon(weapon_id: String) -> void:
+	if not current_character:
+		return
+	if weapon_id.is_empty():
+		return
+	if not _weapon_registry.has(weapon_id):
+		return
+	# 必须已解锁/已拥有
+	var owned := get_owned_weapon_ids()
+	if not (weapon_id in owned):
+		return
+	_equipped_weapon[current_character.id] = weapon_id
+
+
+## 获取当前角色装备的武器ID
+func get_equipped_weapon_id() -> String:
+	if not current_character:
+		return ""
+	return str(_equipped_weapon.get(current_character.id, ""))
+
+
+## 获取武器显示名
+func get_weapon_display_name(weapon_id: String) -> String:
+	if weapon_id.is_empty():
+		return ""
+	var data: Dictionary = _weapon_registry.get(weapon_id, {})
+	return str(data.get("display_name", weapon_id))
+
+
+## 获取武器描述
+func get_weapon_description(weapon_id: String) -> String:
+	if weapon_id.is_empty():
+		return ""
+	var data: Dictionary = _weapon_registry.get(weapon_id, {})
+	return str(data.get("description", ""))
+
+
+## 获取武器UI图标
+func get_weapon_icon(weapon_id: String) -> Texture2D:
+	if weapon_id.is_empty():
+		return null
+	var data: Dictionary = _weapon_registry.get(weapon_id, {})
+	var t: Variant = data.get("icon", null)
+	return t as Texture2D
+
+
+## 获取武器世界贴图（角色手持显示）
+func get_weapon_world_texture(weapon_id: String) -> Texture2D:
+	if weapon_id.is_empty():
+		return null
+	var data: Dictionary = _weapon_registry.get(weapon_id, {})
+	var t: Variant = data.get("world_texture", null)
+	return t as Texture2D
 
 
 ## 设置击败者（最后伤害来源）

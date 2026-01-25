@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjoj8vm8csmii"
-path="res://.godot/imported/子弹.png-f973552e92d0f8933f9c8cb1ddc2b261.ctex"
+uid="uid://c2ymlul5ignc"
+path="res://.godot/imported/迷宫的游人.png-993370f12e270cb7b224be1b7621da97.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://textures/effects/子弹.png"
-dest_files=["res://.godot/imported/子弹.png-f973552e92d0f8933f9c8cb1ddc2b261.ctex"]
+source_file="res://textures/ui/深林的记忆/迷宫的游人.png"
+dest_files=["res://.godot/imported/迷宫的游人.png-993370f12e270cb7b224be1b7621da97.ctex"]
 
 [params]
 

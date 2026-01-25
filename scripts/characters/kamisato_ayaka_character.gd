@@ -48,6 +48,10 @@ var _charged_glow_sprite: Sprite2D
 var _charged_ready_last_frame: bool = false
 var _charged_ready_pulse_tween: Tween
 var _charged_ready_pulse_scale_mul: float = 1.0
+
+var _weapon_glow_shader: Shader
+var _weapon_glow_material: ShaderMaterial
+var _sword_sprite_original_material: Material
 ## 普攻伤害倍率（基于攻击力计算）
 @export var normal_attack_multiplier: float = 1.0
 ## 第二段攻击伤害倍率（已弃用，使用 charged_attack_multiplier）
@@ -135,11 +139,17 @@ var burst_current_energy: float = 0.0  # 当前充能值
 
 # 大招充能进度变化信号（用于UI更新）
 signal burst_energy_changed(current_energy: float, max_energy: float)
+# 大招释放信号（用于UI播放大招动画等）
+signal burst_used(character_id: String)
 
 # E键按下状态追踪
 var _last_e_pressed: bool = false
 # Q键按下状态追踪
 var _last_q_pressed: bool = false
+
+# ========== 武器：雾切之回光 ==========
+var _mistsplitter_timed_stack_expire: Array[float] = []
+var _mistsplitter_energy_stack_active: bool = false
 
 func _ready() -> void:
 	super._ready()
@@ -153,7 +163,8 @@ func _ready() -> void:
 		_sword_sprite = sword_area.get_node_or_null("Sprite2D") as Sprite2D
 		if _sword_sprite:
 			_sword_sprite_base_scale = _sword_sprite.scale
-			_ensure_charged_glow_sprite()
+			_ensure_weapon_glow_material()
+			_apply_equipped_weapon_visual()
 		
 		# 设置剑的枢轴偏移位置
 		sword_area.position = sword_pivot_offset
@@ -212,6 +223,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if not is_game_over:
+		_update_mistsplitter_runtime()
 		# 处理E键技能输入
 		handle_skill_input()
 		
@@ -240,6 +252,107 @@ func _physics_process(delta: float) -> void:
 			update_sword_direction()
 	
 	super._physics_process(delta)
+
+
+func _is_mistsplitter_equipped() -> bool:
+	if not RunManager:
+		return false
+	if not RunManager.has_method("get_equipped_weapon_id"):
+		return false
+	return str(RunManager.get_equipped_weapon_id()) == "mistsplitter"
+
+
+func _now_seconds() -> float:
+	return float(Time.get_ticks_msec()) / 1000.0
+
+
+func _prune_mistsplitter_timed_stacks(now: float) -> void:
+	for i in range(_mistsplitter_timed_stack_expire.size() - 1, -1, -1):
+		if now >= _mistsplitter_timed_stack_expire[i]:
+			_mistsplitter_timed_stack_expire.remove_at(i)
+
+
+func _get_mistsplitter_stack_count() -> int:
+	var now := _now_seconds()
+	_prune_mistsplitter_timed_stacks(now)
+	var timed_count: int = _mistsplitter_timed_stack_expire.size()
+	var energy_count: int = 1 if _mistsplitter_energy_stack_active else 0
+	return mini(3, timed_count + energy_count)
+
+
+func _try_gain_mistsplitter_energy_stack() -> void:
+	if not _is_mistsplitter_equipped():
+		_mistsplitter_energy_stack_active = false
+		return
+
+	# 能量充满时立刻消失
+	if burst_current_energy >= burst_max_energy - 0.01:
+		_mistsplitter_energy_stack_active = false
+		return
+
+	# 能量未满：只有在“还没拥有该层”且总层数未满3时，才获得1层
+	if _mistsplitter_energy_stack_active:
+		return
+
+	var now := _now_seconds()
+	_prune_mistsplitter_timed_stacks(now)
+	if _mistsplitter_timed_stack_expire.size() < 3:
+		_mistsplitter_energy_stack_active = true
+
+
+func _add_mistsplitter_timed_stack(duration: float) -> void:
+	if not _is_mistsplitter_equipped():
+		return
+	var now := _now_seconds()
+	_prune_mistsplitter_timed_stacks(now)
+	var expire := now + duration
+	if _mistsplitter_timed_stack_expire.size() < 3:
+		_mistsplitter_timed_stack_expire.append(expire)
+	else:
+		# 已满时：替换剩余时间最短的那一层（等价于刷新一层）
+		var min_idx := 0
+		var min_val := _mistsplitter_timed_stack_expire[0]
+		for i in range(1, _mistsplitter_timed_stack_expire.size()):
+			if _mistsplitter_timed_stack_expire[i] < min_val:
+				min_val = _mistsplitter_timed_stack_expire[i]
+				min_idx = i
+		_mistsplitter_timed_stack_expire[min_idx] = expire
+	_try_gain_mistsplitter_energy_stack()
+
+
+func _update_mistsplitter_runtime() -> void:
+	if not _is_mistsplitter_equipped():
+		_mistsplitter_timed_stack_expire.clear()
+		_mistsplitter_energy_stack_active = false
+		return
+	_prune_mistsplitter_timed_stacks(_now_seconds())
+	_try_gain_mistsplitter_energy_stack()
+
+
+func _apply_equipped_weapon_visual() -> void:
+	if not is_instance_valid(_sword_sprite):
+		return
+	if not RunManager:
+		return
+	if not RunManager.has_method("get_equipped_weapon_id"):
+		return
+	var weapon_id := str(RunManager.get_equipped_weapon_id())
+	if weapon_id.is_empty():
+		return
+	if not RunManager.has_method("get_weapon_world_texture"):
+		return
+	var tex: Texture2D = RunManager.get_weapon_world_texture(weapon_id)
+	if tex:
+		_sword_sprite.texture = tex
+
+
+func get_weapon_damage_multiplier() -> float:
+	if not _is_mistsplitter_equipped():
+		return 1.0
+	_update_mistsplitter_runtime()
+	var stacks := _get_mistsplitter_stack_count()
+	# 常驻 +10%，再按层数 +10/20/30%
+	return 1.0 + 0.10 + 0.10 * float(stacks)
 
 ## 重写攻击状态处理（神里绫华的双段攻击）
 func _process_attack_state() -> void:
@@ -530,6 +643,47 @@ func _ensure_charged_glow_sprite() -> void:
 
 	sword_area.add_child(_charged_glow_sprite)
 
+
+func _ensure_weapon_glow_material() -> void:
+	if not is_instance_valid(_sword_sprite):
+		return
+	if _sword_sprite_original_material == null:
+		_sword_sprite_original_material = _sword_sprite.material
+	if not is_instance_valid(_weapon_glow_shader):
+		_weapon_glow_shader = Shader.new()
+		_weapon_glow_shader.code = """shader_type canvas_item;
+uniform vec4 glow_color : source_color = vec4(0.65, 0.92, 1.0, 1.0);
+uniform float glow_strength = 0.0;
+uniform float glow_size = 2.0;
+void fragment(){
+	vec4 tex = texture(TEXTURE, UV);
+	float a = tex.a;
+	vec2 px = TEXTURE_PIXEL_SIZE * glow_size;
+	float g = 0.0;
+	g = max(g, texture(TEXTURE, UV + vec2(px.x, 0.0)).a);
+	g = max(g, texture(TEXTURE, UV + vec2(-px.x, 0.0)).a);
+	g = max(g, texture(TEXTURE, UV + vec2(0.0, px.y)).a);
+	g = max(g, texture(TEXTURE, UV + vec2(0.0, -px.y)).a);
+	g = max(g, texture(TEXTURE, UV + vec2(px.x, px.y)).a);
+	g = max(g, texture(TEXTURE, UV + vec2(-px.x, px.y)).a);
+	g = max(g, texture(TEXTURE, UV + vec2(px.x, -px.y)).a);
+	g = max(g, texture(TEXTURE, UV + vec2(-px.x, -px.y)).a);
+	float outline = max(0.0, g - a);
+	vec3 add = glow_color.rgb * (outline + a) * glow_strength * glow_color.a;
+	COLOR = tex;
+	COLOR.rgb += add;
+}
+"""
+	if not is_instance_valid(_weapon_glow_material):
+		_weapon_glow_material = ShaderMaterial.new()
+		_weapon_glow_material.shader = _weapon_glow_shader
+
+	_weapon_glow_material.set_shader_parameter("glow_color", charged_glow_color)
+	_weapon_glow_material.set_shader_parameter("glow_strength", 0.0)
+	# 使用 charged_glow_extra_scale 作为发光尺寸的间接控制（越大越“厚”）
+	var size: float = clampf(1.0 + (charged_glow_extra_scale - 1.0) * 6.0, 1.0, 6.0)
+	_weapon_glow_material.set_shader_parameter("glow_size", size)
+
 ## 恢复蓄力提示相关视觉状态（用于释放按键/进入攻击/清理状态）
 func _reset_charged_charge_visuals() -> void:
 	_charged_ready_last_frame = false
@@ -539,6 +693,11 @@ func _reset_charged_charge_visuals() -> void:
 		_charged_ready_pulse_tween = null
 	if is_instance_valid(_sword_sprite):
 		_sword_sprite.scale = _sword_sprite_base_scale
+		# 清理蓄力自发光
+		if _sword_sprite.material == _weapon_glow_material and _sword_sprite_original_material != null:
+			_sword_sprite.material = _sword_sprite_original_material
+		if is_instance_valid(_weapon_glow_material):
+			_weapon_glow_material.set_shader_parameter("glow_strength", 0.0)
 	if is_instance_valid(_charged_glow_sprite):
 		_charged_glow_sprite.visible = false
 		_charged_glow_sprite.scale = _sword_sprite_base_scale * charged_glow_extra_scale
@@ -550,7 +709,7 @@ func _reset_charged_charge_visuals() -> void:
 func _update_charged_charge_indicator() -> void:
 	if not sword_area:
 		return
-	_ensure_charged_glow_sprite()
+	_ensure_weapon_glow_material()
 	
 	# 如果游戏暂停，保持当前状态不变
 	if get_tree().paused:
@@ -577,26 +736,18 @@ func _update_charged_charge_indicator() -> void:
 			var s: float = 1.0 + charged_breathe_scale_strength * strength * (0.65 + 0.35 * breathe)
 			_sword_sprite.scale = _sword_sprite_base_scale * s
 		
-		# 发光：叠加Add混合的剑影，随蓄力增强并脉冲
-		if is_instance_valid(_charged_glow_sprite) and is_instance_valid(_sword_sprite):
-			_charged_glow_sprite.visible = strength > 0.005
+		# 发光：改为直接作用在武器Sprite上的自发光后处理（不依赖额外子节点）
+		if is_instance_valid(_sword_sprite) and is_instance_valid(_weapon_glow_material):
+			if _sword_sprite.material != _weapon_glow_material:
+				_sword_sprite.material = _weapon_glow_material
+			_weapon_glow_material.set_shader_parameter("glow_color", charged_glow_color)
 			var glow_pulse: float = 0.5 + 0.5 * sin(time * (charged_breathe_frequency * 1.6) * TAU)
-			# 让低蓄力也能看见一点发光，但仍随蓄力显著增强
-			var alpha: float = charged_glow_max_alpha * (0.18 + 0.82 * strength) * (0.55 + 0.45 * glow_pulse)
-			alpha = clampf(alpha, 0.0, 1.0)
-			var glow_scale: float = (1.0 + charged_breathe_scale_strength * 0.9 * (0.18 + 0.82 * strength) * (0.65 + 0.35 * glow_pulse))
-			_charged_glow_sprite.position = _sword_sprite.position
-			_charged_glow_sprite.rotation = _sword_sprite.rotation
-			_charged_glow_sprite.flip_h = _sword_sprite.flip_h
-			_charged_glow_sprite.flip_v = _sword_sprite.flip_v
-			_charged_glow_sprite.scale = _sword_sprite_base_scale * charged_glow_extra_scale * glow_scale * _charged_ready_pulse_scale_mul
-			var c := charged_glow_color
-			c.a = alpha
-			_charged_glow_sprite.modulate = c
+			var glow_strength: float = charged_glow_max_alpha * (0.10 + 0.90 * strength) * (0.55 + 0.45 * glow_pulse) * _charged_ready_pulse_scale_mul
+			_weapon_glow_material.set_shader_parameter("glow_strength", clampf(glow_strength, 0.0, 1.0))
 		
 		# 达到阈值的“就绪提示”：触发一次短促闪烁/放大
 		var is_ready: bool = hold_duration >= charged_attack_threshold
-		if is_ready and not _charged_ready_last_frame and is_instance_valid(_charged_glow_sprite):
+		if is_ready and not _charged_ready_last_frame:
 			if is_instance_valid(_charged_ready_pulse_tween):
 				_charged_ready_pulse_tween.kill()
 			_charged_ready_pulse_tween = create_tween()
@@ -610,6 +761,11 @@ func _update_charged_charge_indicator() -> void:
 		# 未按住攻击键，恢复武器位置
 		if not is_attacking():
 			sword_area.position = sword_pivot_offset
+			# 释放按键时清理自发光
+			if is_instance_valid(_sword_sprite) and _sword_sprite.material == _weapon_glow_material and _sword_sprite_original_material != null:
+				_sword_sprite.material = _sword_sprite_original_material
+			if is_instance_valid(_weapon_glow_material):
+				_weapon_glow_material.set_shader_parameter("glow_strength", 0.0)
 		_reset_charged_charge_visuals()
 
 ## 更新重击动画状态（每帧调用）
@@ -686,6 +842,8 @@ func _handle_sword_hit(target: Node2D) -> void:
 		# 普攻命中敌人时充能大招（应用充能效率加成）
 		var actual_energy = energy_per_hit * get_energy_gain_multiplier()
 		_add_burst_energy(actual_energy)
+		# 雾切：普攻造成伤害时获得1层，持续5秒
+		_add_mistsplitter_timed_stack(5.0)
 
 ## 主动检查覆盖，避免物理帧遗漏
 func _force_check_sword_overlaps() -> void:
@@ -735,6 +893,8 @@ func _handle_charged_hit(target: Node2D) -> void:
 		# 重击命中敌人时充能大招（应用充能效率加成）
 		var actual_energy = energy_per_hit * get_energy_gain_multiplier()
 		_add_burst_energy(actual_energy)
+		# 雾切：普攻造成伤害时获得1层，持续5秒
+		_add_mistsplitter_timed_stack(5.0)
 
 ## 强制检查重击范围内的敌人
 func _force_check_charged_overlaps() -> void:
@@ -924,6 +1084,14 @@ func use_burst() -> void:
 	# 消耗所有充能
 	burst_current_energy = 0.0
 	_update_burst_energy_display()
+	# 雾切：施放元素爆发时获得1层，持续10秒
+	_add_mistsplitter_timed_stack(10.0)
+	# 雾切：能量未满时的层数逻辑
+	_try_gain_mistsplitter_energy_stack()
+	
+	# 通知UI播放大招动画（不要依赖投射物是否成功创建）
+	if character_data and not character_data.id.is_empty():
+		emit_signal("burst_used", character_data.id)
 	
 	# 如果没有加载场景，尝试加载
 	if burst_scene == null:
@@ -978,6 +1146,7 @@ func use_burst() -> void:
 func _add_burst_energy(amount: float) -> void:
 	if burst_current_energy < burst_max_energy:
 		burst_current_energy = min(burst_current_energy + amount, burst_max_energy)
+		_try_gain_mistsplitter_energy_stack()
 		_update_burst_energy_display()
 
 ## 更新大招充能显示

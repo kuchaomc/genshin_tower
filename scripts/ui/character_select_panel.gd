@@ -334,7 +334,11 @@ func _on_confirm_pressed() -> void:
 		return
 
 	RunManager.start_new_run(selected_character)
-	GameManager.go_to_map_view()
+	# 进入武器选择界面
+	if GameManager.has_method("go_to_weapon_select"):
+		GameManager.go_to_weapon_select()
+	else:
+		GameManager.change_scene_to("res://scenes/ui/weapon_select.tscn")
 
 
 func _on_back_pressed() -> void:

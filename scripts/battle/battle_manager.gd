@@ -48,6 +48,11 @@ var _bloom_enabled: bool = true
 # 玩家血量UI引用
 var player_hp_bar: ProgressBar
 var player_hp_label: Label
+var boss_hud: Control
+var boss_hp_bar: ProgressBar
+var boss_hp_label: Label
+var boss_action_label: Label
+var _active_boss: Node
 # 敌人击杀计数器UI引用
 var enemy_kill_counter: Control
 var enemy_kill_counter_label: Label
@@ -61,6 +66,8 @@ var primogem_icon: TextureRect
 var skill_ui: SkillUI
 # 大招UI引用
 var burst_ui: SkillUI
+# 大招右上角动画UI引用
+var burst_cutin: BurstCutin
 # NSFW表情展示UI引用
 var face_display: TextureRect
 
@@ -158,10 +165,15 @@ func set_bloom_enabled(is_enabled: bool) -> void:
 func _initialize_ui_components() -> void:
 	player_hp_bar = get_node_or_null("CanvasLayer/PlayerHPBar/ProgressBar") as ProgressBar
 	player_hp_label = get_node_or_null("CanvasLayer/PlayerHPBar/Label") as Label
+	boss_hud = get_node_or_null("CanvasLayer/BossHUD") as Control
+	boss_hp_bar = get_node_or_null("CanvasLayer/BossHUD/ProgressBar") as ProgressBar
+	boss_hp_label = get_node_or_null("CanvasLayer/BossHUD/HPLabel") as Label
+	boss_action_label = get_node_or_null("CanvasLayer/BossHUD/ActionLabel") as Label
 	enemy_kill_counter = get_node_or_null("CanvasLayer/EnemyKillCounter") as Control
 	enemy_kill_counter_label = get_node_or_null("CanvasLayer/EnemyKillCounter/Label") as Label
 	skill_ui = get_node_or_null("CanvasLayer/SkillUIContainer/SkillUI") as SkillUI
 	burst_ui = get_node_or_null("CanvasLayer/BurstUIContainer/BurstUI") as SkillUI
+	burst_cutin = get_node_or_null("CanvasLayer/BurstCutin") as BurstCutin
 	face_display = get_node_or_null("CanvasLayer/FaceDisplay") as TextureRect
 	gold_label = get_node_or_null("CanvasLayer/GoldDisplay/Label") as Label
 	gold_icon = get_node_or_null("CanvasLayer/GoldDisplay/Icon") as TextureRect
@@ -179,11 +191,12 @@ func _initialize_ui_components() -> void:
 		enemy_kill_counter.visible = false
 		enemy_kill_counter.modulate.a = 0.0
 		enemy_kill_counter.scale = Vector2(0.9, 0.9)
-	
 	if floor_notification:
 		floor_notification.visible = false
 		floor_notification.modulate.a = 0.0
 		floor_notification.scale = Vector2(0.9, 0.9)
+	if boss_hud:
+		boss_hud.visible = is_boss_battle
 
 ## 初始化玩家
 func _initialize_player() -> void:
@@ -415,15 +428,18 @@ func initialize_player() -> void:
 	
 	player_instance.name = "player"
 	
-	# 获取摄像机位置，将角色放置在摄像机中心
-	var camera = get_node_or_null("Camera2D") as Camera2D
-	if camera:
-		# 使用摄像机的全局位置作为角色位置
-		player_instance.global_position = camera.global_position
+	if is_boss_battle:
+		player_instance.global_position = _get_player_spawn_position()
 	else:
-		# 如果找不到摄像机，使用原点作为默认位置
-		player_instance.position = Vector2.ZERO
-		print("警告：未找到摄像机，角色将放置在原点")
+		# 获取摄像机位置，将角色放置在摄像机中心
+		var camera = get_node_or_null("Camera2D") as Camera2D
+		if camera:
+			# 使用摄像机的全局位置作为角色位置
+			player_instance.global_position = camera.global_position
+		else:
+			# 如果找不到摄像机，使用原点作为默认位置
+			player_instance.position = Vector2.ZERO
+			print("警告：未找到摄像机，角色将放置在原点")
 	
 	add_child(player_instance)
 	player = player_instance as BaseCharacter
@@ -461,6 +477,10 @@ func connect_player_signals() -> void:
 		if player.has_signal("burst_energy_changed"):
 			player.burst_energy_changed.connect(_on_burst_energy_changed)
 		
+		# 连接大招释放信号（用于右上角动画）
+		if player.has_signal("burst_used"):
+			player.burst_used.connect(_on_player_burst_used)
+		
 		# 初始化血量UI显示
 		if player.has_method("get_current_health") and player.has_method("get_max_health"):
 			_on_player_health_changed(player.get_current_health(), player.get_max_health())
@@ -485,7 +505,6 @@ func connect_player_signals() -> void:
 				if burst_icon:
 					burst_ui.set_skill_icon(burst_icon)
 
-## 敌人生成计时器回调
 func _on_enemy_spawn_timer_timeout() -> void:
 	if current_state == GameState.PLAYING and not is_boss_battle:
 		var current_floor = RunManager.current_floor
@@ -541,22 +560,15 @@ func spawn_boss() -> void:
 		print("错误：无法实例化BOSS场景")
 		return
 	
-	# 初始化BOSS
 	if boss_instance.has_method("initialize"):
+		if OS.is_debug_build():
+			print("初始化BOSS，类型：", boss_data.display_name, "，drop_gold：", boss_data.drop_gold)
 		boss_instance.initialize(boss_data)
 	
 	# BOSS战不应用楼层缩放（使用BOSS原始属性）
 	# 如果需要，可以在这里应用特殊的BOSS属性缩放
 	
-	# 在椭圆空气墙中心生成BOSS
-	var spawn_pos: Vector2
-	var boundary := get_node_or_null("EllipseBoundary") as EllipseBoundary
-	if boundary:
-		spawn_pos = boundary.global_position
-	else:
-		# 兜底：使用屏幕中心
-		var screen_size = get_viewport().get_visible_rect().size
-		spawn_pos = screen_size / 2.0
+	var spawn_pos := _get_boss_spawn_position()
 	
 	boss_instance.global_position = spawn_pos
 	
@@ -564,8 +576,64 @@ func spawn_boss() -> void:
 	add_child(boss_instance)
 	_register_enemy(boss_instance)
 	_apply_hitbox_visibility_to_enemy(boss_instance)
+	_active_boss = boss_instance
+	_connect_boss_signals(boss_instance)
+	_initialize_boss_hud(boss_instance)
 	
 	print("生成BOSS：", boss_data.display_name, "，位置：", boss_instance.position)
+
+func _get_player_spawn_position() -> Vector2:
+	var boundary := get_node_or_null("EllipseBoundary") as EllipseBoundary
+	if boundary:
+		var center: Vector2 = boundary.global_position
+		var b: float = boundary.ellipse_radius_y
+		# 让玩家出生在椭圆底部但略微往内收，避免贴边卡空气墙
+		var margin: float = maxf(160.0, b * 0.15)
+		return center + Vector2(0.0, b - margin)
+	# 兜底：按屏幕比例放到底部
+	var screen_size := get_viewport().get_visible_rect().size
+	return Vector2(screen_size.x * 0.5, screen_size.y * 0.82)
+
+func _get_boss_spawn_position() -> Vector2:
+	var boundary := get_node_or_null("EllipseBoundary") as EllipseBoundary
+	if boundary:
+		var center: Vector2 = boundary.global_position
+		var b: float = boundary.ellipse_radius_y
+		# boss 默认在中上位置（y 负方向为上）
+		return center + Vector2(0.0, -b * 0.35)
+	# 兜底：按屏幕比例放到上方
+	var screen_size := get_viewport().get_visible_rect().size
+	return Vector2(screen_size.x * 0.5, screen_size.y * 0.35)
+
+func _connect_boss_signals(boss: Node) -> void:
+	if boss == null:
+		return
+	if boss.has_signal("health_changed"):
+		var cb_hp := Callable(self, "_on_boss_health_changed")
+		if not boss.is_connected("health_changed", cb_hp):
+			boss.connect("health_changed", cb_hp)
+	if boss.has_signal("action_changed"):
+		var cb_action := Callable(self, "_on_boss_action_changed")
+		if not boss.is_connected("action_changed", cb_action):
+			boss.connect("action_changed", cb_action)
+
+func _initialize_boss_hud(boss: Node) -> void:
+	if boss_hud:
+		boss_hud.visible = true
+	if boss is BaseEnemy:
+		_on_boss_health_changed((boss as BaseEnemy).current_health, (boss as BaseEnemy).max_health)
+	_on_boss_action_changed("")
+
+func _on_boss_health_changed(current: float, maximum: float) -> void:
+	if boss_hp_bar:
+		boss_hp_bar.max_value = maximum
+		boss_hp_bar.value = current
+	if boss_hp_label:
+		boss_hp_label.text = str(int(current)) + "/" + str(int(maximum))
+
+func _on_boss_action_changed(action: String) -> void:
+	if boss_action_label:
+		boss_action_label.text = action
 
 ## 生成敌人函数
 func spawn_enemy() -> void:
@@ -1092,6 +1160,28 @@ func _on_burst_energy_changed(current_energy: float, max_energy: float) -> void:
 	if burst_ui:
 		burst_ui.update_energy(current_energy, max_energy)
 
+func _on_player_burst_used(character_id: String) -> void:
+	if not burst_cutin:
+		return
+	var path := _get_burst_cutin_texture_path(character_id)
+	var tex: Texture2D = null
+	if not path.is_empty():
+		tex = _load_texture(path)
+	if not tex:
+		tex = _load_texture("res://textures/effects/warning.png")
+	if tex:
+		burst_cutin.play(tex)
+
+func _get_burst_cutin_texture_path(character_id: String) -> String:
+	match character_id:
+		"kamisato_ayaka":
+			var p_effect := "res://textures/characters/kamisato_ayaka/effects/ayaka大招动画图片.png"
+			if ResourceLoader.exists(p_effect):
+				return p_effect
+			return "res://textures/cg/神里绫华-普通.png"
+		_:
+			return ""
+
 ## 统一设置碰撞形状的可见性与颜色（Godot 4可直接显示CollisionShape2D）
 func _set_shape_visible(shape: CollisionShape2D, visible_state: bool, debug_color: Color) -> void:
 	if not shape:
@@ -1158,9 +1248,12 @@ func _create_shape_overlay(shape: CollisionShape2D, color: Color) -> Node2D:
 
 ## 统一加载纹理（使用DataManager缓存）
 func _load_texture(path: String) -> Texture2D:
+	var tex: Texture2D = null
 	if DataManager:
-		return DataManager.get_texture(path)
-	return load(path) as Texture2D
+		tex = DataManager.get_texture(path)
+	if tex:
+		return tex
+	return ResourceLoader.load(path) as Texture2D
 
 ## 根据角色ID获取技能图标路径
 func _get_skill_icon_path(character_id: String) -> String:

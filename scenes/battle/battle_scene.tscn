@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://c5vy4j04yih54"]
+[gd_scene load_steps=17 format=3 uid="uid://c5vy4j04yih54"]
 
 [ext_resource type="Script" uid="uid://bwlkkwfk4bcuy" path="res://scripts/battle/battle_manager.gd" id="1_battle"]
 [ext_resource type="Texture2D" uid="uid://bnoahwud6qeff" path="res://textures/effects/战斗场景.png" id="2_3ma01"]
@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" path="res://textures/ui/原石.png" id="10_primogem"]
 [ext_resource type="Script" path="res://scripts/ui/primogem_indicator_manager.gd" id="11_primogem_indicator_manager"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pickup_indicator.tscn" id="12_pickup_indicator"]
+[ext_resource type="PackedScene" path="res://scenes/ui/burst_cutin.tscn" id="13_burst_cutin"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_Bloom"]
 shader = ExtResource("9_bloom_shader")
@@ -286,6 +287,15 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("11_primogem_indicator_manager")
 indicator_scene = ExtResource("12_pickup_indicator")
+
+[node name="BurstCutin" parent="CanvasLayer" instance=ExtResource("13_burst_cutin")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="FloorNotification" type="Control" parent="CanvasLayer"]
 visible = false

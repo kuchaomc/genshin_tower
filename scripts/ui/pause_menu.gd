@@ -24,6 +24,14 @@ extends Control
 @onready var artifacts_container: HBoxContainer = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn/ArtifactsContainer") as HBoxContainer
 @onready var artifacts_button: Button = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/ArtifactsButton") as Button
 
+@onready var _stats_column: VBoxContainer = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/StatsColumn") as VBoxContainer
+
+var _weapon_row: HBoxContainer = null
+var _weapon_icon: TextureRect = null
+var _weapon_name: Label = null
+var _weapon_tooltip: PanelContainer = null
+var _weapon_tooltip_label: Label = null
+
 @onready var _portrait_column: VBoxContainer = get_node_or_null("RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn") as VBoxContainer
 
 @onready var _minimap_viewport_container: SubViewportContainer = get_node_or_null("RightArea/RightMargin/VBox/MiniMapPanel/Margin/MiniMapViewportContainer") as SubViewportContainer
@@ -104,8 +112,102 @@ func _ready() -> void:
 	# 预热：把小地图的实例化/地图生成提前做掉，避免第一次打开暂停菜单卡顿
 	call_deferred("_prewarm_minimap")
 	_relocate_artifacts_ui()
+	_setup_weapon_ui()
 	
 	# 右侧角色信息面板在当前风格下默认不存在，这里不再主动刷新，避免空引用
+
+
+func _process(_delta: float) -> void:
+	# 武器详情面板跟随鼠标
+	if is_instance_valid(_weapon_tooltip) and _weapon_tooltip.visible:
+		var mouse := get_viewport().get_mouse_position()
+		var pos := mouse + Vector2(18, 18)
+		var vp_size := get_viewport_rect().size
+		var tip_size := _weapon_tooltip.size
+		pos.x = clampf(pos.x, 8.0, maxf(8.0, vp_size.x - tip_size.x - 8.0))
+		pos.y = clampf(pos.y, 8.0, maxf(8.0, vp_size.y - tip_size.y - 8.0))
+		_weapon_tooltip.position = pos
+
+
+func _setup_weapon_ui() -> void:
+	if not is_instance_valid(_stats_column):
+		return
+	if is_instance_valid(_weapon_row):
+		return
+
+	_weapon_row = HBoxContainer.new()
+	_weapon_row.name = "WeaponRow"
+	_weapon_row.add_theme_constant_override("separation", 8)
+	_weapon_row.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	_weapon_icon = TextureRect.new()
+	_weapon_icon.custom_minimum_size = Vector2(28, 28)
+	_weapon_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	_weapon_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_weapon_icon.mouse_filter = Control.MOUSE_FILTER_STOP
+	_weapon_row.add_child(_weapon_icon)
+
+	_weapon_name = Label.new()
+	_weapon_name.text = "武器：-"
+	_weapon_name.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	_weapon_name.add_theme_font_size_override("font_size", 16)
+	_weapon_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_weapon_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_weapon_row.add_child(_weapon_name)
+
+	_stats_column.add_child(_weapon_row)
+
+	_weapon_tooltip = PanelContainer.new()
+	_weapon_tooltip.name = "WeaponTooltip"
+	_weapon_tooltip.visible = false
+	_weapon_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_weapon_tooltip)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_weapon_tooltip.add_child(margin)
+
+	_weapon_tooltip_label = Label.new()
+	_weapon_tooltip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_weapon_tooltip_label.add_theme_font_size_override("font_size", 18)
+	margin.add_child(_weapon_tooltip_label)
+
+	_weapon_icon.mouse_entered.connect(_on_weapon_icon_mouse_entered)
+	_weapon_icon.mouse_exited.connect(_on_weapon_icon_mouse_exited)
+
+	_update_weapon_display()
+
+
+func _update_weapon_display() -> void:
+	if not is_instance_valid(_weapon_row) or not is_instance_valid(_weapon_icon) or not is_instance_valid(_weapon_name):
+		return
+	if not RunManager or not RunManager.has_method("get_equipped_weapon_id"):
+		_weapon_row.visible = false
+		return
+	var weapon_id := str(RunManager.get_equipped_weapon_id())
+	if weapon_id.is_empty():
+		_weapon_row.visible = false
+		return
+	_weapon_row.visible = true
+	var display_name := RunManager.get_weapon_display_name(weapon_id) if RunManager.has_method("get_weapon_display_name") else weapon_id
+	_weapon_name.text = "武器：%s" % display_name
+	_weapon_icon.texture = RunManager.get_weapon_icon(weapon_id) if RunManager.has_method("get_weapon_icon") else null
+	if is_instance_valid(_weapon_tooltip_label) and RunManager.has_method("get_weapon_description"):
+		_weapon_tooltip_label.text = str(RunManager.get_weapon_description(weapon_id))
+
+
+func _on_weapon_icon_mouse_entered() -> void:
+	_update_weapon_display()
+	if is_instance_valid(_weapon_tooltip):
+		_weapon_tooltip.visible = true
+
+
+func _on_weapon_icon_mouse_exited() -> void:
+	if is_instance_valid(_weapon_tooltip):
+		_weapon_tooltip.visible = false
 
 func _setup_minimap() -> void:
 	if _minimap_viewport == null or _minimap_viewport_container == null:
@@ -563,6 +665,7 @@ func update_character_info() -> void:
 	
 	# 更新角色属性
 	_update_stats_display()
+	_update_weapon_display()
 	
 	# 更新已选择升级
 	_update_upgrades_display()

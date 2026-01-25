@@ -134,7 +134,7 @@ grow_vertical = 2
 
 [node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/StartRow/IndicatorSpace/CenterContainer"]
 visible = false
-custom_minimum_size = Vector2(10, 10)
+custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
 color = Color(0.2, 0.6, 1, 1)
 
@@ -161,7 +161,7 @@ grow_vertical = 2
 
 [node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/HelpRow/IndicatorSpace/CenterContainer"]
 visible = false
-custom_minimum_size = Vector2(10, 10)
+custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
 color = Color(0.2, 0.6, 1, 1)
 
@@ -188,7 +188,7 @@ grow_vertical = 2
 
 [node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/SettingsRow/IndicatorSpace/CenterContainer"]
 visible = false
-custom_minimum_size = Vector2(10, 10)
+custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
 color = Color(0.2, 0.6, 1, 1)
 
@@ -215,7 +215,7 @@ grow_vertical = 2
 
 [node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/CGRow/IndicatorSpace/CenterContainer"]
 visible = false
-custom_minimum_size = Vector2(10, 10)
+custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
 color = Color(0.2, 0.6, 1, 1)
 
@@ -224,6 +224,33 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 28
 text = "CG回想"
+flat = true
+
+[node name="ShopRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ShopRow"]
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ShopRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ShopRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="ButtonShop" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ShopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "商店"
 flat = true
 
 [node name="QuitRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
@@ -242,7 +269,7 @@ grow_vertical = 2
 
 [node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/QuitRow/IndicatorSpace/CenterContainer"]
 visible = false
-custom_minimum_size = Vector2(10, 10)
+custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
 color = Color(0.2, 0.6, 1, 1)
 

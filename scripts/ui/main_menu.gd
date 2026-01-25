@@ -35,6 +35,7 @@ const _BG_HISTORY_KEY_LAST_BG: String = "last_background"
 
 const _SETTINGS_SCENE: PackedScene = preload("res://scenes/ui/settings.tscn")
 const _CHARACTER_SELECT_PANEL_SCENE: PackedScene = preload("res://scenes/ui/character_select_panel.tscn")
+const _MAIN_MENU_SHOP_PANEL_SCRIPT: Script = preload("res://scripts/ui/main_menu_shop_panel.gd")
 
 # 预加载游戏场景
 var game_scene = preload("res://scenes/battle/battle_scene.tscn")
@@ -72,9 +73,11 @@ var _start_button: Button = null
 var _help_button: Button = null
 var _settings_button: Button = null
 var _cg_button: Button = null
+var _shop_button: Button = null
 var _quit_button: Button = null
 
 var cg_gallery_panel: CGGalleryPanel = null
+var shop_panel: MainMenuShopPanel = null
 
 const _SETTINGS_FILE_PATH: String = "user://settings.cfg"
 const _SETTINGS_SECTION_UI: String = "ui"
@@ -106,6 +109,7 @@ func _ready() -> void:
 	_help_button = $CanvasLayer.find_child("Button2", true, false) as Button
 	_settings_button = $CanvasLayer.find_child("Button4", true, false) as Button
 	_cg_button = $CanvasLayer.find_child("Button5", true, false) as Button
+	_shop_button = $CanvasLayer.find_child("ButtonShop", true, false) as Button
 	_quit_button = $CanvasLayer.find_child("Button3", true, false) as Button
 	
 	if _start_button:
@@ -116,6 +120,8 @@ func _ready() -> void:
 		_settings_button.pressed.connect(_on_settings_button_pressed)
 	if _cg_button:
 		_cg_button.pressed.connect(_on_cg_button_pressed)
+	if _shop_button:
+		_shop_button.pressed.connect(_on_shop_button_pressed)
 	if _quit_button:
 		_quit_button.pressed.connect(_on_quit_button_pressed)
 	if close_button:
@@ -141,6 +147,7 @@ func _ready() -> void:
 	_load_settings_menu()
 	_load_character_select_panel()
 	_load_cg_gallery_panel()
+	_load_shop_panel()
 	_update_cg_button_enabled_state_from_settings()
 	
 	print("主界面脚本已加载，帮助弹窗已初始化")
@@ -256,7 +263,7 @@ func _set_left_edge_strength(v: float) -> void:
 	if mat:
 		mat.set_shader_parameter("strength", v)
 
-func _show_right_overlay(show_help: bool, show_settings: bool, show_cg: bool) -> void:
+func _show_right_overlay(show_help: bool, show_settings: bool, show_cg: bool, show_shop: bool) -> void:
 	if not is_instance_valid(right_overlay) or not is_instance_valid(right_drawer):
 		return
 	var was_open := right_overlay.visible
@@ -268,7 +275,9 @@ func _show_right_overlay(show_help: bool, show_settings: bool, show_cg: bool) ->
 		settings_menu.visible = show_settings
 	if is_instance_valid(cg_gallery_panel):
 		cg_gallery_panel.visible = show_cg
-	if is_instance_valid(character_select_panel) and (show_help or show_settings or show_cg):
+	if is_instance_valid(shop_panel):
+		shop_panel.visible = show_shop
+	if is_instance_valid(character_select_panel) and (show_help or show_settings or show_cg or show_shop):
 		character_select_panel.visible = false
 
 	await get_tree().process_frame
@@ -351,9 +360,10 @@ func _setup_menu_hover_effects() -> void:
 		_bind_hover_for_button(_settings_button)
 	if _cg_button:
 		_bind_hover_for_button(_cg_button)
+	if _shop_button:
+		_bind_hover_for_button(_shop_button)
 	if _quit_button:
 		_bind_hover_for_button(_quit_button)
-
 
 func _load_cg_gallery_panel() -> void:
 	if cg_gallery_panel != null:
@@ -365,6 +375,19 @@ func _load_cg_gallery_panel() -> void:
 		right_content_holder.add_child(cg_gallery_panel)
 		cg_gallery_panel.visible = false
 		cg_gallery_panel.closed.connect(_on_cg_gallery_closed)
+
+func _load_shop_panel() -> void:
+	if shop_panel != null:
+		return
+	if not _MAIN_MENU_SHOP_PANEL_SCRIPT:
+		return
+	shop_panel = _MAIN_MENU_SHOP_PANEL_SCRIPT.new() as MainMenuShopPanel
+	if not shop_panel:
+		return
+	if is_instance_valid(right_content_holder):
+		right_content_holder.add_child(shop_panel)
+		shop_panel.visible = false
+		shop_panel.closed.connect(_on_shop_panel_closed)
 
 func _load_character_select_panel() -> void:
 	if character_select_panel != null:
@@ -436,7 +459,7 @@ func _play_hover_animation(row: Node, hovered: bool) -> void:
 		indicator.visible = true
 		tween.set_trans(Tween.TRANS_CUBIC)
 		tween.set_ease(Tween.EASE_OUT)
-		tween.parallel().tween_property(indicator_space, "custom_minimum_size", Vector2(18, 0), 0.12)
+		tween.parallel().tween_property(indicator_space, "custom_minimum_size", Vector2(26, 0), 0.12)
 		tween.parallel().tween_property(indicator, "modulate", Color(1, 1, 1, 1), 0.12)
 	else:
 		tween.set_trans(Tween.TRANS_CUBIC)
@@ -475,7 +498,7 @@ func _on_start_button_pressed() -> void:
 	# 打开右侧抽屉显示角色选择（不切场景）
 	if character_select_panel and character_select_panel.has_method("show_panel"):
 		character_select_panel.show_panel()
-	_show_right_overlay(false, false, false)
+	_show_right_overlay(false, false, false, false)
 	if is_instance_valid(help_panel):
 		help_panel.visible = false
 	if is_instance_valid(settings_menu):
@@ -486,19 +509,19 @@ func _on_start_button_pressed() -> void:
 		character_select_panel.visible = true
 	# 复用同款抽屉动画
 	await get_tree().process_frame
-	_show_right_overlay(false, false, false)
+	_show_right_overlay(false, false, false, false)
 
 # 游戏说明按钮回调
 func _on_help_button_pressed() -> void:
 	print("游戏说明按钮被点击")
-	_show_right_overlay(true, false, false)
+	_show_right_overlay(true, false, false, false)
 
 # 设置按钮回调
 func _on_settings_button_pressed() -> void:
 	print("设置按钮被点击")
 	if settings_menu and settings_menu.has_method("show_settings"):
 		settings_menu.show_settings()
-	_show_right_overlay(false, true, false)
+	_show_right_overlay(false, true, false, false)
 
 
 func _on_cg_button_pressed() -> void:
@@ -507,8 +530,13 @@ func _on_cg_button_pressed() -> void:
 		return
 	if cg_gallery_panel and cg_gallery_panel.has_method("show_panel"):
 		cg_gallery_panel.show_panel()
-	_show_right_overlay(false, false, true)
+	_show_right_overlay(false, false, true, false)
 
+func _on_shop_button_pressed() -> void:
+	print("商店按钮被点击")
+	if shop_panel and shop_panel.has_method("show_panel"):
+		shop_panel.show_panel()
+	_show_right_overlay(false, false, false, true)
 
 func _on_nsfw_changed(_is_enabled: bool) -> void:
 	if not _cg_button:
@@ -517,12 +545,10 @@ func _on_nsfw_changed(_is_enabled: bool) -> void:
 	_background_candidates_cache = []
 	_apply_random_background()
 
-
 func _update_cg_button_enabled_state_from_settings() -> void:
 	if not _cg_button:
 		return
 	_cg_button.disabled = not _is_nsfw_enabled_from_settings()
-
 
 func _is_nsfw_enabled_from_settings() -> bool:
 	var config := ConfigFile.new()
@@ -537,8 +563,10 @@ func _on_settings_closed() -> void:
 	_hide_right_overlay()
 	_update_cg_button_enabled_state_from_settings()
 
-
 func _on_cg_gallery_closed() -> void:
+	_hide_right_overlay()
+
+func _on_shop_panel_closed() -> void:
 	_hide_right_overlay()
 
 # 退出游戏按钮回调

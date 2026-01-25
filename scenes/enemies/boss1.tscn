@@ -1,13 +1,13 @@
 [gd_scene load_steps=4 format=3 uid="uid://frg1e7xtk0vm"]
 
-[ext_resource type="Script" uid="uid://nmqhhehlh7di" path="res://scripts/enemies/base_enemy.gd" id="1_base_enemy"]
+ [ext_resource type="Script" path="res://scripts/enemies/boss1_enemy.gd" id="1_boss1_enemy"]
 [ext_resource type="Texture2D" uid="uid://5nk05ed61apj" path="res://textures/enemies/boss1.png" id="2_boss1_texture"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_boss1"]
 radius = 160.3122
 
 [node name="CharacterBody2D" type="CharacterBody2D" groups=["enemies"]]
-script = ExtResource("1_base_enemy")
+script = ExtResource("1_boss1_enemy")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 scale = Vector2(5, 5)
@@ -16,29 +16,3 @@ texture = ExtResource("2_boss1_texture")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 visible = false
 shape = SubResource("CircleShape2D_boss1")
-
-[node name="HPBar" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 0
-offset_left = -40.0
-offset_top = -175.0
-offset_right = 40.0
-offset_bottom = -163.0
-mouse_filter = 2
-
-[node name="ProgressBar" type="ProgressBar" parent="HPBar"]
-layout_mode = 0
-offset_right = 80.0
-offset_bottom = 12.0
-value = 100.0
-fill_mode = 1
-show_percentage = false
-
-[node name="Label" type="Label" parent="HPBar"]
-layout_mode = 0
-offset_right = 80.0
-offset_bottom = 12.0
-theme_override_font_sizes/font_size = 10
-text = "100/100"
-horizontal_alignment = 1
-vertical_alignment = 1

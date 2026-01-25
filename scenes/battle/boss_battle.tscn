@@ -28,6 +28,13 @@ corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_BossHPFill"]
+bg_color = Color(0.95, 0.25, 0.25, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_Bloom"]
 shader = ExtResource("9_bloom_shader")
 shader_parameter/threshold = 0.38800001843
@@ -77,35 +84,46 @@ color = Color(1, 1, 1, 1)
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 layer = 2
 
-[node name="EnemyKillCounter" type="Control" parent="CanvasLayer"]
-visible = false
+[node name="BossHUD" type="Control" parent="CanvasLayer"]
 layout_mode = 3
-anchors_preset = 5
+anchors_preset = 1
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -150.0
-offset_top = 30.0
-offset_right = 150.0
-offset_bottom = 90.0
+offset_left = -300.0
+offset_top = 15.0
+offset_right = 300.0
+offset_bottom = 75.0
 grow_horizontal = 2
 grow_vertical = 0
+mouse_filter = 2
 
-[node name="Title" type="Label" parent="CanvasLayer/EnemyKillCounter"]
+[node name="ProgressBar" type="ProgressBar" parent="CanvasLayer/BossHUD"]
 layout_mode = 0
-offset_top = -25.0
-offset_right = 300.0
-theme_override_colors/font_color = Color(0.2, 0.8, 0.2, 1)
-theme_override_font_sizes/font_size = 20
-text = "还需得分"
+offset_right = 600.0
+offset_bottom = 22.0
+theme_override_styles/background = SubResource("StyleBoxFlat_HPBackground")
+theme_override_styles/fill = SubResource("StyleBoxFlat_BossHPFill")
+value = 100.0
+show_percentage = false
+
+[node name="HPLabel" type="Label" parent="CanvasLayer/BossHUD"]
+layout_mode = 0
+offset_right = 600.0
+offset_bottom = 22.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "0/0"
 horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="Label" type="Label" parent="CanvasLayer/EnemyKillCounter"]
+[node name="ActionLabel" type="Label" parent="CanvasLayer/BossHUD"]
 layout_mode = 0
-offset_right = 300.0
+offset_top = 26.0
+offset_right = 600.0
 offset_bottom = 60.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 48
-text = "1"
+theme_override_font_sizes/font_size = 20
+text = ""
 horizontal_alignment = 1
 vertical_alignment = 1
 
