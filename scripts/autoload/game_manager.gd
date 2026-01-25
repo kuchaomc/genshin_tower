@@ -120,6 +120,21 @@ func _ensure_cg_unlock_overlay() -> void:
 	_cg_unlock_overlay.name = "CGUnlockOverlay"
 	get_tree().root.add_child.call_deferred(_cg_unlock_overlay)
 
+
+func show_death_cg_fullscreen(character_id: String, character_name: String, enemy_id: String, enemy_name: String) -> void:
+	if not is_instance_valid(_cg_unlock_overlay):
+		_ensure_cg_unlock_overlay()
+	if not is_instance_valid(_cg_unlock_overlay):
+		return
+	if not _cg_unlock_overlay.is_inside_tree():
+		await get_tree().process_frame
+	if _cg_unlock_overlay.has_method("set_exit_button_text"):
+		_cg_unlock_overlay.call("set_exit_button_text", "返回")
+	if _cg_unlock_overlay.has_method("show_cg"):
+		_cg_unlock_overlay.call("show_cg", character_id, character_name, enemy_id, enemy_name)
+	if _cg_unlock_overlay.has_signal("exit_to_result_requested"):
+		await _cg_unlock_overlay.exit_to_result_requested
+
 ## 应用窗口标题（兼容编辑器运行/导出运行）
 func _apply_window_title() -> void:
 	DisplayServer.window_set_title(GAME_DISPLAY_NAME)
@@ -617,9 +632,9 @@ func get_unlocked_cg_ids() -> Array:
 	ids.sort()
 	return ids
 
-
 func get_unlocked_death_cg_entries() -> Array:
 	var entries: Array = []
+	var stale_keys: Array[String] = []
 	for k in cg_unlocks.keys():
 		var key_str := str(k)
 		var character_id := ""
@@ -642,6 +657,9 @@ func get_unlocked_death_cg_entries() -> Array:
 			var ed = DataManager.get_enemy(enemy_id)
 			if ed:
 				enemy_name = ed.display_name
+		if not _has_death_cg_texture(character_id, enemy_id, enemy_name):
+			stale_keys.append(key_str)
+			continue
 		entries.append({
 			"key": key_str,
 			"character_id": character_id,
@@ -649,7 +667,24 @@ func get_unlocked_death_cg_entries() -> Array:
 			"enemy_id": enemy_id,
 			"enemy_name": enemy_name,
 		})
+	if not stale_keys.is_empty():
+		for sk in stale_keys:
+			cg_unlocks.erase(sk)
+		save_data()
 	return entries
+
+
+func _has_death_cg_texture(character_id: String, enemy_id: String, enemy_name: String) -> bool:
+	var candidates := _get_death_cg_candidate_paths(character_id, enemy_id, enemy_name)
+	for path in candidates:
+		# 回想入口只认“具体死亡CG”，不把 default / 全局兜底图当作已存在。
+		if path.ends_with("/death/default.png"):
+			continue
+		if path.begins_with(_CG_TEXTURE_DIR + "/"):
+			continue
+		if ResourceLoader.exists(path):
+			return true
+	return false
 
 
 func get_death_cg_texture(character_id: String, enemy_id: String, enemy_name: String) -> Texture2D:

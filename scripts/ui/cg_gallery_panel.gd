@@ -12,6 +12,7 @@ var _list_vbox: VBoxContainer
 
 var _preview: TextureRect
 var _preview_title: Label
+var _crt_temp_disable_token: int = 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -88,13 +89,27 @@ func _build_ui() -> void:
 	preview_box.add_child(_preview)
 
 func show_panel() -> void:
+	if PostProcessManager and PostProcessManager.has_method("push_temp_disable_crt"):
+		if _crt_temp_disable_token <= 0:
+			_crt_temp_disable_token = int(PostProcessManager.call("push_temp_disable_crt"))
 	visible = true
 	refresh()
 	await get_tree().process_frame
 	_back_button.grab_focus()
 
 func hide_panel() -> void:
+	_release_crt_temp_disable()
 	visible = false
+
+func _exit_tree() -> void:
+	_release_crt_temp_disable()
+
+func _release_crt_temp_disable() -> void:
+	if _crt_temp_disable_token <= 0:
+		return
+	if PostProcessManager and PostProcessManager.has_method("pop_temp_disable_crt"):
+		PostProcessManager.call("pop_temp_disable_crt", _crt_temp_disable_token)
+	_crt_temp_disable_token = 0
 
 func refresh() -> void:
 	for c in _list_vbox.get_children():
@@ -133,20 +148,14 @@ func refresh() -> void:
 		btn.pressed.connect(_on_select_cg.bind(character_id, character_name, enemy_id, enemy_name))
 		_list_vbox.add_child(btn)
 
-	var first = entries[0]
-	_on_select_cg(str(first.get("character_id", "")), str(first.get("character_name", "")), str(first.get("enemy_id", "")), str(first.get("enemy_name", "")))
+	_preview_title.text = ""
+	_preview.texture = null
 
 func _on_select_cg(character_id: String, character_name: String, enemy_id: String, enemy_name: String) -> void:
-	var char_display := character_name if not character_name.is_empty() else character_id
-	if char_display.is_empty():
-		char_display = "通用"
-	var enemy_display := enemy_name if not enemy_name.is_empty() else enemy_id
-	_preview_title.text = "%s - %s" % [char_display, enemy_display]
-
-	var tex: Texture2D = null
-	if GameManager and GameManager.has_method("get_death_cg_texture"):
-		tex = GameManager.call("get_death_cg_texture", character_id, enemy_id, enemy_name)
-	_preview.texture = tex
+	_preview_title.text = ""
+	_preview.texture = null
+	if GameManager and GameManager.has_method("show_death_cg_fullscreen"):
+		await GameManager.show_death_cg_fullscreen(character_id, character_name, enemy_id, enemy_name)
 
 func _on_back_pressed() -> void:
 	hide_panel()

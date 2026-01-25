@@ -175,6 +175,8 @@ func load_cached(path: String) -> Resource:
 		return null
 	if _resource_cache.has(path):
 		return _resource_cache[path] as Resource
+	if not ResourceLoader.exists(path):
+		return null
 	var res := load(path)
 	if res:
 		_resource_cache[path] = res

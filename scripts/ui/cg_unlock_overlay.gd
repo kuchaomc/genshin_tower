@@ -9,9 +9,10 @@ var _exit_button: Button
 var _title_label: Label
 var _cg_texture_rect: TextureRect
 var _hint_label: Label
+var _crt_temp_disable_token: int = 0
 
 func _ready() -> void:
-	layer = 150
+	layer = 190
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
 	hide()
@@ -27,6 +28,17 @@ func _build_ui() -> void:
 	_bg.color = Color(0, 0, 0, 0.92)
 	_bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(_bg)
+
+	_cg_texture_rect = TextureRect.new()
+	_cg_texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_cg_texture_rect.offset_left = 0
+	_cg_texture_rect.offset_top = 0
+	_cg_texture_rect.offset_right = 0
+	_cg_texture_rect.offset_bottom = 0
+	_cg_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_cg_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	_cg_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_cg_texture_rect)
 
 	_exit_button = Button.new()
 	_exit_button.text = "退出至结算"
@@ -47,17 +59,6 @@ func _build_ui() -> void:
 	_title_label.add_theme_font_size_override("font_size", 36)
 	_root.add_child(_title_label)
 
-	_cg_texture_rect = TextureRect.new()
-	_cg_texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_cg_texture_rect.offset_left = 120
-	_cg_texture_rect.offset_top = 140
-	_cg_texture_rect.offset_right = -120
-	_cg_texture_rect.offset_bottom = -80
-	_cg_texture_rect.expand_mode = 1
-	_cg_texture_rect.stretch_mode = 5
-	_cg_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(_cg_texture_rect)
-
 	_hint_label = Label.new()
 	_hint_label.text = ""
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -71,7 +72,15 @@ func _build_ui() -> void:
 	_hint_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
 	_root.add_child(_hint_label)
 
+func set_exit_button_text(text: String) -> void:
+	if not is_instance_valid(_exit_button):
+		return
+	_exit_button.text = text
+
 func show_cg(character_id: String, character_name: String, enemy_id: String, enemy_name: String) -> void:
+	if PostProcessManager and PostProcessManager.has_method("push_temp_disable_crt"):
+		if _crt_temp_disable_token <= 0:
+			_crt_temp_disable_token = int(PostProcessManager.call("push_temp_disable_crt"))
 	var char_display := character_name if not character_name.is_empty() else character_id
 	var enemy_display := enemy_name if not enemy_name.is_empty() else enemy_id
 	_title_label.text = "%s - 被%s击败" % [char_display, enemy_display]
@@ -89,6 +98,17 @@ func show_cg(character_id: String, character_name: String, enemy_id: String, ene
 	await get_tree().process_frame
 	_exit_button.grab_focus()
 
+func _exit_tree() -> void:
+	_release_crt_temp_disable()
+
+func _release_crt_temp_disable() -> void:
+	if _crt_temp_disable_token <= 0:
+		return
+	if PostProcessManager and PostProcessManager.has_method("pop_temp_disable_crt"):
+		PostProcessManager.call("pop_temp_disable_crt", _crt_temp_disable_token)
+	_crt_temp_disable_token = 0
+
 func _on_exit_pressed() -> void:
 	exit_to_result_requested.emit()
+	_release_crt_temp_disable()
 	hide()

@@ -2,7 +2,20 @@ extends Node2D
 
 # 主界面背景图目录（每次进入主界面随机抽取一张）
 const MAIN_MENU_BACKGROUND_DIR: String = "res://textures/background"
+const MAIN_MENU_BACKGROUND_SFW_DIR: String = "res://textures/background/sfw"
 const _MAIN_MENU_BG_EXTS: PackedStringArray = ["png", "jpg", "jpeg", "webp"]
+
+const _MAIN_MENU_BG_SFW_FALLBACK_PATHS: PackedStringArray = [
+	"res://textures/background/sfw/00042-2778858687.png",
+	"res://textures/background/sfw/00046-2778858689.png",
+	"res://textures/background/sfw/00048-2778858690.png",
+]
+
+const _MAIN_MENU_BG_SFW_FALLBACK_PRELOADS: Array[Texture2D] = [
+	preload("res://textures/background/sfw/00042-2778858687.png"),
+	preload("res://textures/background/sfw/00046-2778858689.png"),
+	preload("res://textures/background/sfw/00048-2778858690.png"),
+]
 
 const _MAIN_MENU_BG_FALLBACK_PATHS: PackedStringArray = [
 	"res://textures/background/00131-3390311460.png",
@@ -188,9 +201,12 @@ func _get_background_candidates_cached() -> PackedStringArray:
 
 func _collect_background_candidates() -> PackedStringArray:
 	var result: PackedStringArray = []
-	var dir := DirAccess.open(MAIN_MENU_BACKGROUND_DIR)
+	var use_nsfw: bool = _is_nsfw_enabled_from_settings()
+	var target_dir: String = MAIN_MENU_BACKGROUND_DIR if use_nsfw else MAIN_MENU_BACKGROUND_SFW_DIR
+	var fallback_paths: PackedStringArray = _MAIN_MENU_BG_FALLBACK_PATHS if use_nsfw else _MAIN_MENU_BG_SFW_FALLBACK_PATHS
+	var dir := DirAccess.open(target_dir)
 	if dir == null:
-		return _MAIN_MENU_BG_FALLBACK_PATHS
+		return fallback_paths
 
 	dir.list_dir_begin()
 	while true:
@@ -201,10 +217,10 @@ func _collect_background_candidates() -> PackedStringArray:
 			continue
 		var ext := name.get_extension().to_lower()
 		if ext in _MAIN_MENU_BG_EXTS:
-			result.append(MAIN_MENU_BACKGROUND_DIR.path_join(name))
+			result.append(target_dir.path_join(name))
 	dir.list_dir_end()
 	if result.is_empty():
-		return _MAIN_MENU_BG_FALLBACK_PATHS
+		return fallback_paths
 	return result
 
 func _setup_right_overlay_initial_state() -> void:
@@ -498,6 +514,8 @@ func _on_nsfw_changed(_is_enabled: bool) -> void:
 	if not _cg_button:
 		return
 	_cg_button.disabled = not _is_enabled
+	_background_candidates_cache = []
+	_apply_random_background()
 
 
 func _update_cg_button_enabled_state_from_settings() -> void:

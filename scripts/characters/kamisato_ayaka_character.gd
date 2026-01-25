@@ -26,8 +26,28 @@ var _phase1_trail: SwordTrail
 # ========== 攻击属性 ==========
 ## 剑的碰撞检测区域
 @export var sword_area: Area2D
+## 剑的显示Sprite（用于蓄力发光与呼吸缩放）
+var _sword_sprite: Sprite2D
+var _sword_sprite_base_scale: Vector2 = Vector2.ONE
 ## 剑的枢轴偏移位置（相对于角色中心，用于正确的旋转中心）
 @export var sword_pivot_offset: Vector2 = Vector2(15, -5)
+## 蓄力发光Sprite（运行时创建，叠加Add混合）
+var _charged_glow_sprite: Sprite2D
+## 蓄力发光颜色（alpha会在运行时动态调整）
+@export var charged_glow_color: Color = Color(0.65, 0.92, 1.0, 1.0)
+## 蓄力发光最大透明度（0~1）
+@export var charged_glow_max_alpha: float = 0.9
+## 蓄力发光额外放大倍数（相对剑Sprite的scale）
+@export var charged_glow_extra_scale: float = 1.28
+## 蓄力呼吸缩放强度（0.05表示最大+5%）
+@export var charged_breathe_scale_strength: float = 0.05
+## 蓄力呼吸频率（Hz）
+@export var charged_breathe_frequency: float = 2.2
+## 蓄力颤抖强度倍率（1=使用weapon_shake_amplitude原值；建议0.3~0.7）
+@export var charged_shake_strength: float = 0.45
+var _charged_ready_last_frame: bool = false
+var _charged_ready_pulse_tween: Tween
+var _charged_ready_pulse_scale_mul: float = 1.0
 ## 普攻伤害倍率（基于攻击力计算）
 @export var normal_attack_multiplier: float = 1.0
 ## 第二段攻击伤害倍率（已弃用，使用 charged_attack_multiplier）
@@ -129,6 +149,12 @@ func _ready() -> void:
 		sword_area = get_node_or_null("SwordArea") as Area2D
 	
 	if sword_area:
+		# 缓存剑显示Sprite（用于蓄力发光/呼吸缩放）
+		_sword_sprite = sword_area.get_node_or_null("Sprite2D") as Sprite2D
+		if _sword_sprite:
+			_sword_sprite_base_scale = _sword_sprite.scale
+			_ensure_charged_glow_sprite()
+		
 		# 设置剑的枢轴偏移位置
 		sword_area.position = sword_pivot_offset
 		
@@ -233,12 +259,20 @@ func update_sword_direction() -> void:
 
 ## 重写基类的普攻触发方法
 func _start_normal_attack() -> void:
+	# 进入攻击时立刻清理蓄力提示视觉（避免发光/缩放残留到攻击阶段）
+	if sword_area:
+		sword_area.position = sword_pivot_offset
+	_reset_charged_charge_visuals()
 	attack_phase = 1
 	phase2_current_hit = 0
 	_change_state(CharacterState.ATTACKING)
 
 ## 重写基类的重击触发方法
 func _start_charged_attack() -> void:
+	# 进入攻击时立刻清理蓄力提示视觉（避免发光/缩放残留到攻击阶段）
+	if sword_area:
+		sword_area.position = sword_pivot_offset
+	_reset_charged_charge_visuals()
 	attack_phase = 2
 	phase2_current_hit = 0
 	_change_state(CharacterState.ATTACKING)
@@ -417,6 +451,9 @@ func _cleanup_attack() -> void:
 	_stop_phase1_trail()
 	if sword_area:
 		sword_area.monitoring = false
+		# 清理攻击状态时恢复剑位置/缩放/发光
+		sword_area.position = sword_pivot_offset
+		_reset_charged_charge_visuals()
 	if charged_area:
 		charged_area.monitoring = false
 	
@@ -460,10 +497,60 @@ func _stop_phase1_trail(immediate: bool = false) -> void:
 		_phase1_trail.stop()
 	_phase1_trail = null
 
+## 确保蓄力发光Sprite存在（在SwordArea下运行时创建）
+func _ensure_charged_glow_sprite() -> void:
+	if not sword_area:
+		return
+	if not is_instance_valid(_sword_sprite):
+		_sword_sprite = sword_area.get_node_or_null("Sprite2D") as Sprite2D
+		if _sword_sprite:
+			_sword_sprite_base_scale = _sword_sprite.scale
+	if is_instance_valid(_charged_glow_sprite):
+		return
+	if not is_instance_valid(_sword_sprite):
+		return
+	
+	_charged_glow_sprite = Sprite2D.new()
+	_charged_glow_sprite.name = "ChargedGlow"
+	_charged_glow_sprite.texture = _sword_sprite.texture
+	_charged_glow_sprite.centered = _sword_sprite.centered
+	_charged_glow_sprite.offset = _sword_sprite.offset
+	_charged_glow_sprite.position = _sword_sprite.position
+	_charged_glow_sprite.flip_h = _sword_sprite.flip_h
+	_charged_glow_sprite.flip_v = _sword_sprite.flip_v
+	_charged_glow_sprite.visible = false
+
+	var mat := CanvasItemMaterial.new()
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_charged_glow_sprite.material = mat
+	
+	# 确保发光在剑Sprite之上
+	_charged_glow_sprite.z_index = _sword_sprite.z_index + 1
+	_charged_glow_sprite.z_as_relative = _sword_sprite.z_as_relative
+
+	sword_area.add_child(_charged_glow_sprite)
+
+## 恢复蓄力提示相关视觉状态（用于释放按键/进入攻击/清理状态）
+func _reset_charged_charge_visuals() -> void:
+	_charged_ready_last_frame = false
+	_charged_ready_pulse_scale_mul = 1.0
+	if is_instance_valid(_charged_ready_pulse_tween):
+		_charged_ready_pulse_tween.kill()
+		_charged_ready_pulse_tween = null
+	if is_instance_valid(_sword_sprite):
+		_sword_sprite.scale = _sword_sprite_base_scale
+	if is_instance_valid(_charged_glow_sprite):
+		_charged_glow_sprite.visible = false
+		_charged_glow_sprite.scale = _sword_sprite_base_scale * charged_glow_extra_scale
+		var c := charged_glow_color
+		c.a = 0.0
+		_charged_glow_sprite.modulate = c
+
 ## 更新重击蓄力提示（武器颤抖）
 func _update_charged_charge_indicator() -> void:
 	if not sword_area:
 		return
+	_ensure_charged_glow_sprite()
 	
 	# 如果游戏暂停，保持当前状态不变
 	if get_tree().paused:
@@ -472,22 +559,58 @@ func _update_charged_charge_indicator() -> void:
 	# 只在按住攻击键且未进入攻击状态时显示蓄力提示
 	if _attack_button_pressed and not is_attacking():
 		var hold_duration = get_attack_hold_duration()
+		var time: float = Time.get_ticks_msec() / 1000.0
 		
-		# 达到重击阈值时，让武器颤抖
-		if hold_duration >= charged_attack_threshold:
-			# 计算颤抖偏移（使用正弦波）
-			var time = Time.get_ticks_msec() / 1000.0
-			var shake_offset = sin(time * weapon_shake_frequency * TAU) * weapon_shake_amplitude
-			
-			# 应用颤抖偏移到武器的位置（基于枢轴偏移）
-			sword_area.position = sword_pivot_offset + Vector2(shake_offset, shake_offset * 0.5)
-		else:
-			# 未达到阈值，恢复武器位置
-			sword_area.position = sword_pivot_offset
+		# 蓄力进度（0~1），用于控制抖动/发光/呼吸缩放强度
+		var progress: float = clampf(hold_duration / charged_attack_threshold, 0.0, 1.0)
+		# smoothstep，让强度更平滑
+		var strength: float = progress * progress * (3.0 - 2.0 * progress)
+		
+		# 抖动：从轻微到强烈（达到阈值时最强）
+		var shake_amp: float = weapon_shake_amplitude * charged_shake_strength * strength
+		var shake_offset: float = sin(time * weapon_shake_frequency * TAU) * shake_amp
+		sword_area.position = sword_pivot_offset + Vector2(shake_offset, shake_offset * 0.5)
+		
+		# 呼吸缩放：只缩放视觉Sprite，不缩放碰撞
+		if is_instance_valid(_sword_sprite):
+			var breathe: float = 0.5 + 0.5 * sin(time * charged_breathe_frequency * TAU)
+			var s: float = 1.0 + charged_breathe_scale_strength * strength * (0.65 + 0.35 * breathe)
+			_sword_sprite.scale = _sword_sprite_base_scale * s
+		
+		# 发光：叠加Add混合的剑影，随蓄力增强并脉冲
+		if is_instance_valid(_charged_glow_sprite) and is_instance_valid(_sword_sprite):
+			_charged_glow_sprite.visible = strength > 0.005
+			var glow_pulse: float = 0.5 + 0.5 * sin(time * (charged_breathe_frequency * 1.6) * TAU)
+			# 让低蓄力也能看见一点发光，但仍随蓄力显著增强
+			var alpha: float = charged_glow_max_alpha * (0.18 + 0.82 * strength) * (0.55 + 0.45 * glow_pulse)
+			alpha = clampf(alpha, 0.0, 1.0)
+			var glow_scale: float = (1.0 + charged_breathe_scale_strength * 0.9 * (0.18 + 0.82 * strength) * (0.65 + 0.35 * glow_pulse))
+			_charged_glow_sprite.position = _sword_sprite.position
+			_charged_glow_sprite.rotation = _sword_sprite.rotation
+			_charged_glow_sprite.flip_h = _sword_sprite.flip_h
+			_charged_glow_sprite.flip_v = _sword_sprite.flip_v
+			_charged_glow_sprite.scale = _sword_sprite_base_scale * charged_glow_extra_scale * glow_scale * _charged_ready_pulse_scale_mul
+			var c := charged_glow_color
+			c.a = alpha
+			_charged_glow_sprite.modulate = c
+		
+		# 达到阈值的“就绪提示”：触发一次短促闪烁/放大
+		var is_ready: bool = hold_duration >= charged_attack_threshold
+		if is_ready and not _charged_ready_last_frame and is_instance_valid(_charged_glow_sprite):
+			if is_instance_valid(_charged_ready_pulse_tween):
+				_charged_ready_pulse_tween.kill()
+			_charged_ready_pulse_tween = create_tween()
+			_charged_ready_pulse_tween.set_trans(Tween.TRANS_QUAD)
+			_charged_ready_pulse_tween.set_ease(Tween.EASE_OUT)
+			_charged_ready_pulse_scale_mul = 1.0
+			_charged_ready_pulse_tween.tween_property(self, "_charged_ready_pulse_scale_mul", 1.08, 0.10)
+			_charged_ready_pulse_tween.tween_property(self, "_charged_ready_pulse_scale_mul", 1.0, 0.12)
+		_charged_ready_last_frame = is_ready
 	else:
 		# 未按住攻击键，恢复武器位置
 		if not is_attacking():
 			sword_area.position = sword_pivot_offset
+		_reset_charged_charge_visuals()
 
 ## 更新重击动画状态（每帧调用）
 func _update_charged_effect() -> void:

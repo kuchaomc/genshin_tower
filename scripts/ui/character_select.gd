@@ -13,7 +13,18 @@ var character_buttons: Array[Button] = []
 
 # 主界面背景图目录（与主界面保持一致）
 var MAIN_MENU_BACKGROUND_DIR: String = "res://textures/background"
+var MAIN_MENU_BACKGROUND_SFW_DIR: String = "res://textures/background/sfw"
 var _main_menu_bg_exts: PackedStringArray = PackedStringArray(["png", "jpg", "jpeg", "webp"])
+var _main_menu_bg_sfw_fallback_paths: PackedStringArray = PackedStringArray([
+	"res://textures/background/sfw/00042-2778858687.png",
+	"res://textures/background/sfw/00046-2778858689.png",
+	"res://textures/background/sfw/00048-2778858690.png",
+])
+var _main_menu_bg_sfw_fallback_preloads: Array[Texture2D] = [
+	preload("res://textures/background/sfw/00042-2778858687.png"),
+	preload("res://textures/background/sfw/00046-2778858689.png"),
+	preload("res://textures/background/sfw/00048-2778858690.png"),
+]
 var _main_menu_bg_fallback_paths: PackedStringArray = PackedStringArray([
 	"res://textures/background/00131-3390311460.png",
 	"res://textures/background/00161-1240093822.png",
@@ -38,6 +49,10 @@ var _button_group: ButtonGroup = ButtonGroup.new()
 const _BG_HISTORY_FILE_PATH: String = "user://main_menu_bg.cfg"
 const _BG_HISTORY_SECTION: String = "main_menu"
 const _BG_HISTORY_KEY_LAST_BG: String = "last_background"
+
+const _SETTINGS_FILE_PATH: String = "user://settings.cfg"
+const _SETTINGS_SECTION_UI: String = "ui"
+const _SETTINGS_KEY_NSFW_ENABLED: String = "nsfw_enabled"
 
 var _portrait_fade_material: ShaderMaterial = null
 
@@ -384,14 +399,21 @@ func _apply_background_from_main_menu_history() -> void:
 	if not is_instance_valid(background_rect):
 		return
 	var last_bg_path: String = _load_last_background_path()
+	if not _is_nsfw_enabled_from_settings() and not last_bg_path.begins_with(MAIN_MENU_BACKGROUND_SFW_DIR.path_join("")):
+		last_bg_path = ""
 	var tex := _try_load_texture(last_bg_path)
 	if tex:
 		background_rect.texture = tex
 		return
 
 	# 读取失败/资源不存在时：使用固定兜底（不随机）
-	if _main_menu_bg_fallback_preloads.size() > 0:
-		background_rect.texture = _main_menu_bg_fallback_preloads[0]
+	if _is_nsfw_enabled_from_settings():
+		if _main_menu_bg_fallback_preloads.size() > 0:
+			background_rect.texture = _main_menu_bg_fallback_preloads[0]
+			return
+	else:
+		if _main_menu_bg_sfw_fallback_preloads.size() > 0:
+			background_rect.texture = _main_menu_bg_sfw_fallback_preloads[0]
 		return
 
 	# 兜底资源为空时，再尝试从目录取第一个（保持确定性）
@@ -436,9 +458,12 @@ func _get_background_candidates_cached() -> PackedStringArray:
 
 func _collect_background_candidates() -> PackedStringArray:
 	var result: PackedStringArray = []
-	var dir := DirAccess.open(MAIN_MENU_BACKGROUND_DIR)
+	var use_nsfw: bool = _is_nsfw_enabled_from_settings()
+	var target_dir: String = MAIN_MENU_BACKGROUND_DIR if use_nsfw else MAIN_MENU_BACKGROUND_SFW_DIR
+	var fallback_paths: PackedStringArray = _main_menu_bg_fallback_paths if use_nsfw else _main_menu_bg_sfw_fallback_paths
+	var dir := DirAccess.open(target_dir)
 	if dir == null:
-		return _main_menu_bg_fallback_paths
+		return fallback_paths
 	dir.list_dir_begin()
 	while true:
 		var name := dir.get_next()
@@ -448,8 +473,16 @@ func _collect_background_candidates() -> PackedStringArray:
 			continue
 		var ext := name.get_extension().to_lower()
 		if _main_menu_bg_exts.has(ext):
-			result.append(MAIN_MENU_BACKGROUND_DIR.path_join(name))
+			result.append(target_dir.path_join(name))
 	dir.list_dir_end()
 	if result.is_empty():
-		return _main_menu_bg_fallback_paths
+		return fallback_paths
 	return result
+
+
+func _is_nsfw_enabled_from_settings() -> bool:
+	var config := ConfigFile.new()
+	var err: Error = config.load(_SETTINGS_FILE_PATH)
+	if err != OK:
+		return false
+	return bool(config.get_value(_SETTINGS_SECTION_UI, _SETTINGS_KEY_NSFW_ENABLED, false))

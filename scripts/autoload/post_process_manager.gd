@@ -16,6 +16,12 @@ var hurt_vignette_material: ShaderMaterial = null
 var crt_scene: PackedScene = preload("res://scenes/vfx/crt_canvas.tscn")
 var crt_instance: CanvasLayer = null
 var crt_material: ShaderMaterial = null
+ 
+# CRT 用户设置值（来自 settings.cfg）
+var _crt_enabled_user_setting: bool = true
+# CRT 临时禁用 token：用于“查看CG时不加滤镜”等场景
+var _crt_temp_disable_tokens: Dictionary = {}
+var _crt_temp_disable_token_seq: int = 1
 
 # 动画参数
 var _hurt_tween: Tween = null
@@ -70,11 +76,33 @@ func _setup_crt() -> void:
 	else:
 		push_warning("PostProcessManager: crt_material 未初始化")
 
-## 开关 CRT
+## 开关 CRT（用户设置）
 func set_crt_enabled(is_enabled: bool) -> void:
+	_crt_enabled_user_setting = is_enabled
+	_apply_crt_effective_state()
+
+func push_temp_disable_crt() -> int:
+	var token: int = _crt_temp_disable_token_seq
+	_crt_temp_disable_token_seq += 1
+	_crt_temp_disable_tokens[token] = true
+	_apply_crt_effective_state()
+	return token
+
+func pop_temp_disable_crt(token: int) -> void:
+	if token <= 0:
+		return
+	if _crt_temp_disable_tokens.has(token):
+		_crt_temp_disable_tokens.erase(token)
+	_apply_crt_effective_state()
+
+func _is_crt_temporarily_disabled() -> bool:
+	return not _crt_temp_disable_tokens.is_empty()
+
+func _apply_crt_effective_state() -> void:
 	if not crt_material:
 		return
-	crt_material.set_shader_parameter("enabled", 1.0 if is_enabled else 0.0)
+	var enabled: bool = _crt_enabled_user_setting and (not _is_crt_temporarily_disabled())
+	crt_material.set_shader_parameter("enabled", 1.0 if enabled else 0.0)
 
 ## 设置 CRT 总强度（0~1）
 func set_crt_strength(value: float) -> void:
