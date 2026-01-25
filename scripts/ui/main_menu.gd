@@ -5,6 +5,8 @@ const MAIN_MENU_BACKGROUND_DIR: String = "res://textures/background"
 const MAIN_MENU_BACKGROUND_SFW_DIR: String = "res://textures/background/sfw"
 const _MAIN_MENU_BG_EXTS: PackedStringArray = ["png", "jpg", "jpeg", "webp"]
 
+const _ANNOUNCEMENT_LOCAL_FILE_PATH: String = "res://data/config/announcement.bbcode"
+
 const _MAIN_MENU_BG_SFW_FALLBACK_PATHS: PackedStringArray = [
 	"res://textures/background/sfw/00042-2778858687.png",
 	"res://textures/background/sfw/00046-2778858689.png",
@@ -200,7 +202,7 @@ func _setup_announcement_bar() -> void:
 	if not is_instance_valid(announcement_bar) or not is_instance_valid(announcement_toggle_button) or not is_instance_valid(announcement_panel):
 		return
 	if is_instance_valid(announcement_content):
-		announcement_content.text = _ANNOUNCEMENT_TEXT_BBCODE
+		announcement_content.text = _load_announcement_text_bbcode()
 		announcement_content.scroll_active = false
 		announcement_content.fit_content = true
 
@@ -223,6 +225,18 @@ func _setup_announcement_bar() -> void:
 	if is_instance_valid(announcement_close_button):
 		if not announcement_close_button.pressed.is_connected(_on_announcement_close_pressed):
 			announcement_close_button.pressed.connect(_on_announcement_close_pressed)
+
+
+func _load_announcement_text_bbcode() -> String:
+	# 优先从本地文件读取，方便你提交到 GitHub 后也能用 raw 链接同步内容。
+	# 读不到或为空则回退到内置文本，保证离线与导出稳定。
+	if FileAccess.file_exists(_ANNOUNCEMENT_LOCAL_FILE_PATH):
+		var file := FileAccess.open(_ANNOUNCEMENT_LOCAL_FILE_PATH, FileAccess.READ)
+		if file:
+			var text: String = file.get_as_text()
+			if not text.strip_edges().is_empty():
+				return text
+	return _ANNOUNCEMENT_TEXT_BBCODE
 
 
 func _on_announcement_toggle_pressed() -> void:
