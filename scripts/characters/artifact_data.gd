@@ -50,6 +50,8 @@ func _get_stat_display_name(stat_name: String) -> String:
 			return "减伤"
 		"attack":
 			return "攻击力"
+		"damage_multiplier":
+			return "总伤"
 		"attack_percent":
 			return "攻击力百分比"
 		"attack_speed":
@@ -68,7 +70,7 @@ func _get_stat_display_name(stat_name: String) -> String:
 ## 格式化属性值显示
 func _format_stat_value(stat_name: String, value: float) -> String:
 	# 百分比属性显示为百分比
-	if stat_name == "defense_percent" or stat_name == "crit_rate" or stat_name == "attack_percent" or stat_name == "crit_damage":
+	if stat_name == "defense_percent" or stat_name == "crit_rate" or stat_name == "attack_percent" or stat_name == "crit_damage" or stat_name == "damage_multiplier":
 		var percent_value: float = snappedf(value * 100.0, 0.1)
 		if abs(percent_value - float(roundi(percent_value))) < 0.0001:
 			return "%.0f%%" % percent_value

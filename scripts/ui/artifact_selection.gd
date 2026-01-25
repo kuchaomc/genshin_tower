@@ -530,6 +530,16 @@ func _get_artifact_icon_path(artifact_name: String) -> String:
 			return "res://textures/ui/遍结寒霜的傲骨.png"
 		"破冰踏雪的回音":
 			return "res://textures/ui/破冰踏雪的回音.png"
+		"翠蔓的智者":
+			return "res://textures/ui/深林的记忆/翠蔓的智者.png"
+		"贤智的定期":
+			return "res://textures/ui/深林的记忆/贤智的定期.png"
+		"迷误者之灯":
+			return "res://textures/ui/深林的记忆/迷误者之灯.png"
+		"月桂的宝冠":
+			return "res://textures/ui/深林的记忆/月桂的宝冠.png"
+		"理之冠":
+			return "res://textures/ui/理之冠.png"
 		_:
 			return ""
 

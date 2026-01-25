@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ArtifactData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/characters/artifact_data.gd" id="1_artifact"]
+
+[resource]
+script = ExtResource("1_artifact")
+name = "翠蔓的智者"
+description = "纳西妲专属圣遗物·生之花。翠蔓的智者，生机盎然。"
+stat_bonuses = {
+"max_health": 480.0
+}

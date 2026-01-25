@@ -478,6 +478,12 @@ func _show_rest_event() -> void:
 	rest_button.custom_minimum_size = Vector2(200, 50)
 	rest_button.pressed.connect(_on_rest_confirmed)
 	content_container.add_child(rest_button)
+	
+	var skip_button = Button.new()
+	skip_button.text = "不休息"
+	skip_button.custom_minimum_size = Vector2(200, 50)
+	skip_button.pressed.connect(_on_rest_skipped)
+	content_container.add_child(skip_button)
 
 ## 显示升级事件
 func _show_upgrade_event() -> void:
@@ -551,6 +557,12 @@ func _show_weather_change_event() -> void:
 			if RunManager:
 				RunManager.take_damage(RunManager.max_health * 0.10)
 			_complete_event()
+
+
+func _on_rest_skipped() -> void:
+	if not current_event:
+		return
+	_complete_event()
 		)
 		content_container.add_child(result_label)
 		content_container.add_child(confirm_button)

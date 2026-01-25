@@ -13,6 +13,8 @@ class_name CharacterStats
 # ========== 攻击属性 ==========
 ## 基础攻击力
 @export var attack: float = 25.0
+## 总伤/伤害倍率（1.0 为基准，例如 1.2 表示最终伤害 ×1.2）
+@export var damage_multiplier: float = 1.0
 ## 攻击速度倍率（1.0 为基准，越高攻击越快）
 @export var attack_speed: float = 1.0
 ## 击退能力（对敌人造成击退的力度）
@@ -42,7 +44,8 @@ class_name CharacterStats
 ## 返回值: [最终伤害, 是否暴击]
 func calculate_damage(base_multiplier: float = 1.0, target_defense: float = 0.0, force_crit: bool = false, force_no_crit: bool = false) -> Array:
 	# 基础伤害 = 攻击力 × 攻击倍率
-	var base_damage = attack * base_multiplier
+	# damage_multiplier 属于“总伤乘区”，在暴击/减伤之前统一生效
+	var base_damage = attack * base_multiplier * damage_multiplier
 	
 	# 判断是否暴击
 	var is_crit = false
@@ -95,6 +98,7 @@ func duplicate_stats() -> CharacterStats:
 	new_stats.max_health = max_health
 	new_stats.defense_percent = defense_percent
 	new_stats.attack = attack
+	new_stats.damage_multiplier = damage_multiplier
 	new_stats.attack_speed = attack_speed
 	new_stats.knockback_force = knockback_force
 	new_stats.crit_rate = crit_rate
@@ -157,9 +161,10 @@ func apply_bonuses(bonuses: Dictionary) -> void:
 
 ## 获取属性摘要（调试用）
 func get_summary() -> String:
-	return "HP:%.0f ATK:%.0f DEF:%.0f%% SPD:%.0f CR:%.0f%% CD:%.0f%% AS:%.1f KB:%.0f" % [
+	return "HP:%.0f ATK:%.0f DMG:%.0f%% DEF:%.0f%% SPD:%.0f CR:%.0f%% CD:%.0f%% AS:%.1f KB:%.0f" % [
 		max_health,
 		attack,
+		(damage_multiplier - 1.0) * 100.0,
 		defense_percent * 100,
 		move_speed,
 		crit_rate * 100,
