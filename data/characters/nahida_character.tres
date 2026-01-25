@@ -7,7 +7,7 @@
 script = ExtResource("1_char_data")
 id = "nahida"
 display_name = "纳西妲"
-description = "使用法器进行远程攻击的角色"
+description = "使用法器进行远程攻击；重击将锁定鼠标附近目标并溅射；E短按环绕伤害、长按扫描标记并延迟爆炸；Q展开领域持续伤害并削减抗性"
 weapon_type = 1
 stats = ExtResource("2_stats")
 scene_path = "res://scenes/characters/nahida.tscn"
