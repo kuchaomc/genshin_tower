@@ -410,6 +410,9 @@ func go_to_map_view() -> void:
 
 ## 开始战斗
 func start_battle(_enemy_data: EnemyData = null) -> void:
+ 	# 事件/商店等界面通过 UIOverlay(CanvsaLayer) 叠加在 root 上，会跨场景保留。
+ 	# 进入战斗属于“切换主场景”，因此这里必须先关闭叠加UI，否则会覆盖战斗场景，表现为“进不了场景”。
+	_close_ui_overlay()
 	# 使用转场动画切换到战斗场景
 	current_state = GameState.BATTLE
 	_pending_bgm_track = _get_bgm_track_for_state(GameState.BATTLE)
@@ -448,6 +451,8 @@ func enter_event() -> void:
 
 ## 开始BOSS战
 func start_boss_battle() -> void:
+	# 同 start_battle：进入BOSS战为主场景切换，先关闭叠加UI。
+	_close_ui_overlay()
 	_change_scene_by_state(GameState.BOSS_BATTLE)
 
 ## 显示结算界面
