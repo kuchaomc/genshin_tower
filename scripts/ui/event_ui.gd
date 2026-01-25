@@ -462,6 +462,12 @@ func _show_shop_event() -> void:
 	shop_label.text = "特殊商店（功能待实现）"
 	shop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content_container.add_child(shop_label)
+	
+	var leave_button = Button.new()
+	leave_button.text = "离开"
+	leave_button.custom_minimum_size = Vector2(200, 50)
+	leave_button.pressed.connect(_complete_event)
+	content_container.add_child(leave_button)
 
 ## 显示休息事件
 func _show_rest_event() -> void:
@@ -912,8 +918,12 @@ func _get_actual_reward_value(reward_type: EventData.RewardType, reward_value: V
 	if not event_data:
 		return reward_value
 	
+	# MULTIPLE 奖励必须保留字典结构，否则后续无法正确分发各项奖励
+	if reward_type == EventData.RewardType.MULTIPLE and reward_value is Dictionary:
+		return reward_value
+	
 	# 检查是否有随机范围
-	if event_data.reward_min > 0 and event_data.reward_max > 0:
+	if event_data.reward_min > 0 and event_data.reward_max > 0 and (reward_value is int or reward_value is float):
 		# 使用随机范围
 		var rng: RandomNumberGenerator = null
 		if RunManager:

@@ -33,9 +33,12 @@ func _ready() -> void:
 	# 加载自定义事件（从文件）
 	_load_custom_events()
 	
+	_validate_all_events()
+	
 	emit_signal("events_registered")
 	if DebugLogger:
 		DebugLogger.log_info("已注册 %d 个事件" % _events.size(), "EventRegistry")
+		DebugLogger.save_debug_log()
 
 ## 加载自定义事件文件
 func _load_custom_events() -> void:
@@ -409,3 +412,78 @@ func get_event_count() -> int:
 ## 检查事件是否存在
 func has_event(id: String) -> bool:
 	return _events.has(id)
+
+
+func _validate_all_events() -> void:
+	if _events.is_empty():
+		return
+	var supported_random_ids: Array[String] = ["weather_change", "fate_dice"]
+	var issues: Array[String] = []
+	for e in _events.values():
+		var event := e as EventData
+		if event == null:
+			continue
+		if event.id.is_empty():
+			issues.append("事件存在空 id")
+			continue
+		if event.display_name.is_empty():
+			issues.append("[%s] display_name 为空" % event.id)
+		if event.description.is_empty():
+			issues.append("[%s] description 为空" % event.id)
+		if event.base_weight <= 0.0:
+			issues.append("[%s] base_weight <= 0" % event.id)
+		# 引用检查：前置/互斥ID必须存在
+		for rid in event.required_event_ids:
+			var sid := str(rid)
+			if sid.is_empty():
+				continue
+			if not _events.has(sid):
+				issues.append("[%s] required_event_ids 引用了不存在的事件 '%s'" % [event.id, sid])
+		for xid in event.exclusive_event_ids:
+			var sid := str(xid)
+			if sid.is_empty():
+				continue
+			if not _events.has(sid):
+				issues.append("[%s] exclusive_event_ids 引用了不存在的事件 '%s'" % [event.id, sid])
+		# 类型与字段匹配
+		match event.event_type:
+			EventData.EventType.CHOICE:
+				if event.choices.is_empty():
+					issues.append("[%s] CHOICE 事件 choices 为空" % event.id)
+				else:
+					for i in range(event.choices.size()):
+						var c: Dictionary = event.choices[i]
+						var text := str(c.get("text", ""))
+						if text.is_empty():
+							issues.append("[%s] choices[%d] text 为空" % [event.id, i])
+						var cost_v: Variant = c.get("cost", 0)
+						if (cost_v is int or cost_v is float) and float(cost_v) < 0.0:
+							issues.append("[%s] choices[%d] cost 为负数" % [event.id, i])
+			EventData.EventType.REWARD:
+				# RANDOM/SHOP/REST/UPGRADE/BATTLE 的奖励逻辑由 EventUI 分支处理，这里只做轻量校验
+				pass
+			EventData.EventType.BATTLE:
+				if event.enemy_data == null:
+					issues.append("[%s] BATTLE 事件 enemy_data 为 null（当前实现会直接进入战斗，但无法指定敌人）" % event.id)
+			EventData.EventType.SHOP:
+				issues.append("[%s] SHOP 事件目前为占位实现（仅提示+离开），未实现购买逻辑" % event.id)
+			EventData.EventType.REST:
+				if event.id == "liyue_inn":
+					issues.append("[%s] REST 事件使用特殊逻辑（扣200并回满血），reward_value 配置不会被直接应用" % event.id)
+			EventData.EventType.UPGRADE:
+				issues.append("[%s] UPGRADE 事件当前会进入升级选择界面，reward_type/reward_value 不会被直接自动发放" % event.id)
+			EventData.EventType.RANDOM:
+				if not (event.id in supported_random_ids):
+					issues.append("[%s] RANDOM 事件未在 EventUI 中实现专用逻辑（会走默认随机展示）" % event.id)
+			_:
+				pass
+	
+	if issues.is_empty():
+		return
+	if DebugLogger:
+		DebugLogger.log_warning("事件校验发现问题数：%d" % issues.size(), "EventRegistry")
+		for line in issues:
+			DebugLogger.log_warning(line, "EventRegistry")
+	else:
+		for line in issues:
+			push_warning("EventRegistry: %s" % line)
