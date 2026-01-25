@@ -242,7 +242,7 @@ func load_settings() -> void:
 	
 	if err == OK:
 		# 读取全屏设置
-		var fullscreen: bool = bool(config.get_value(CONFIG_SECTION, CONFIG_KEY_FULLSCREEN, false))
+		var fullscreen: bool = bool(config.get_value(CONFIG_SECTION, CONFIG_KEY_FULLSCREEN, true))
 		apply_fullscreen(fullscreen)
 		# 读取CRT设置
 		var crt_enabled: bool = bool(config.get_value(CONFIG_SECTION_POSTPROCESS, CONFIG_KEY_CRT_ENABLED, true))
@@ -267,9 +267,9 @@ func load_settings() -> void:
 		update_ui_state()
 		print("设置已加载")
 	else:
-		# 如果文件不存在，使用默认设置（窗口模式）
-		print("设置文件不存在，使用默认设置（窗口模式）")
-		apply_fullscreen(false)
+		# 如果文件不存在，使用默认设置（全屏模式）
+		print("设置文件不存在，使用默认设置（全屏模式）")
+		apply_fullscreen(true)
 		_apply_crt(true)
 		_apply_bloom(true)
 		_apply_burst_ready_effect(true)
