@@ -418,14 +418,6 @@ func _create_artifact_button(artifact: ArtifactData) -> void:
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	icon_name_hbox.add_child(name_label)
 	
-	# 描述
-	var desc_label: Label = Label.new()
-	desc_label.text = artifact.description
-	desc_label.add_theme_font_size_override("font_size", 12)
-	desc_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
-	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox_left.add_child(desc_label)
-	
 	# 右侧：属性加成
 	var vbox_right: VBoxContainer = VBoxContainer.new()
 	vbox_right.alignment = BoxContainer.ALIGNMENT_END
@@ -530,6 +522,8 @@ func _get_artifact_icon_path(artifact_name: String) -> String:
 			return "res://textures/ui/遍结寒霜的傲骨.png"
 		"破冰踏雪的回音":
 			return "res://textures/ui/破冰踏雪的回音.png"
+		"迷宫的游人":
+			return "res://textures/ui/深林的记忆/迷宫的游人.png"
 		"翠蔓的智者":
 			return "res://textures/ui/深林的记忆/翠蔓的智者.png"
 		"贤智的定期":

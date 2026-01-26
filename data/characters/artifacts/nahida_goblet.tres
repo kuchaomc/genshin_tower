@@ -4,8 +4,7 @@
 
 [resource]
 script = ExtResource("1_artifact")
-name = "月桂的宝冠"
-description = "纳西妲专属圣遗物·空之杯。月桂的宝冠，象征着理性与祝福。"
+name = "迷误者之灯"
 stat_bonuses = {
 "damage_multiplier": 0.1
 }

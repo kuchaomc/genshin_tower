@@ -4,8 +4,7 @@
 
 [resource]
 script = ExtResource("1_artifact")
-name = "迷误者之灯"
-description = "纳西妲专属圣遗物·时之沙。迷误者之灯，在流逝的时光中指引方向。"
+name = "贤智的定期"
 stat_bonuses = {
 "damage_multiplier": 0.1
 }

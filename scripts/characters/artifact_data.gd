@@ -7,9 +7,6 @@ class_name ArtifactData
 ## 圣遗物名称
 @export var name: String = ""
 
-## 圣遗物描述
-@export var description: String = ""
-
 ## 属性加成字典
 ## key: CharacterStats的属性名（如 "attack", "max_health" 等）
 ## value: 加成数值（固定值或百分比，根据属性类型决定）
