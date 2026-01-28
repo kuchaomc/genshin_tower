@@ -66,6 +66,9 @@ func generate_map(config: Dictionary = {}, seed_override: int = -1) -> Dictionar
 	# 步骤4：将连接信息写入节点
 	_apply_connections_to_nodes()
 	
+	# 步骤5：分配节点类型（在连接生成之后，避免路径上出现连续的特殊房间）
+	_assign_node_types(config)
+	
 	return {
 		"nodes": map_nodes,
 		"floors": floor_nodes,
@@ -95,32 +98,15 @@ func _generate_floor_node_counts() -> Array:
 	return counts
 
 ## 步骤2：创建所有节点
-func _create_all_nodes(nodes_per_floor: Array, config: Dictionary) -> void:
-	var node_types_config = config.get("node_types", _get_default_node_types_config())
-	
+func _create_all_nodes(nodes_per_floor: Array, _config: Dictionary) -> void:
 	for floor_idx in range(nodes_per_floor.size()):
 		var floor_num = floor_idx + 1  # 阶层从1开始
 		var node_count = nodes_per_floor[floor_idx]
 		var floor_node_list: Array = []
 		
 		for node_idx in range(node_count):
-			var node_type: MapNodeData.NodeType
-			
-			if floor_num == TOTAL_FLOORS:
-				# 最后一阶是BOSS
-				node_type = MapNodeData.NodeType.BOSS
-			elif floor_num == TOTAL_FLOORS - 1:
-				# 倒数第二阶是休息
-				node_type = MapNodeData.NodeType.REST
-			elif floor_num == 1:
-				# 第一阶通常是战斗
-				node_type = MapNodeData.NodeType.ENEMY
-			else:
-				# 根据权重随机选择类型
-				node_type = _select_node_type(floor_num, node_types_config)
-			
 			var node_id = "node_f%d_%d" % [floor_num, node_idx]
-			var node = _create_node(node_id, node_type, floor_num, node_idx)
+			var node = _create_node(node_id, MapNodeData.NodeType.ENEMY, floor_num, node_idx)
 			if node:
 				floor_node_list.append(node)
 		
@@ -200,6 +186,223 @@ func _type_name_to_enum(type_name: String) -> MapNodeData.NodeType:
 			return MapNodeData.NodeType.BOSS
 		_:
 			return MapNodeData.NodeType.ENEMY
+
+
+func _is_restricted_type(node_type: int) -> bool:
+	return node_type == MapNodeData.NodeType.SHOP \
+		or node_type == MapNodeData.NodeType.TREASURE \
+		or node_type == MapNodeData.NodeType.REST
+
+
+func _get_boss_floor_from_config(config: Dictionary) -> int:
+	var boss_floor: int = int(config.get("boss_floor", TOTAL_FLOORS))
+	boss_floor = clampi(boss_floor, 1, TOTAL_FLOORS)
+	return boss_floor
+
+
+func _get_forced_node_type_for_floor(floor_num: int, boss_floor: int) -> int:
+	if floor_num == boss_floor:
+		return MapNodeData.NodeType.BOSS
+	if floor_num == boss_floor - 1:
+		return MapNodeData.NodeType.REST
+	if floor_num == 6:
+		return MapNodeData.NodeType.REST
+	if floor_num == 1:
+		return MapNodeData.NodeType.ENEMY
+	return -1
+
+
+func _build_incoming_node_map() -> Dictionary:
+	var incoming: Dictionary = {}
+	for floor_idx in range(connections.size()):
+		var floor_conns: Array = connections[floor_idx]
+		var current_floor: Array = floor_nodes[floor_idx]
+		var next_floor: Array = floor_nodes[floor_idx + 1]
+		for conn in floor_conns:
+			var out_idx: int = conn[0]
+			var in_idx: int = conn[1]
+			if out_idx < 0 or out_idx >= current_floor.size():
+				continue
+			if in_idx < 0 or in_idx >= next_floor.size():
+				continue
+			var from_node: MapNodeData = current_floor[out_idx]
+			var to_node: MapNodeData = next_floor[in_idx]
+			var list: Array = incoming.get(to_node.node_id, [])
+			list.append(from_node.node_id)
+			incoming[to_node.node_id] = list
+	return incoming
+
+
+func _select_node_type_with_constraints(floor_num: int, node_types_config: Dictionary, forbidden_types: Dictionary) -> MapNodeData.NodeType:
+	var weights: Array = []
+	var types: Array = []
+	for type_name in node_types_config.keys():
+		var type_config: Dictionary = node_types_config[type_name]
+		var weight: int = int(type_config.get("weight", 10))
+		var min_floor: int = int(type_config.get("min_floor", 0))
+		if floor_num < min_floor:
+			continue
+		var enum_type: MapNodeData.NodeType = _type_name_to_enum(type_name)
+		if forbidden_types.has(enum_type):
+			continue
+		weights.append(weight)
+		types.append(type_name)
+	
+	var total_weight: int = 0
+	for w in weights:
+		total_weight += w
+	if total_weight <= 0:
+		return MapNodeData.NodeType.ENEMY
+	
+	var rng: RandomNumberGenerator = _get_map_rng()
+	var random_value: int = rng.randi_range(0, total_weight - 1)
+	var current_weight: int = 0
+	for i in range(weights.size()):
+		current_weight += weights[i]
+		if random_value < current_weight:
+			return _type_name_to_enum(types[i])
+	return MapNodeData.NodeType.ENEMY
+
+
+func _node_type_to_display_name(node_type: int) -> String:
+	match node_type:
+		MapNodeData.NodeType.ENEMY:
+			return "普通战斗"
+		MapNodeData.NodeType.TREASURE:
+			return "宝箱"
+		MapNodeData.NodeType.SHOP:
+			return "商店"
+		MapNodeData.NodeType.REST:
+			return "休息处"
+		MapNodeData.NodeType.EVENT:
+			return "奇遇事件"
+		MapNodeData.NodeType.BOSS:
+			return "BOSS战"
+		_:
+			return "未知"
+
+
+func _assign_node_types(config: Dictionary) -> void:
+	var boss_floor: int = _get_boss_floor_from_config(config)
+	var node_types_config: Dictionary = config.get("node_types", _get_default_node_types_config())
+	var incoming_map: Dictionary = _build_incoming_node_map()
+	
+	for floor_idx in range(floor_nodes.size()):
+		var floor_num: int = floor_idx + 1
+		var forced_type: int = _get_forced_node_type_for_floor(floor_num, boss_floor)
+		var floor_list: Array = floor_nodes[floor_idx]
+		for node in floor_list:
+			var map_node: MapNodeData = node
+			if forced_type != -1:
+				map_node.node_type = forced_type
+				continue
+			
+			var forbidden: Dictionary = _get_forbidden_types_for_node(map_node, boss_floor, incoming_map)
+			map_node.node_type = _select_node_type_with_constraints(floor_num, node_types_config, forbidden)
+	
+	_fix_consecutive_restricted_types(boss_floor, node_types_config, incoming_map)
+	_validate_node_type_constraints(boss_floor)
+
+
+func _get_forbidden_types_for_node(map_node: MapNodeData, boss_floor: int, incoming_map: Dictionary) -> Dictionary:
+	var forbidden: Dictionary = {}
+	var parents: Array = incoming_map.get(map_node.node_id, [])
+	for parent_id in parents:
+		var parent_node: MapNodeData = map_nodes.get(parent_id)
+		if parent_node and _is_restricted_type(parent_node.node_type):
+			forbidden[parent_node.node_type] = true
+	
+	for child_id in map_node.connected_nodes:
+		var child_node: MapNodeData = map_nodes.get(child_id)
+		if not child_node:
+			continue
+		var child_forced_type: int = _get_forced_node_type_for_floor(child_node.floor_number, boss_floor)
+		if child_forced_type != -1 and _is_restricted_type(child_forced_type):
+			forbidden[child_forced_type] = true
+	
+	return forbidden
+
+
+func _try_change_node_type(target_node: MapNodeData, boss_floor: int, node_types_config: Dictionary, incoming_map: Dictionary, conflict_type: int) -> bool:
+	var forced_type: int = _get_forced_node_type_for_floor(target_node.floor_number, boss_floor)
+	if forced_type != -1:
+		return false
+
+	var forbidden: Dictionary = _get_forbidden_types_for_node(target_node, boss_floor, incoming_map)
+	if _is_restricted_type(conflict_type):
+		forbidden[conflict_type] = true
+
+	var new_type: MapNodeData.NodeType = _select_node_type_with_constraints(target_node.floor_number, node_types_config, forbidden)
+	if new_type == target_node.node_type:
+		return false
+
+	target_node.node_type = new_type
+	return true
+
+
+func _fix_consecutive_restricted_types(boss_floor: int, node_types_config: Dictionary, incoming_map: Dictionary) -> void:
+	var max_passes: int = 20
+	for _pass_idx in range(max_passes):
+		var changed: bool = false
+		for floor_idx in range(connections.size()):
+			var current_floor: Array = floor_nodes[floor_idx]
+			var next_floor: Array = floor_nodes[floor_idx + 1]
+			for conn in connections[floor_idx]:
+				var out_idx: int = conn[0]
+				var in_idx: int = conn[1]
+				if out_idx < 0 or out_idx >= current_floor.size():
+					continue
+				if in_idx < 0 or in_idx >= next_floor.size():
+					continue
+				var from_node: MapNodeData = current_floor[out_idx]
+				var to_node: MapNodeData = next_floor[in_idx]
+				if _is_restricted_type(from_node.node_type) and from_node.node_type == to_node.node_type:
+					if _try_change_node_type(to_node, boss_floor, node_types_config, incoming_map, from_node.node_type):
+						changed = true
+					elif _try_change_node_type(from_node, boss_floor, node_types_config, incoming_map, to_node.node_type):
+						changed = true
+		if not changed:
+			break
+
+
+func _validate_node_type_constraints(boss_floor: int) -> void:
+	# 强制层校验
+	for floor_idx in range(floor_nodes.size()):
+		var floor_num: int = floor_idx + 1
+		var forced_type: int = _get_forced_node_type_for_floor(floor_num, boss_floor)
+		if forced_type == -1:
+			continue
+		for node in floor_nodes[floor_idx]:
+			var map_node: MapNodeData = node
+			if map_node.node_type != forced_type:
+				push_warning("地图生成校验失败：第%d层节点%s类型=%s，期望=%s" % [
+					floor_num,
+					map_node.node_id,
+					map_node.get_type_name(),
+					_node_type_to_display_name(forced_type)
+				])
+				break
+	
+	# 相邻限制类型校验（任意连接）
+	for floor_idx in range(connections.size()):
+		var current_floor: Array = floor_nodes[floor_idx]
+		var next_floor: Array = floor_nodes[floor_idx + 1]
+		for conn in connections[floor_idx]:
+			var out_idx: int = conn[0]
+			var in_idx: int = conn[1]
+			if out_idx < 0 or out_idx >= current_floor.size():
+				continue
+			if in_idx < 0 or in_idx >= next_floor.size():
+				continue
+			var from_node: MapNodeData = current_floor[out_idx]
+			var to_node: MapNodeData = next_floor[in_idx]
+			if _is_restricted_type(from_node.node_type) and from_node.node_type == to_node.node_type:
+				push_warning("地图生成校验失败：出现连续同类房间 %s(%s)->%s(%s)" % [
+					from_node.node_id,
+					from_node.get_type_name(),
+					to_node.node_id,
+					to_node.get_type_name()
+				])
 
 ## 步骤3：生成连接（核心算法）
 ## 自下而上生成，从终点（最后一层）开始向前生成连接

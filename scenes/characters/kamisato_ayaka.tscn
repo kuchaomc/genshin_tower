@@ -254,11 +254,6 @@ skill_damage = 75.0
 hurt_speed_boost_multiplier = 1.5
 animator = NodePath("AnimatedSprite2D")
 knockback_force = 50.0
-movement_trail_min_width = 15.0
-movement_trail_max_width = 30.0
-movement_trail_speed_for_max_strength = 400.0
-movement_trail_max_points = 8
-movement_trail_tail_power = 3.0
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_fjrip")

@@ -38,7 +38,6 @@ func _ready() -> void:
 	emit_signal("events_registered")
 	if DebugLogger:
 		DebugLogger.log_info("已注册 %d 个事件" % _events.size(), "EventRegistry")
-		DebugLogger.save_debug_log()
 
 ## 加载自定义事件文件
 func _load_custom_events() -> void:

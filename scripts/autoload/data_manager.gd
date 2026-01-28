@@ -30,7 +30,6 @@ func load_all_data() -> void:
 		DebugLogger.log_info("Data loaded: characters=%d enemies=%d" % [characters.size(), enemies.size()], "DataManager")
 		if characters.is_empty() or enemies.is_empty():
 			DebugLogger.log_error("Data missing after export load (characters/enemies is empty)", "DataManager")
-			DebugLogger.save_debug_log()
 	emit_signal("data_loaded")
 	if DebugLogger:
 		DebugLogger.log_info("所有数据加载完成", "DataManager")

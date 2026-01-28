@@ -5,11 +5,11 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_CRT"]
 shader = ExtResource("1_shader")
 shader_parameter/enabled = 1.0
-shader_parameter/strength = 0.5
-shader_parameter/aberration = 0.002
-shader_parameter/grille_intensity = 0.12
-shader_parameter/noise_intensity = 0.04
-shader_parameter/vignette_intensity = 0.28
+shader_parameter/strength = 0.75
+shader_parameter/aberration = 0.0035
+shader_parameter/grille_intensity = 0.22
+shader_parameter/noise_intensity = 0.07
+shader_parameter/vignette_intensity = 0.38
 
 [node name="CRTCanvas" type="CanvasLayer"]
 layer = 150
