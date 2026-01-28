@@ -107,6 +107,9 @@ const _SETTINGS_FILE_PATH: String = "user://settings.cfg"
 const _SETTINGS_SECTION_UI: String = "ui"
 const _SETTINGS_KEY_NSFW_ENABLED: String = "nsfw_enabled"
 
+# 玩家死亡时的黑屏转场时长（秒）
+const _DEATH_TRANSITION_SECONDS: float = 2.0
+
 func _ready() -> void:
 	# 设置窗口标题（不修改 project.godot 的 config/name，避免影响 user:// 数据目录/日志路径）
 	# 注意：启动阶段窗口可能尚未完成初始化，这里延迟到下一帧应用更稳定。
@@ -543,9 +546,9 @@ func game_over() -> void:
 	
 	# 死亡过渡：黑色出现并向中心汇聚（保持黑屏，交由目标场景 fade_in 撤黑）
 	if TransitionManager and TransitionManager.has_method("iris_close_to_center"):
-		await TransitionManager.iris_close_to_center(2.0)
+		await TransitionManager.iris_close_to_center(_DEATH_TRANSITION_SECONDS)
 	elif TransitionManager:
-		await TransitionManager.fade_out(2.0)
+		await TransitionManager.fade_out(_DEATH_TRANSITION_SECONDS)
 	
 	# 注意：按需求，汇聚动画播放完后再淡出死亡时的UI
 	await _fade_out_current_scene_ui(0.35)

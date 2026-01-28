@@ -126,8 +126,9 @@ func iris_close_to_center(duration: float = 2.0) -> void:
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_CUBIC)
 	tween.set_ease(Tween.EASE_IN)
-	tween.parallel().tween_property(_iris_material, "shader_parameter/blur_radius", 3.0, duration)
+	# 同时做“收缩变黑”和“模糊”，避免先模糊一段时间才开始黑屏
 	tween.tween_property(_iris_material, "shader_parameter/radius", 0.0, duration)
+	tween.parallel().tween_property(_iris_material, "shader_parameter/blur_radius", 3.0, duration)
 	await tween.finished
 	emit_signal("transition_finished")
 
