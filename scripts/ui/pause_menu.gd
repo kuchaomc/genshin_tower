@@ -76,6 +76,31 @@ signal resume_game
 signal open_settings
 signal return_to_main_menu
 
+
+func _get_battle_manager() -> Node:
+	var bm := get_tree().get_first_node_in_group("battle_manager")
+	if bm != null:
+		return bm
+	var scene_root := get_tree().current_scene
+	if scene_root != null and scene_root is BattleManager:
+		return scene_root
+	return null
+
+
+func _apply_default_cursor() -> void:
+	var bm := _get_battle_manager()
+	if bm != null and bm.has_method("_restore_default_cursor"):
+		bm.call("_restore_default_cursor")
+		return
+	Input.set_custom_mouse_cursor(null)
+
+
+func _apply_battle_cursor() -> void:
+	var bm := _get_battle_manager()
+	if bm != null and bm.has_method("_apply_crosshair_cursor"):
+		bm.call("_apply_crosshair_cursor")
+		return
+
 func _has_property(obj: Object, prop: StringName) -> bool:
 	if obj == null:
 		return false
@@ -399,6 +424,8 @@ func _close_settings_overlay() -> void:
 ## 显示暂停菜单
 func show_menu() -> void:
 	visible = true
+	# 打开暂停菜单时，将战斗自定义准星恢复为默认鼠标，避免菜单交互不直观。
+	_apply_default_cursor()
 	# 暂停游戏树
 	# 这会自动暂停所有使用默认PROCESS_MODE_INHERIT的节点，包括：
 	# - 所有节点的 _process、_physics_process、_input 等函数
@@ -590,6 +617,9 @@ func _play_hide_animation() -> void:
 		visible = false
 		# 恢复游戏树，所有暂停的内容会自动恢复
 		get_tree().paused = false
+		# 只有“继续游戏/关闭菜单回战斗”才恢复准星；返回主菜单则保持默认鼠标。
+		if not _pending_go_to_main_menu:
+			_apply_battle_cursor()
 		_restore_final_layout_for_animation()
 		if _pending_emit_resume:
 			_pending_emit_resume = false

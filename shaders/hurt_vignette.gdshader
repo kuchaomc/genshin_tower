@@ -14,8 +14,10 @@ void fragment() {
 	vec2 center = vec2(0.5, 0.5);
 	vec2 uv = UV;
 	
-	// 计算椭圆距离（考虑屏幕宽高比，这里假设16:9）
-	vec2 diff = (uv - center) * vec2(1.0, 0.5625);
+	// 计算椭圆距离（考虑屏幕宽高比）
+	float aspect = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
+	vec2 diff = (uv - center);
+	diff.x *= aspect;
 	float dist = length(diff) * 2.0;
 	
 	// 计算暗角强度

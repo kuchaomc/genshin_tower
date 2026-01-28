@@ -366,6 +366,15 @@ func _draw_all_connections(floors: Array) -> void:
 
 ## 更新可选择的节点状态
 func _update_selectable_nodes() -> void:
+	# 缩略图模式：只允许拖动/缩放查看，不允许点选节点触发跳转或修改进度。
+	if minimap_mode:
+		selectable_nodes.clear()
+		for node_id in node_instances:
+			var node_instance = node_instances[node_id]
+			if node_instance and node_instance.button:
+				node_instance.button.disabled = true
+		return
+	
 	selectable_nodes.clear()
 	
 	var current_floor = RunManager.current_floor
@@ -407,6 +416,10 @@ func _update_selectable_nodes() -> void:
 
 ## 节点被选中
 func _on_node_selected(node: MapNodeData) -> void:
+	# 缩略图模式不允许改变 RunManager 的地图进度/楼层，也不允许触发场景跳转。
+	if minimap_mode:
+		return
+	
 	# 首先检查节点是否已访问
 	var view: MapNodeView = node_instances.get(node.node_id) as MapNodeView
 	if view and view.is_visited:

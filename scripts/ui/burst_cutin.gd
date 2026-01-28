@@ -12,8 +12,12 @@ class_name BurstCutin
 @export var mask_alpha: float = 0.35
 @export var image_shade_alpha: float = 0.15
 @export var slide_out_extra_px: float = 40.0
-@export var pause_game_during_hold: bool = true
 @export var right_margin: float = 0.0
+
+@export var burst_time_scale: float = 0.15
+@export var burst_camera_zoom_multiplier: float = 1.35
+@export var burst_restore_duration: float = 0.18
+@export var burst_effect_duration: float = 1.0
 
 @onready var screen_mask: ColorRect = $ScreenMask
 @onready var cutin_container: Control = $CutinContainer
@@ -26,25 +30,18 @@ var _final_offset_left: float
 var _final_offset_right: float
 var _pending_texture: Texture2D
 
-var _tree_prev_paused: bool = false
-var _did_pause_tree: bool = false
-
-var _audio_prev_process_modes: Dictionary = {}
-var _audio_override_active: bool = false
+var _burst_effect_active: bool = false
+var _prev_engine_time_scale: float = 1.0
+var _camera: Camera2D = null
+var _camera_prev_zoom: Vector2 = Vector2.ONE
+var _camera_tween: Tween = null
+var _burst_effect_token: int = 0
+var _burst_effect_token_seq: int = 1
 
 func _ready() -> void:
 	# Control 的 anchors/offset 布局可能在首帧后才稳定，等一帧后再缓存“最终位置”。
 	await get_tree().process_frame
-	# 让动画在暂停时仍能继续播放
-	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-	if is_instance_valid(screen_mask):
-		screen_mask.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-	if is_instance_valid(cutin_container):
-		cutin_container.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-	if is_instance_valid(cutin_image):
-		cutin_image.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-	if is_instance_valid(image_shade):
-		image_shade.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	process_mode = Node.PROCESS_MODE_INHERIT
 	_cache_layout_metrics()
 	_layout_ready = true
 	# 缓存完成后再隐藏到屏幕外，避免把“屏幕外的offset”误当成最终布局。
@@ -87,9 +84,6 @@ func _reset_visuals(hide: bool) -> void:
 		_tween = null
 
 	visible = not hide
-
-	if screen_mask:
-		screen_mask.modulate.a = 0.0
 	if image_shade:
 		image_shade.color.a = clampf(image_shade_alpha, 0.0, 1.0)
 
@@ -111,22 +105,21 @@ func _play_animation() -> void:
 
 	visible = true
 	cutin_container.visible = true
+	_begin_burst_effects_if_needed()
 	# 重新取一次viewport宽度，兼容分辨率变化
 	var w: float = get_viewport().get_visible_rect().size.x
 
 	_tween = create_tween()
-	_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_tween.set_pause_mode(Tween.TWEEN_PAUSE_STOP)
 	# 让滑入更“有感知”，避免看起来没滑完就进入下一段
 	_tween.set_trans(Tween.TRANS_BACK)
 	_tween.set_ease(Tween.EASE_OUT)
-	_begin_pause_if_needed()
+	_apply_tween_realtime_compensation(_tween)
 
 	# ========== ENTER：先确保 offset 动画是“主轨”，其它属性并行 ==========
 	_tween.tween_property(cutin_container, "offset_left", _final_offset_left, enter_duration)
 	_tween.parallel().tween_property(cutin_container, "offset_right", _final_offset_right, enter_duration)
 	_tween.parallel().tween_property(cutin_container, "modulate", Color(1.0, 1.0, 1.0, 1.0), enter_duration)
-	if screen_mask:
-		_tween.parallel().tween_property(screen_mask, "modulate:a", clampf(mask_alpha, 0.0, 1.0), enter_duration)
 	_tween.tween_callback(_on_enter_finished)
 
 	# ========== HOLD：保证滑入结束后再停留 ==========
@@ -138,8 +131,6 @@ func _play_animation() -> void:
 	_tween.tween_property(cutin_container, "offset_left", _final_offset_left + w, exit_duration)
 	_tween.parallel().tween_property(cutin_container, "offset_right", _final_offset_right + w, exit_duration)
 	_tween.parallel().tween_property(cutin_container, "modulate", Color(1.0, 1.0, 1.0, 0.0), exit_duration)
-	if screen_mask:
-		_tween.parallel().tween_property(screen_mask, "modulate:a", 0.0, exit_duration)
 	_tween.tween_callback(_on_animation_finished)
 	if OS.is_debug_build():
 		print("BurstCutin: play enter=", enter_duration, " hold=", hold_duration, " exit=", exit_duration)
@@ -154,7 +145,6 @@ func _on_enter_finished() -> void:
 	cutin_container.offset_left = _final_offset_left
 	cutin_container.offset_right = _final_offset_right
 	cutin_container.modulate = Color(1.0, 1.0, 1.0, 1.0)
-	_end_pause_if_needed()
 	if OS.is_debug_build():
 		var tex_ok := false
 		if is_instance_valid(cutin_image) and cutin_image.texture:
@@ -167,59 +157,65 @@ func _on_animation_finished() -> void:
 		cutin_container.offset_left = _final_offset_left
 		cutin_container.offset_right = _final_offset_right
 	visible = false
-	_end_pause_if_needed()
 
-func _begin_pause_if_needed() -> void:
-	if not pause_game_during_hold:
+func _apply_tween_realtime_compensation(t: Tween) -> void:
+	if not is_instance_valid(t):
 		return
-	var tree := get_tree()
-	if not tree:
+	var s: float = clampf(burst_time_scale, 0.01, 1.0)
+	if s >= 0.999:
 		return
-	_tree_prev_paused = tree.paused
-	_set_audio_process_mode_when_paused(true)
-	# 已经暂停时不重复修改，避免影响暂停菜单
-	if not tree.paused:
-		tree.paused = true
-		_did_pause_tree = true
-	else:
-		_did_pause_tree = false
+	t.set_speed_scale(1.0 / s)
 
-func _end_pause_if_needed() -> void:
-	if not pause_game_during_hold:
-		return
-	var tree := get_tree()
-	if not tree:
-		return
-	if _did_pause_tree:
-		tree.paused = _tree_prev_paused
-	_did_pause_tree = false
-	_set_audio_process_mode_when_paused(false)
 
-func _set_audio_process_mode_when_paused(enable: bool) -> void:
-	if not pause_game_during_hold:
-		return
-	var bgm := get_node_or_null("/root/BGMManager") as Node
-	if not is_instance_valid(bgm):
-		return
-	if enable:
-		if _audio_override_active:
+func _begin_burst_effects_if_needed() -> void:
+	var token: int = _burst_effect_token_seq
+	_burst_effect_token_seq += 1
+	_burst_effect_token = token
+
+	if not _burst_effect_active:
+		_burst_effect_active = true
+		_prev_engine_time_scale = Engine.time_scale
+		Engine.time_scale = clampf(burst_time_scale, 0.01, 1.0)
+
+	if not is_instance_valid(_camera):
+		var scene := get_tree().current_scene
+		if scene:
+			_camera = scene.get_node_or_null("Camera2D") as Camera2D
+	if is_instance_valid(_camera):
+		_camera_prev_zoom = _camera.zoom
+		if _camera_tween and _camera_tween.is_valid():
+			_camera_tween.kill()
+		_camera_tween = create_tween()
+		_camera_tween.set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+		_apply_tween_realtime_compensation(_camera_tween)
+		_camera_tween.tween_property(_camera, "zoom", _camera_prev_zoom * burst_camera_zoom_multiplier, enter_duration)
+
+	var d: float = maxf(0.01, burst_effect_duration)
+	var timer := get_tree().create_timer(d, true, false, true)
+	timer.timeout.connect(func() -> void:
+		if token != _burst_effect_token:
 			return
-		_audio_prev_process_modes.clear()
-		_audio_prev_process_modes[bgm] = bgm.process_mode
-		bgm.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-		for child in bgm.get_children():
-			if child is Node:
-				_audio_prev_process_modes[child] = (child as Node).process_mode
-				(child as Node).process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-		_audio_override_active = true
-	else:
-		if not _audio_override_active:
-			return
-		for n in _audio_prev_process_modes.keys():
-			if is_instance_valid(n):
-				(n as Node).process_mode = _audio_prev_process_modes[n]
-		_audio_prev_process_modes.clear()
-		_audio_override_active = false
+		_restore_burst_effects_if_needed()
+	)
+
+
+func _restore_burst_effects_if_needed() -> void:
+	if not _burst_effect_active:
+		return
+	_burst_effect_active = false
+	Engine.time_scale = _prev_engine_time_scale
+
+	if _camera_tween and _camera_tween.is_valid():
+		_camera_tween.kill()
+		_camera_tween = null
+	if is_instance_valid(_camera):
+		var t := create_tween()
+		t.set_pause_mode(Tween.TWEEN_PAUSE_STOP)
+		t.tween_property(_camera, "zoom", _camera_prev_zoom, maxf(0.01, burst_restore_duration))
+
+
+func _exit_tree() -> void:
+	_restore_burst_effects_if_needed()
 
 func _apply_layout_for_texture(texture: Texture2D) -> void:
 	if not is_instance_valid(cutin_container):

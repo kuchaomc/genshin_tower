@@ -125,8 +125,11 @@ func _apply_tick() -> void:
 	_update_inside_enemies()
 
 	for k in _enemies_by_id.keys():
-		var enemy := _enemies_by_id.get(k) as Node2D
-		if not is_instance_valid(enemy):
+		var enemy_obj: Variant = _enemies_by_id.get(k)
+		if not is_instance_valid(enemy_obj):
+			continue
+		var enemy := enemy_obj as Node2D
+		if enemy == null:
 			continue
 		owner_character.deal_damage_to(enemy, damage_multiplier * owner_character.get_weapon_skill_burst_damage_multiplier(), false, false, false, false)
 
@@ -143,8 +146,11 @@ func _begin_end_field() -> void:
 
 	# 结束时兜底移除减抗
 	for k in _enemies_by_id.keys():
-		var enemy := _enemies_by_id.get(k) as Node2D
-		if is_instance_valid(enemy) and enemy.has_method("remove_resistance_reduction"):
+		var enemy_obj: Variant = _enemies_by_id.get(k)
+		if not is_instance_valid(enemy_obj):
+			continue
+		var enemy := enemy_obj as Node2D
+		if enemy != null and enemy.has_method("remove_resistance_reduction"):
 			enemy.call("remove_resistance_reduction", _source_id)
 	_enemies_by_id.clear()
 
@@ -159,8 +165,11 @@ func _begin_end_field() -> void:
 func _end_field() -> void:
 	# 结束时兜底移除减抗
 	for k in _enemies_by_id.keys():
-		var enemy := _enemies_by_id.get(k) as Node2D
-		if is_instance_valid(enemy) and enemy.has_method("remove_resistance_reduction"):
+		var enemy_obj: Variant = _enemies_by_id.get(k)
+		if not is_instance_valid(enemy_obj):
+			continue
+		var enemy := enemy_obj as Node2D
+		if enemy != null and enemy.has_method("remove_resistance_reduction"):
 			enemy.call("remove_resistance_reduction", _source_id)
 	_enemies_by_id.clear()
 	_begin_end_field()
@@ -169,7 +178,10 @@ func _end_field() -> void:
 func _exit_tree() -> void:
 	# 防御性兜底：如果节点被提前移除，也要清理减抗
 	for k in _enemies_by_id.keys():
-		var enemy := _enemies_by_id.get(k) as Node2D
-		if is_instance_valid(enemy) and enemy.has_method("remove_resistance_reduction"):
+		var enemy_obj: Variant = _enemies_by_id.get(k)
+		if not is_instance_valid(enemy_obj):
+			continue
+		var enemy := enemy_obj as Node2D
+		if enemy != null and enemy.has_method("remove_resistance_reduction"):
 			enemy.call("remove_resistance_reduction", _source_id)
 	_enemies_by_id.clear()
