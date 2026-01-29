@@ -575,6 +575,7 @@ func _show_random_event() -> void:
 func _show_weather_change_event() -> void:
 	if not content_container:
 		return
+	_clear_content()
 	
 	var rng: RandomNumberGenerator = null
 	if RunManager:
@@ -586,40 +587,32 @@ func _show_weather_change_event() -> void:
 	var random: float = rng.randf()
 	var result_label = Label.new()
 	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var confirm_button = Button.new()
+	confirm_button.text = "确认"
+	confirm_button.custom_minimum_size = Vector2(200, 50)
+	confirm_button.pressed.connect(_complete_event)
 	
 	if random < 0.2:
-		# 20%概率：生命值-10%
-		result_label.text = "暴雨导致滑倒，生命值-10%"
+		var dmg: float = 0.0
+		if RunManager:
+			dmg = RunManager.max_health * 0.10
+			RunManager.take_damage(dmg)
+		result_label.text = "暴雨导致滑倒，生命值-%d（-10%%）\n当前生命值: %d/%d" % [int(round(dmg)), int(RunManager.health) if RunManager else 0, int(RunManager.max_health) if RunManager else 0]
 		result_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
-		var confirm_button = Button.new()
-		confirm_button.text = "确认"
-		confirm_button.custom_minimum_size = Vector2(200, 50)
-		# 注意：当前项目约定 HEALTH 负数用于“百分比回血”（见 _apply_reward），这里描述是扣血百分比，因此直接扣除
-		confirm_button.pressed.connect(func():
-			if RunManager:
-				RunManager.take_damage(RunManager.max_health * 0.10)
-			_complete_event()
-		)
 		content_container.add_child(result_label)
 		content_container.add_child(confirm_button)
 	elif random < 0.5:
-		# 30%概率：生命值+5%
-		result_label.text = "微风拂面，生命值+5%"
+		var heal_amount: float = 0.0
+		if RunManager:
+			heal_amount = RunManager.max_health * 0.05
+			RunManager.heal(heal_amount)
+		result_label.text = "微风拂面，生命值+%d（+5%%）\n当前生命值: %d/%d" % [int(round(heal_amount)), int(RunManager.health) if RunManager else 0, int(RunManager.max_health) if RunManager else 0]
 		result_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
-		var confirm_button = Button.new()
-		confirm_button.text = "确认"
-		confirm_button.custom_minimum_size = Vector2(200, 50)
-		confirm_button.pressed.connect(func(): _apply_reward(EventData.RewardType.HEALTH, 5, current_event); _complete_event())
 		content_container.add_child(result_label)
 		content_container.add_child(confirm_button)
 	else:
-		# 50%概率：无影响
-		result_label.text = "天气变化没有带来任何影响"
+		result_label.text = "天气变化没有带来任何影响\n当前生命值: %d/%d" % [int(RunManager.health) if RunManager else 0, int(RunManager.max_health) if RunManager else 0]
 		result_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-		var confirm_button = Button.new()
-		confirm_button.text = "继续"
-		confirm_button.custom_minimum_size = Vector2(200, 50)
-		confirm_button.pressed.connect(_complete_event)
 		content_container.add_child(result_label)
 		content_container.add_child(confirm_button)
 
@@ -1148,38 +1141,21 @@ func _give_random_upgrade_max_level() -> Array[String]:
 	current_floor = RunManager.current_floor
 	current_upgrades = RunManager.upgrades
 	
-	# 优先从“还能继续提升”的升级里选择，避免抽到已满级导致结果为空。
-	var available: Array[UpgradeData] = registry.get_available_upgrades(character_id, current_upgrades, current_floor)
-	var upgradable: Array[UpgradeData] = []
-	for u in available:
-		if u == null:
-			continue
-		if u.max_level > 0:
-			var cur: int = int(RunManager.get_upgrade_level(u.id))
-			if cur < u.max_level:
-				upgradable.append(u)
-		else:
-			# max_level<=0 视为无上限，永远可提升
-			upgradable.append(u)
-	
-	if upgradable.is_empty():
-		return ["所有升级已达上限"]
-	
-	var rng: RandomNumberGenerator = null
-	if RunManager:
-		rng = RunManager.get_rng() as RandomNumberGenerator
-	if not rng:
-		rng = RandomNumberGenerator.new()
-		rng.randomize()
-	
-	var upgrade: UpgradeData = upgradable[rng.randi_range(0, upgradable.size() - 1)]
-	if upgrade.max_level > 0:
+	var picked = registry.pick_random_upgrades(character_id, current_upgrades, current_floor, 1)
+	if picked.size() > 0:
+		var upgrade: UpgradeData = picked[0]
+		# max_level<=0 表示无上限：此时“满级”的语义不明确，避免强行设为默认5级。
+		# 处理策略：
+		# - 有上限：直接补到上限
+		# - 无上限：提升 5 级
 		var current_level: int = int(RunManager.get_upgrade_level(upgrade.id))
-		var levels_to_add: int = upgrade.max_level - current_level
-		if levels_to_add > 0:
-			return _give_upgrade_levels(upgrade.id, levels_to_add)
-		return ["所有升级已达上限"]
-	return _give_upgrade_levels(upgrade.id, 5)
+		if upgrade.max_level > 0:
+			var levels_to_add: int = upgrade.max_level - current_level
+			if levels_to_add > 0:
+				return _give_upgrade_levels(upgrade.id, levels_to_add)
+		else:
+			return _give_upgrade_levels(upgrade.id, 5)
+	return []
 
 
 func _give_upgrade_levels(upgrade_id: String, levels_to_add: int) -> Array[String]:

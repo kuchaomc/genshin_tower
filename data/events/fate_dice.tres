@@ -1,27 +1,19 @@
-[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EventData" load_steps=2 format=3 uid="uid://bkga6vlg3dhxn"]
 
-[ext_resource type="Script" path="res://scripts/events/event_data.gd" id="1_event"]
+[ext_resource type="Script" uid="uid://c0osnvoanpd7x" path="res://scripts/events/event_data.gd" id="1_event"]
 
 [resource]
 script = ExtResource("1_event")
 id = "fate_dice"
 display_name = "命运的骰子"
-description = "捡到一颗刻有元素骰子，投掷后：\n10%概率：获得圣遗物\n20%概率：触发战斗\n30%概率：获得500摩拉\n40%概率：生命值恢复30%"
+description = "捡到一颗刻有元素骰子，投掷后：
+10%概率：获得圣遗物
+20%概率：触发战斗
+30%概率：获得500摩拉
+40%概率：生命值恢复30%"
 event_type = 6
 rarity = 3
 base_weight = 20.0
-required_character_ids = []
-required_event_ids = []
-exclusive_event_ids = ["god_blessing"]
-min_floor = 0
-max_floor = 0
 one_time_only = true
-tags = ["random", "legendary"]
+tags = Array[String](["random", "legendary"])
 reward_type = 4
-reward_value = {}
-reward_min = 0.0
-reward_max = 0.0
-reward_description = ""
-choices = []
-enemy_data = null
-battle_reward = {}

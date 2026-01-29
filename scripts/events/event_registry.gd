@@ -140,7 +140,6 @@ static func _get_export_fallback_event_resources() -> Array[EventData]:
 		preload("res://data/events/example_treasure_event.tres"),
 		preload("res://data/events/fate_dice.tres"),
 		preload("res://data/events/fine_treasure.tres"),
-		preload("res://data/events/god_blessing.tres"),
 		preload("res://data/events/hilichurl_camp.tres"),
 		preload("res://data/events/liyue_inn.tres"),
 		preload("res://data/events/luxury_treasure.tres"),
