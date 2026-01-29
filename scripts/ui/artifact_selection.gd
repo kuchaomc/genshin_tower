@@ -37,6 +37,8 @@ var available_artifacts: Array[ArtifactData] = []
 # 圣遗物选项数量
 @export var artifact_count: int = 3
 
+const DUPLICATE_ARTIFACT_GOLD_REWARD: int = 500
+
 func _ready() -> void:
 	_process_ui_style()
 	_setup_container_auto_style()
@@ -315,6 +317,17 @@ func generate_artifact_options() -> void:
 			DebugLogger.save_debug_log()
 		return
 	
+	# 当前版本：圣遗物获得即满效果
+	# 生成逻辑：优先刷出“尚未获得过的槽位”；若 5 个槽位都已获得过，则允许再次出现（避免界面只剩跳过）
+	var unobtained_slots: Dictionary = {}
+	if RunManager.has_method("has_artifact_in_inventory") and RunManager.current_character.artifact_set:
+		for s in ArtifactSlot.get_all_slots():
+			var set_artifact: ArtifactData = RunManager.current_character.artifact_set.get_artifact(s)
+			if set_artifact == null:
+				continue
+			if not RunManager.has_artifact_in_inventory(set_artifact.name, s):
+				unobtained_slots[s] = true
+	
 	if DebugLogger:
 		var c := RunManager.current_character
 		DebugLogger.log_info("current_character=%s(%s)" % [c.display_name, c.id], "ArtifactSelection")
@@ -339,7 +352,13 @@ func generate_artifact_options() -> void:
 		var slot: ArtifactSlot.SlotType = result.get("slot", ArtifactSlot.SlotType.FLOWER)
 		if artifact == null:
 			continue
+		# 若存在未获得的槽位：只允许从这些槽位里出
+		if unobtained_slots.size() > 0 and not unobtained_slots.has(slot):
+			continue
 		if picked_slots.has(slot):
+			continue
+		# 若还有未获得的槽位：避免刷出已获得过的同槽位圣遗物
+		if unobtained_slots.size() > 0 and RunManager.has_method("has_artifact_in_inventory") and RunManager.has_artifact_in_inventory(artifact.name, slot):
 			continue
 		picked_slots[slot] = true
 		available_artifacts.append(artifact)
@@ -347,7 +366,7 @@ func generate_artifact_options() -> void:
 	if available_artifacts.size() == 0:
 		push_warning("ArtifactSelection: 没有可用的圣遗物选项")
 		if DebugLogger:
-			DebugLogger.log_error("available_artifacts 为 0（界面将只剩跳过）", "ArtifactSelection")
+			DebugLogger.log_warning("available_artifacts 为 0（界面将只剩跳过）", "ArtifactSelection")
 			DebugLogger.save_debug_log()
 	elif available_artifacts.size() < artifact_count:
 		# 可用槽位数量不足时，避免强行塞入重复项，允许显示更少的选项
@@ -423,51 +442,23 @@ func _create_artifact_button(artifact: ArtifactData) -> void:
 	vbox_right.alignment = BoxContainer.ALIGNMENT_END
 	hbox.add_child(vbox_right)
 	
-	# 检查是否已装备该圣遗物
-	var is_equipped = false
-	var current_level = -1
-	var obtained_count: int = 0
-	if RunManager:
-		obtained_count = RunManager.get_artifact_obtained_count(artifact.name, slot)
-	if RunManager and RunManager.current_character_node:
-		var artifact_manager = RunManager.current_character_node.get_artifact_manager()
-		if artifact_manager:
-			var equipped_artifact = artifact_manager.get_artifact(slot)
-			if equipped_artifact and equipped_artifact.name == artifact.name:
-				is_equipped = true
-				current_level = artifact_manager.get_artifact_level(slot)
-	
-	var after_obtained_count: int = obtained_count + 1
-	var predicted_level: int = 0 if after_obtained_count < 2 else 1
-	
 	# 属性加成显示
 	var bonus_label: Label = Label.new()
-	if predicted_level >= 1:
-		bonus_label.text = artifact.get_bonus_summary(1)
-		if is_equipped and current_level >= 1:
-			bonus_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-		elif obtained_count >= 2:
-			bonus_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-		else:
-			bonus_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
-	else:
-		bonus_label.text = artifact.get_bonus_summary(0)
-		bonus_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
+	bonus_label.text = artifact.get_bonus_summary(1)
+	bonus_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
 	bonus_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox_right.add_child(bonus_label)
 	
-	# 等级提示
+	# 提示：当前版本圣遗物获得即满效果
 	var level_hint: Label = Label.new()
-	if predicted_level == 0:
-		level_hint.text = "（首次获得：50%效果；再次获得可达100%）"
-		level_hint.add_theme_color_override("font_color", Color(0.8, 0.8, 0.5))
+	var is_duplicate: bool = false
+	if RunManager and RunManager.has_method("has_artifact_in_inventory"):
+		is_duplicate = RunManager.has_artifact_in_inventory(artifact.name, slot)
+	if is_duplicate:
+		level_hint.text = "（已拥有：可换 %d 摩拉）" % DUPLICATE_ARTIFACT_GOLD_REWARD
 	else:
-		if obtained_count == 1 and (not is_equipped or current_level < 1):
-			level_hint.text = "（第2次获得：达100%效果）"
-			level_hint.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
-		else:
-			level_hint.text = "（已满效果）"
-			level_hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		level_hint.text = "（获得即生效）"
+	level_hint.add_theme_color_override("font_color", Color(0.8, 0.8, 0.5))
 	level_hint.add_theme_font_size_override("font_size", 12)
 	vbox_right.add_child(level_hint)
 	
@@ -491,6 +482,13 @@ func _find_artifact_slot(artifact: ArtifactData) -> ArtifactSlot.SlotType:
 
 ## 圣遗物选择回调
 func _on_artifact_selected(artifact: ArtifactData, slot: ArtifactSlot.SlotType) -> void:
+	# 已拥有：允许改为获得摩拉
+	if RunManager and RunManager.has_method("has_artifact_in_inventory") and RunManager.has_artifact_in_inventory(artifact.name, slot):
+		RunManager.add_gold(DUPLICATE_ARTIFACT_GOLD_REWARD)
+		_update_gold_label()
+		_return_to_map()
+		return
+	
 	emit_signal("artifact_selected", artifact, slot)
 	
 	# 添加到库存

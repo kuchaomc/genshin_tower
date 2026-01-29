@@ -10,6 +10,8 @@ extends Node2D
 signal event_completed(event_id: String)
 signal reward_given(reward_type: EventData.RewardType, reward_value: Variant)
 
+const DUPLICATE_ARTIFACT_TO_GOLD: int = 500
+
 @onready var _ui_root: Control = $CanvasLayer/UIRoot
 @onready var _main_margin: MarginContainer = $CanvasLayer/UIRoot/MainMargin
 @onready var _event_panel: PanelContainer = $CanvasLayer/UIRoot/MainMargin/MainVBox/EventPanel
@@ -317,7 +319,18 @@ func _load_random_event() -> void:
 		character_id = RunManager.current_character.id
 	current_floor = RunManager.current_floor
 	
-	current_event = registry.pick_random_event(character_id, current_floor)
+	# 开发者选项可强制指定下一次事件：优先消费该ID
+	var forced_id := ""
+	if registry and registry.has_method("consume_forced_event_id"):
+		forced_id = str(registry.consume_forced_event_id())
+	if not forced_id.is_empty() and registry and registry.has_method("get_event"):
+		var forced_event := registry.get_event(forced_id)
+		if forced_event:
+			current_event = forced_event
+		else:
+			current_event = registry.pick_random_event(character_id, current_floor)
+	else:
+		current_event = registry.pick_random_event(character_id, current_floor)
 	
 	if current_event:
 		current_event_id = current_event.id
@@ -403,7 +416,10 @@ func _show_reward_event() -> void:
 			var artifact: ArtifactData = artifact_result.artifact
 			var slot: ArtifactSlot.SlotType = artifact_result.slot
 			var slot_name = ArtifactSlot.get_slot_name(slot)
-			reward_label.text = "获得圣遗物！\n%s（%s）\n%s" % [artifact.name, slot_name, artifact.get_bonus_summary(0)]
+			var preview_text := "获得圣遗物！\n%s（%s）\n%s" % [artifact.name, slot_name, artifact.get_bonus_summary(0)]
+			if RunManager and RunManager.has_artifact_in_inventory(artifact.name, slot):
+				preview_text += "\n\n当前槽位已有，将转化为%d摩拉" % DUPLICATE_ARTIFACT_TO_GOLD
+			reward_label.text = preview_text
 			reward_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
 			content_container.add_child(reward_label)
 			var confirm_button = Button.new()
@@ -413,7 +429,7 @@ func _show_reward_event() -> void:
 			confirm_button.pressed.connect(func(): _give_specific_artifact(artifact, slot); _complete_event())
 			content_container.add_child(confirm_button)
 	else:
-		reward_label.text = _get_reward_text(current_event.reward_type, current_event.reward_value)
+		reward_label.text = _get_reward_preview_text(current_event)
 		reward_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
 		content_container.add_child(reward_label)
 		
@@ -612,6 +628,23 @@ func _show_fate_dice_event() -> void:
 	if not content_container:
 		return
 	
+	_clear_content()
+	var pre_label := Label.new()
+	pre_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pre_label.text = "点击开始投掷骰子"
+	content_container.add_child(pre_label)
+	var roll_button := Button.new()
+	roll_button.text = "开始投掷"
+	roll_button.custom_minimum_size = Vector2(200, 50)
+	roll_button.pressed.connect(func() -> void: _show_fate_dice_roll_result())
+	content_container.add_child(roll_button)
+
+
+func _show_fate_dice_roll_result() -> void:
+	if not content_container:
+		return
+	_clear_content()
+	
 	var rng: RandomNumberGenerator = null
 	if RunManager:
 		rng = RunManager.get_rng() as RandomNumberGenerator
@@ -640,10 +673,13 @@ func _show_fate_dice_event() -> void:
 			var artifact: ArtifactData = artifact_result.artifact
 			var slot: ArtifactSlot.SlotType = artifact_result.slot
 			var slot_name = ArtifactSlot.get_slot_name(slot)
-			result_label.text = "获得圣遗物！\n%s（%s）\n%s" % [artifact.name, slot_name, artifact.get_bonus_summary(0)]
+			var preview_text := "获得圣遗物！\n%s（%s）\n%s" % [artifact.name, slot_name, artifact.get_bonus_summary(0)]
+			if RunManager and RunManager.has_artifact_in_inventory(artifact.name, slot):
+				preview_text += "\n\n当前槽位已有，将转化为%d摩拉" % DUPLICATE_ARTIFACT_TO_GOLD
+			result_label.text = preview_text
 			result_label.add_theme_color_override("font_color", Color(0.7, 0.4, 0.9))
 			var confirm_button = Button.new()
-			confirm_button.text = "获得奖励"
+			confirm_button.text = "确认"
 			confirm_button.custom_minimum_size = Vector2(200, 50)
 			# 直接使用已抽取的圣遗物，而不是再随机一次
 			confirm_button.pressed.connect(func(): _give_specific_artifact(artifact, slot); _complete_event())
@@ -664,7 +700,7 @@ func _show_fate_dice_event() -> void:
 		result_label.text = "获得500摩拉！"
 		result_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
 		var confirm_button = Button.new()
-		confirm_button.text = "获得奖励"
+		confirm_button.text = "确认"
 		confirm_button.custom_minimum_size = Vector2(200, 50)
 		confirm_button.pressed.connect(func(): _apply_reward(EventData.RewardType.GOLD, 500, current_event); _complete_event())
 		content_container.add_child(result_label)
@@ -674,7 +710,7 @@ func _show_fate_dice_event() -> void:
 		result_label.text = "生命值恢复30%！"
 		result_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
 		var confirm_button = Button.new()
-		confirm_button.text = "获得奖励"
+		confirm_button.text = "确认"
 		confirm_button.custom_minimum_size = Vector2(200, 50)
 		confirm_button.pressed.connect(func(): _apply_reward(EventData.RewardType.HEALTH, -30, current_event); _complete_event())
 		content_container.add_child(result_label)
@@ -704,8 +740,8 @@ func _on_reward_confirmed() -> void:
 	if not current_event:
 		return
 	
-	_apply_reward(current_event.reward_type, current_event.reward_value, current_event)
-	_complete_event()
+	var lines: Array[String] = _apply_reward(current_event.reward_type, current_event.reward_value, current_event)
+	_show_reward_result(lines)
 
 ## 选择选项
 func _on_choice_selected(choice_index: int) -> void:
@@ -717,7 +753,7 @@ func _on_choice_selected(choice_index: int) -> void:
 	# 检查是否需要支付成本
 	if choice.has("cost") and choice.cost > 0:
 		if not RunManager.spend_gold(choice.cost):
-			print("摩拉不足，无法选择此选项")
+			_show_event_warning("摩拉不足，无法选择此选项")
 			return
 		_update_gold_label()
 	
@@ -747,9 +783,33 @@ func _on_choice_selected(choice_index: int) -> void:
 			_show_artifact_reward_result(reward_type, reward_value)
 			return
 		
-		_apply_reward(reward_type, reward_value, current_event)
+		var lines: Array[String] = _apply_reward(reward_type, reward_value, current_event)
+		_show_choice_result(str(choice.get("description", "")), lines)
+		return
 	
-	_complete_event()
+	# 允许 choice 不带奖励：也应该展示选择后的提示（如果有）。
+	_show_choice_result(str(choice.get("description", "")), [])
+	return
+
+
+func _show_choice_result(choice_desc: String, reward_lines: Array[String]) -> void:
+	if not is_instance_valid(content_container):
+		_complete_event()
+		return
+	_clear_content()
+	var result_label := Label.new()
+	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var parts: Array[String] = []
+	if not choice_desc.is_empty():
+		parts.append(choice_desc)
+	parts.append("本次结果：\n" + ("\n".join(reward_lines) if not reward_lines.is_empty() else "（无）"))
+	result_label.text = "\n\n".join(parts)
+	content_container.add_child(result_label)
+	var confirm_button := Button.new()
+	confirm_button.text = "确认"
+	confirm_button.custom_minimum_size = Vector2(200, 50)
+	confirm_button.pressed.connect(_complete_event)
+	content_container.add_child(confirm_button)
 
 ## 开始战斗
 func _on_battle_started() -> void:
@@ -791,8 +851,8 @@ func _on_rest_skipped() -> void:
 func _on_upgrade_reward_confirmed() -> void:
 	if not current_event:
 		return
-	_apply_reward(current_event.reward_type, current_event.reward_value, current_event)
-	_complete_event()
+	var lines: Array[String] = _apply_reward(current_event.reward_type, current_event.reward_value, current_event)
+	_show_reward_result(lines)
 
 ## 确认升级
 func _on_upgrade_confirmed() -> void:
@@ -813,7 +873,8 @@ func _on_upgrade_confirmed() -> void:
 # ========== 奖励处理 ==========
 
 ## 应用奖励
-func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, event_data: EventData = null) -> void:
+func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, event_data: EventData = null) -> Array[String]:
+	var reward_lines: Array[String] = []
 	# 处理随机奖励范围
 	var actual_value = _get_actual_reward_value(reward_type, reward_value, event_data)
 	
@@ -825,13 +886,14 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 					# 负数表示花费
 					if not RunManager.spend_gold(abs(amount)):
 						print("摩拉不足，无法支付：", abs(amount))
-						return
+						return reward_lines
 					_update_gold_label()
+					reward_lines.append("摩拉 -%d" % abs(amount))
 				else:
 					RunManager.add_gold(amount)
 					print("获得摩拉：", amount)
 					_update_gold_label()
-		
+					reward_lines.append("摩拉 +%d" % amount)
 		EventData.RewardType.HEALTH:
 			if actual_value is int or actual_value is float:
 				# 检查是否是百分比（负数表示百分比）
@@ -840,29 +902,46 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 					var heal_amount = RunManager.max_health * (percent / 100.0)
 					RunManager.heal(heal_amount)
 					print("恢复生命值：", heal_amount, " (", percent, "%)")
+					reward_lines.append("生命值 +%d（%d%%）" % [int(round(heal_amount)), int(percent)])
 				else:
 					RunManager.heal(float(actual_value))
 					print("恢复生命值：", actual_value)
-		
+					reward_lines.append("生命值 +%d" % int(actual_value))
 		EventData.RewardType.UPGRADE:
-			if actual_value is String:
-				if actual_value == "random_max":
+			if actual_value == null:
+				# 随机选择一个升级
+				reward_lines.append_array(_give_random_upgrade())
+			elif actual_value is int:
+				# 给多个随机升级
+				for i in range(actual_value):
+					reward_lines.append_array(_give_random_upgrade())
+			elif actual_value is StringName:
+				var actual_str: String = String(actual_value)
+				if actual_str == "random":
+					# 随机选择一个升级
+					reward_lines.append_array(_give_random_upgrade())
+				elif actual_str == "random_max":
 					# 随机选择一个升级并直接满级
-					_give_random_upgrade_max_level()
+					reward_lines.append_array(_give_random_upgrade_max_level())
 				else:
 					# 直接给指定的升级
 					var level = 1
 					if event_data and event_data.has("upgrade_level"):
 						level = event_data.upgrade_level
-					RunManager.add_upgrade(actual_value, level)
-					print("获得升级：", actual_value, " 等级：", level)
-			elif actual_value == "random" or actual_value == null:
-				# 随机选择一个升级
-				_give_random_upgrade()
-			elif actual_value is int:
-				# 给多个随机升级
-				for i in range(actual_value):
-					_give_random_upgrade()
+					reward_lines.append_array(_give_upgrade_levels(actual_str, int(level)))
+			elif actual_value is String:
+				if actual_value == "random":
+					# 随机选择一个升级
+					reward_lines.append_array(_give_random_upgrade())
+				elif actual_value == "random_max":
+					# 随机选择一个升级并直接满级
+					reward_lines.append_array(_give_random_upgrade_max_level())
+				else:
+					# 直接给指定的升级
+					var level = 1
+					if event_data and event_data.has("upgrade_level"):
+						level = event_data.upgrade_level
+					reward_lines.append_array(_give_upgrade_levels(actual_value, int(level)))
 		
 		EventData.RewardType.ARTIFACT:
 			# 圣遗物奖励：从角色专属圣遗物套装中随机抽取
@@ -878,13 +957,8 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 				
 				var artifact: ArtifactData = result.artifact
 				var slot: ArtifactSlot.SlotType = result.slot
-				var slot_name = ArtifactSlot.get_slot_name(slot)
-				
-				# 添加到库存并装备
-				RunManager.add_artifact_to_inventory(artifact, slot)
-				RunManager.equip_artifact_to_character(artifact, slot)
-				
-				print("获得圣遗物：%s（%s）" % [artifact.name, slot_name])
+				_give_specific_artifact(artifact, slot)
+				reward_lines.append("圣遗物：%s（%s）" % [artifact.name, ArtifactSlot.get_slot_name(slot)])
 		
 		EventData.RewardType.MULTIPLE:
 			if actual_value is Dictionary:
@@ -899,32 +973,40 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 							RunManager.add_gold(random_gold)
 							print("获得摩拉：", random_gold)
 							_update_gold_label()
+							reward_lines.append("摩拉 +%d" % random_gold)
 						else:
 							var gold_amount := int(value)
 							if gold_amount < 0:
 								if not RunManager.spend_gold(abs(gold_amount)):
 									print("摩拉不足，无法支付：", abs(gold_amount))
-									return
+									return reward_lines
 								_update_gold_label()
+								reward_lines.append("摩拉 -%d" % abs(gold_amount))
 							else:
 								RunManager.add_gold(gold_amount)
 								_update_gold_label()
+								reward_lines.append("摩拉 +%d" % gold_amount)
 					elif key == "health":
-						if value is float and value < 0:
-							# 负数表示扣血
-							RunManager.take_damage(abs(value))
-						elif value is float and value > 1000:
-							# 大数值表示全满
-							RunManager.heal(RunManager.max_health)
-						else:
-							# 正数表示恢复生命值
-							RunManager.heal(float(value))
+						if value is int or value is float:
+							var hv := float(value)
+							if hv < 0.0:
+								# 负数表示扣血
+								RunManager.take_damage(abs(hv))
+								reward_lines.append("生命值 -%d" % int(abs(hv)))
+							elif hv > 1000.0:
+								# 大数值表示全满
+								RunManager.heal(RunManager.max_health)
+								reward_lines.append("生命值已回满")
+							else:
+								# 正数表示恢复生命值
+								RunManager.heal(hv)
+								reward_lines.append("生命值 +%d" % int(hv))
 					elif key == "upgrade":
 						if value is String:
-							RunManager.add_upgrade(value, 1)
+							reward_lines.append_array(_give_upgrade_levels(value, 1))
 						elif value is int:
 							for i in range(value):
-								_give_random_upgrade()
+								reward_lines.append_array(_give_random_upgrade())
 					elif key == "artifact":
 						# 圣遗物奖励：从角色专属圣遗物套装中随机抽取
 						var artifact_num = 1
@@ -939,15 +1021,11 @@ func _apply_reward(reward_type: EventData.RewardType, reward_value: Variant, eve
 							
 							var artifact: ArtifactData = result.artifact
 							var slot: ArtifactSlot.SlotType = result.slot
-							var slot_name = ArtifactSlot.get_slot_name(slot)
-							
-							# 添加到库存并装备
-							RunManager.add_artifact_to_inventory(artifact, slot)
-							RunManager.equip_artifact_to_character(artifact, slot)
-							
-							print("获得圣遗物：%s（%s）" % [artifact.name, slot_name])
+							_give_specific_artifact(artifact, slot)
+							reward_lines.append("圣遗物：%s（%s）" % [artifact.name, ArtifactSlot.get_slot_name(slot)])
 	
 	emit_signal("reward_given", reward_type, actual_value)
+	return reward_lines
 
 
 func _can_afford_reward(reward_type: EventData.RewardType, reward_value: Variant, event_data: EventData = null) -> bool:
@@ -993,14 +1071,12 @@ func _on_antique_shop_buy_pressed() -> void:
 		_show_event_warning("摩拉不足，无法购买")
 		return
 	_update_gold_label()
-	# 购买全套满级：每个槽位给2次（触发100%效果），并装备
+	# 购买全套：每个槽位给1次，并装备
 	for slot in ArtifactSlot.get_all_slots():
 		var a: ArtifactData = RunManager.current_character.artifact_set.get_artifact(slot)
 		if a == null:
 			continue
-		RunManager.add_artifact_to_inventory(a, slot)
-		RunManager.add_artifact_to_inventory(a, slot)
-		RunManager.equip_artifact_to_character(a, slot)
+		_give_specific_artifact(a, slot)
 	_complete_event()
 
 ## 获取实际奖励值（处理随机范围）
@@ -1041,7 +1117,7 @@ func _get_actual_reward_value(reward_type: EventData.RewardType, reward_value: V
 	return reward_value
 
 ## 给予随机升级
-func _give_random_upgrade() -> void:
+func _give_random_upgrade() -> Array[String]:
 	var registry = UpgradeRegistry
 	
 	var character_id := ""
@@ -1055,12 +1131,12 @@ func _give_random_upgrade() -> void:
 	
 	var picked = registry.pick_random_upgrades(character_id, current_upgrades, current_floor, 1)
 	if picked.size() > 0:
-		var upgrade = picked[0]
-		RunManager.add_upgrade(upgrade.id, 1)
-		print("随机获得升级：", upgrade.display_name)
+		var upgrade: UpgradeData = picked[0]
+		return _give_upgrade_levels(upgrade.id, 1)
+	return []
 
 ## 给予随机升级并直接满级
-func _give_random_upgrade_max_level() -> void:
+func _give_random_upgrade_max_level() -> Array[String]:
 	var registry = UpgradeRegistry
 	
 	var character_id := ""
@@ -1072,22 +1148,107 @@ func _give_random_upgrade_max_level() -> void:
 	current_floor = RunManager.current_floor
 	current_upgrades = RunManager.upgrades
 	
-	var picked = registry.pick_random_upgrades(character_id, current_upgrades, current_floor, 1)
-	if picked.size() > 0:
-		var upgrade = picked[0]
-		var max_level = upgrade.max_level if upgrade.max_level > 0 else 5  # 如果没有最大等级，默认5级
-		var current_level = RunManager.get_upgrade_level(upgrade.id)
-		var levels_to_add = max_level - current_level
+	# 优先从“还能继续提升”的升级里选择，避免抽到已满级导致结果为空。
+	var available: Array[UpgradeData] = registry.get_available_upgrades(character_id, current_upgrades, current_floor)
+	var upgradable: Array[UpgradeData] = []
+	for u in available:
+		if u == null:
+			continue
+		if u.max_level > 0:
+			var cur: int = int(RunManager.get_upgrade_level(u.id))
+			if cur < u.max_level:
+				upgradable.append(u)
+		else:
+			# max_level<=0 视为无上限，永远可提升
+			upgradable.append(u)
+	
+	if upgradable.is_empty():
+		return ["所有升级已达上限"]
+	
+	var rng: RandomNumberGenerator = null
+	if RunManager:
+		rng = RunManager.get_rng() as RandomNumberGenerator
+	if not rng:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	
+	var upgrade: UpgradeData = upgradable[rng.randi_range(0, upgradable.size() - 1)]
+	if upgrade.max_level > 0:
+		var current_level: int = int(RunManager.get_upgrade_level(upgrade.id))
+		var levels_to_add: int = upgrade.max_level - current_level
 		if levels_to_add > 0:
-			RunManager.add_upgrade(upgrade.id, levels_to_add)
-			print("随机获得升级并满级：", upgrade.display_name, " 等级：", max_level)
+			return _give_upgrade_levels(upgrade.id, levels_to_add)
+		return ["所有升级已达上限"]
+	return _give_upgrade_levels(upgrade.id, 5)
+
+
+func _give_upgrade_levels(upgrade_id: String, levels_to_add: int) -> Array[String]:
+	if levels_to_add <= 0:
+		return []
+	if not RunManager:
+		return []
+	if upgrade_id.is_empty():
+		return []
+	var before_level: int = int(RunManager.get_upgrade_level(upgrade_id))
+	RunManager.add_upgrade(upgrade_id, levels_to_add)
+	var after_level: int = before_level + levels_to_add
+	var upgrade: UpgradeData = null
+	if UpgradeRegistry:
+		upgrade = UpgradeRegistry.get_upgrade(upgrade_id)
+	if upgrade == null:
+		return ["升级：%s +%d（Lv.%d→%d）" % [upgrade_id, levels_to_add, before_level, after_level]]
+	var lines: Array[String] = []
+	lines.append("升级：%s +%d（Lv.%d→%d）" % [upgrade.display_name, levels_to_add, before_level, after_level])
+	var formatted_desc := _format_upgrade_description_for_gain(upgrade, before_level, after_level)
+	if not formatted_desc.is_empty():
+		lines.append("效果：%s" % formatted_desc)
+	return lines
+
+
+func _format_upgrade_description_for_gain(upgrade: UpgradeData, before_level: int, after_level: int) -> String:
+	if upgrade == null:
+		return ""
+	var formatted := upgrade.description
+	var before_value: float = upgrade.get_value_at_level(before_level)
+	var after_value: float = upgrade.get_value_at_level(after_level)
+	var delta: float = after_value - before_value
+	formatted = formatted.replace("{value}", _format_upgrade_value_for_ui(upgrade, delta))
+	formatted = formatted.replace("{current}", _format_upgrade_value_for_ui(upgrade, before_value))
+	formatted = formatted.replace("{next}", _format_upgrade_value_for_ui(upgrade, after_value))
+	formatted = formatted.replace("{level}", str(before_level))
+	formatted = formatted.replace("{max_level}", str(upgrade.max_level))
+	return formatted
+
+
+func _format_upgrade_value_for_ui(upgrade: UpgradeData, value: float) -> String:
+	if upgrade == null:
+		return str(value)
+	var is_percent := upgrade.upgrade_type == UpgradeData.UpgradeType.STAT_PERCENT
+	if not is_percent:
+		match upgrade.target_stat:
+			UpgradeData.TargetStat.DEFENSE_PERCENT, UpgradeData.TargetStat.CRIT_RATE, UpgradeData.TargetStat.CRIT_DAMAGE:
+				is_percent = true
+	if is_percent:
+		return "%.0f%%" % (value * 100.0) if value < 1.0 else "%.0f%%" % value
+	var snapped_value: float = snappedf(value, 0.1)
+	if abs(snapped_value - float(roundi(snapped_value))) < 0.0001:
+		return "%.0f" % snapped_value
+	return "%.1f" % snapped_value
 
 ## 给予指定的圣遗物（用于已预先抽取的情况）
 func _give_specific_artifact(artifact: ArtifactData, slot: ArtifactSlot.SlotType) -> void:
 	if not artifact:
 		return
+	if not RunManager:
+		return
 	
 	var slot_name = ArtifactSlot.get_slot_name(slot)
+	if RunManager.has_artifact_in_inventory(artifact.name, slot):
+		RunManager.add_gold(DUPLICATE_ARTIFACT_TO_GOLD)
+		_update_gold_label()
+		_show_event_warning("当前槽位已有，转化为%d摩拉" % DUPLICATE_ARTIFACT_TO_GOLD)
+		print("圣遗物重复，转化为摩拉：%s（%s） -> %d" % [artifact.name, slot_name, DUPLICATE_ARTIFACT_TO_GOLD])
+		return
 	
 	# 添加到库存并装备
 	RunManager.add_artifact_to_inventory(artifact, slot)
@@ -1132,6 +1293,8 @@ func _show_artifact_reward_result(reward_type: EventData.RewardType, reward_valu
 		
 		# 构建显示文本
 		var display_text = "获得圣遗物！\n%s（%s）\n%s" % [artifact.name, slot_name, artifact.get_bonus_summary(0)]
+		if RunManager and RunManager.has_artifact_in_inventory(artifact.name, slot):
+			display_text += "\n\n当前槽位已有，将转化为%d摩拉" % DUPLICATE_ARTIFACT_TO_GOLD
 		
 		# 如果是MULTIPLE类型且有其他奖励，添加到显示
 		if reward_type == EventData.RewardType.MULTIPLE and reward_value is Dictionary:
@@ -1186,6 +1349,62 @@ func _apply_non_artifact_rewards(reward_dict: Dictionary) -> void:
 			elif value is int:
 				for i in range(value):
 					_give_random_upgrade()
+
+
+func _show_reward_result(lines: Array[String]) -> void:
+	if not is_instance_valid(content_container):
+		_complete_event()
+		return
+	_clear_content()
+	var result_label := Label.new()
+	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_label.text = "本次结果：\n" + ("\n".join(lines) if not lines.is_empty() else "（无）")
+	content_container.add_child(result_label)
+	var confirm_button := Button.new()
+	confirm_button.text = "确认"
+	confirm_button.custom_minimum_size = Vector2(200, 50)
+	confirm_button.pressed.connect(_complete_event)
+	content_container.add_child(confirm_button)
+
+
+func _get_reward_preview_text(event_data: EventData) -> String:
+	if not event_data:
+		return ""
+	match event_data.reward_type:
+		EventData.RewardType.GOLD:
+			if event_data.reward_min > 0 and event_data.reward_max > 0:
+				return "获得 %d-%d 摩拉" % [int(event_data.reward_min), int(event_data.reward_max)]
+			return "获得 %d 摩拉" % int(event_data.reward_value)
+		EventData.RewardType.HEALTH:
+			return "恢复 %d 点生命值" % int(event_data.reward_value)
+		EventData.RewardType.UPGRADE:
+			if event_data.reward_value is int:
+				return "获得 %d 个升级" % int(event_data.reward_value)
+			return "获得升级"
+		EventData.RewardType.MULTIPLE:
+			if event_data.reward_value is Dictionary:
+				var parts: Array[String] = []
+				var d: Dictionary = event_data.reward_value
+				if d.has("gold"):
+					if event_data.reward_min > 0 and event_data.reward_max > 0:
+						parts.append("摩拉 +%d-%d" % [int(event_data.reward_min), int(event_data.reward_max)])
+					else:
+						parts.append("摩拉 +%d" % int(d.get("gold", 0)))
+				if d.has("upgrade"):
+					parts.append("升级 x%d" % int(d.get("upgrade", 0)))
+				if d.has("health"):
+					var hv: Variant = d.get("health", 0)
+					if hv is int or hv is float:
+						var hi := int(hv)
+						parts.append("生命值 %s%d" % ["+" if hi >= 0 else "", hi])
+				if d.has("artifact"):
+					parts.append("圣遗物 x%d" % int(d.get("artifact", 1)))
+				if parts.is_empty():
+					return "获得多种奖励"
+				return "获得多种奖励：\n" + "\n".join(parts)
+			return "获得多种奖励"
+		_:
+			return "获得奖励"
 
 ## 获取奖励文本
 func _get_reward_text(reward_type: EventData.RewardType, reward_value: Variant) -> String:

@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "_说明": [
+    "这是【角色可用升级选项】配置模板文件。",
+    "我会在你填好并发回给我之后，把读取与生效逻辑接到 UpgradeRegistry.get_available_upgrades() 里。",
+    "upgrade_ids 填写升级ID（字符串）。升级ID目前来自两处：",
+    "1) 内置升级：scripts/upgrades/upgrade_registry.gd 里 _register_builtin_upgrades() 注册的那些",
+    "2) 自定义升级：res://data/upgrades/ 目录下的 .tres/.res（UpgradeData）",
+    "字段含义对照：characters=角色配置，mode=模式，upgrade_ids=升级ID列表，tag_allow/tag_deny=标签过滤，weight_multiplier_by_id=权重倍率",
+    "upgrade_id_to_name 是升级ID到中文名的对照表，只用于你填写时参考，不参与逻辑。",
+    "提示：绫华专属内置升级ID目前有：ayaka_skill_cd_reduce_on_hit / ayaka_burst_extra_projectiles / ayaka_burst_defense_shred / ayaka_thin_ice_dance"
+  ],
+  "upgrade_id_to_name": {
+    "common_max_health": "提升最大生命值",
+    "common_attack": "提升攻击力",
+    "common_damage_reduction": "百分比减伤",
+    "common_move_speed": "移动速度提升",
+    "common_attack_speed": "普攻速度提升",
+    "common_weapon_range": "武器变大",
+    "common_crit_rate": "提升暴击率",
+    "common_crit_damage": "提升暴击伤害",
+    "common_dodge_distance": "闪避距离提升",
+    "common_dodge_cooldown": "闪避冷却降低",
+    "common_invincibility": "增加受伤后无敌时间",
+    "common_skill_damage": "提高技能伤害",
+    "common_skill_cooldown": "减少技能冷却",
+    "common_skill_radius": "增加技能范围",
+    "common_burst_damage": "增加大招伤害",
+    "common_energy_gain": "提升充能效率",
+    "common_pickup_range": "扩大拾取范围",
+    "common_pickup_multiplier": "提升拾取倍率",
+    "common_knockback_force": "增加击退力度",
+
+    "ayaka_skill_cd_reduce_on_hit": "冰华余势",
+    "ayaka_burst_extra_projectiles": "霜灭·散射",
+    "ayaka_burst_defense_shred": "霜见雪关扉",
+    "ayaka_thin_ice_dance": "薄冰舞踏"
+  },
+  "characters": {
+    "kamisato_ayaka": {
+      "mode": "allowlist",
+      "_mode说明": [
+        "allowlist（白名单）= 只会从 upgrade_ids 中抽取",
+        "denylist（黑名单）= 除了 upgrade_ids 以外都能抽取（即把 upgrade_ids 当黑名单）"
+      ],
+      "upgrade_ids": [
+        "common_max_health",
+        "common_attack",
+        "common_damage_reduction",
+        "common_move_speed",
+        "common_attack_speed",
+        "common_weapon_range",
+        "common_crit_rate",
+        "common_crit_damage",
+        "common_dodge_distance",
+        "common_dodge_cooldown",
+        "common_invincibility",
+        "common_skill_damage",
+        "common_skill_cooldown",
+        "common_skill_radius",
+        "common_burst_damage",
+        "common_energy_gain",
+        "common_pickup_range",
+        "common_pickup_multiplier",
+        "common_knockback_force",
+
+        "ayaka_skill_cd_reduce_on_hit",
+        "ayaka_burst_extra_projectiles",
+        "ayaka_burst_defense_shred",
+        "ayaka_thin_ice_dance"
+      ],
+      "tag_allow": [],
+      "tag_deny": [],
+      "weight_multiplier_by_id": {
+        "_示例": 1.0
+      }
+    }
+  }
+}

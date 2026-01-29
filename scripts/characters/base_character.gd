@@ -721,6 +721,8 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 	if not current_stats:
 		return [0.0, false]
 	
+	var ayaka_set_pieces: int = _get_ayaka_artifact_set_pieces()
+	
 	# 获取目标的减伤比例
 	var target_defense: float = 0.0
 	if target.has_method("get_defense_percent"):
@@ -731,10 +733,10 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 	var final_damage: float = result[0]
 	var is_crit: bool = result[1]
 	
-	# 应用升级加成（如果有 RunManager）
-	if RunManager:
-		var damage_upgrade = RunManager.get_upgrade_level("damage")
-		final_damage *= (1.0 + damage_upgrade * 0.1)  # 每级 +10% 伤害
+	# 4件套：敌人处于冻结时伤害额外提高20%
+	if ayaka_set_pieces >= 4:
+		if target != null and target.has_method("is_frozen_state") and bool(target.call("is_frozen_state")):
+			final_damage *= 1.2
 	
 	# 应用武器加成（统一入口）
 	final_damage *= get_weapon_damage_multiplier()
@@ -762,6 +764,11 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 				target.take_damage(final_damage)
 				damage_dealt = true
 	
+	# 2件套：对敌人造成暴击时冻结1s
+	if damage_dealt and is_crit and ayaka_set_pieces >= 2:
+		if target != null and target.has_method("apply_freeze"):
+			target.call("apply_freeze", 1.0)
+	
 	# 如果成功造成伤害，播放命中音效
 	if damage_dealt and BGMManager:
 		BGMManager.play_hit_sound()
@@ -778,6 +785,16 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 	emit_signal("damage_dealt", final_damage, is_crit, target)
 	
 	return [final_damage, is_crit]
+
+
+func _get_ayaka_artifact_set_pieces() -> int:
+	if character_data == null:
+		return 0
+	if character_data.id != "kamisato_ayaka":
+		return 0
+	if artifact_manager == null:
+		return 0
+	return artifact_manager.get_equipped_count()
 
 ## 检查方法是否支持指定数量的参数
 func _can_call_with_params(obj: Object, method_name: String, param_count: int) -> bool:
@@ -1040,7 +1057,7 @@ func add_crit_damage(amount: float) -> void:
 ## 增加减伤比例
 func add_defense_percent(amount: float) -> void:
 	if current_stats:
-		current_stats.defense_percent = clamp(current_stats.defense_percent + amount, 0.0, 1.0)
+		current_stats.defense_percent = clamp(current_stats.defense_percent + amount, 0.0, 0.80)
 
 ## 增加移动速度
 func add_move_speed(amount: float) -> void:
@@ -1156,7 +1173,10 @@ func _apply_stat_upgrade(run_manager: Node, property_name: String, target_stat: 
 	
 	# 特殊处理：防御和暴击率需要限制范围
 	if property_name == "defense_percent" or property_name == "crit_rate":
-		final_value = clamp(final_value, 0.0, 1.0)
+		if property_name == "defense_percent":
+			final_value = clamp(final_value, 0.0, 0.80)
+		else:
+			final_value = clamp(final_value, 0.0, 1.0)
 	
 	current_stats.set(property_name, final_value)
 
@@ -1227,6 +1247,27 @@ func get_skill_radius_multiplier() -> float:
 		return 1.0 + bonus
 	return 1.0
 
+
+func get_skill_damage_multiplier_bonus() -> float:
+	if RunManager:
+		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.SKILL_DAMAGE)
+		return maxf(0.0, 1.0 + bonus)
+	return 1.0
+
+
+func get_burst_damage_multiplier_bonus() -> float:
+	if RunManager:
+		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.BURST_DAMAGE)
+		return maxf(0.0, 1.0 + bonus)
+	return 1.0
+
+
+func get_weapon_range_multiplier() -> float:
+	if RunManager:
+		var bonus = RunManager.get_stat_percent_bonus(UpgradeData.TargetStat.WEAPON_RANGE)
+		return maxf(0.01, 1.0 + bonus)
+	return 1.0
+
 ## 获取充能效率倍率（通用升级）
 func get_energy_gain_multiplier() -> float:
 	return energy_gain_multiplier
@@ -1283,6 +1324,13 @@ func _apply_artifact_bonuses() -> void:
 	
 	# 统一交给 CharacterStats 处理，避免在角色脚本里维护“加成规则”
 	current_stats.apply_bonuses(bonuses)
+	
+	# 神里绫华套装效果：2件/4件套
+	var pieces: int = _get_ayaka_artifact_set_pieces()
+	if pieces >= 2:
+		current_stats.crit_rate = clampf(current_stats.crit_rate + 0.15, 0.0, 1.0)
+	if pieces >= 4:
+		current_stats.crit_rate = clampf(current_stats.crit_rate + 0.20, 0.0, 1.0)
 	
 	# 打印圣遗物加成信息（调试用）
 	if not bonuses.is_empty():

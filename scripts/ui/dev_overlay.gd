@@ -4,16 +4,10 @@ extends CanvasLayer
 ## - 左上角按钮 -> 密码校验 -> 开发者面板
 ## - 支持：修改 RunManager 资源/属性、玩家实时属性、升级、圣遗物、快速跳转与战斗内传送
 
-const DEV_PASSWORD: String = "kuchao"
-
 var _unlocked: bool = false
 
 var _root: Control
 var _dev_button: Button
-
-var _pwd_window: Window
-var _pwd_edit: LineEdit
-var _pwd_error: Label
 
 var _panel_window: Window
 var _tabs: TabContainer
@@ -77,59 +71,8 @@ func _build_ui() -> void:
 	_dev_button.mouse_filter = Control.MOUSE_FILTER_STOP
 	_dev_button.pressed.connect(_on_dev_button_pressed)
 	_root.add_child(_dev_button)
-
-	_build_password_window()
 	_build_panel_window()
 	_build_clear_save_confirm()
-
-func _build_password_window() -> void:
-	_pwd_window = Window.new()
-	_pwd_window.title = "开发者验证"
-	_pwd_window.visible = false
-	_pwd_window.transient = true
-	_pwd_window.exclusive = true
-	_pwd_window.unresizable = true
-	_pwd_window.size = Vector2i(420, 170)
-	_pwd_window.close_requested.connect(func(): _pwd_window.hide())
-	_root.add_child(_pwd_window)
-
-	var v := VBoxContainer.new()
-	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.offset_left = 12
-	v.offset_top = 12
-	v.offset_right = -12
-	v.offset_bottom = -12
-	v.add_theme_constant_override("separation", 8)
-	_pwd_window.add_child(v)
-
-	var tip := Label.new()
-	tip.text = "请输入密码："
-	v.add_child(tip)
-
-	_pwd_edit = LineEdit.new()
-	_pwd_edit.placeholder_text = "密码"
-	_pwd_edit.secret = true
-	_pwd_edit.text_submitted.connect(func(_t: String): _submit_password())
-	v.add_child(_pwd_edit)
-
-	_pwd_error = Label.new()
-	_pwd_error.text = ""
-	_pwd_error.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
-	v.add_child(_pwd_error)
-
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
-	v.add_child(h)
-
-	var ok := Button.new()
-	ok.text = "进入"
-	ok.pressed.connect(_submit_password)
-	h.add_child(ok)
-
-	var cancel := Button.new()
-	cancel.text = "取消"
-	cancel.pressed.connect(func(): _pwd_window.hide())
-	h.add_child(cancel)
 
 func _build_panel_window() -> void:
 	_panel_window = Window.new()
@@ -159,14 +102,6 @@ func _build_panel_window() -> void:
 	refresh.pressed.connect(_refresh_all_views)
 	top_bar.add_child(refresh)
 
-	var lock := Button.new()
-	lock.text = "锁定（下次需密码）"
-	lock.pressed.connect(func():
-		_unlocked = false
-		_panel_window.hide()
-	)
-	top_bar.add_child(lock)
-
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_bar.add_child(spacer)
@@ -184,32 +119,13 @@ func _build_panel_window() -> void:
 	_tabs.add_child(_build_tab_stats())
 	_tabs.add_child(_build_tab_upgrades())
 	_tabs.add_child(_build_tab_artifacts())
+	_tabs.add_child(_build_tab_events())
 	_tabs.add_child(_build_tab_teleport())
 	_tabs.add_child(_build_tab_persistent())
 
 func _on_dev_button_pressed() -> void:
-	if _unlocked:
-		_open_panel()
-	else:
-		_open_password_prompt()
-
-func _open_password_prompt() -> void:
-	_pwd_error.text = ""
-	_pwd_edit.text = ""
-	_pwd_window.popup_centered()
-	await get_tree().process_frame
-	_pwd_edit.grab_focus()
-
-func _submit_password() -> void:
-	var input := _pwd_edit.text.strip_edges()
-	if input == DEV_PASSWORD:
-		_unlocked = true
-		_pwd_window.hide()
-		_open_panel()
-	else:
-		_pwd_error.text = "密码错误"
-		_pwd_edit.select_all()
-		_pwd_edit.grab_focus()
+	_unlocked = true
+	_open_panel()
 
 func _open_panel() -> void:
 	_refresh_all_views()
@@ -702,32 +618,28 @@ func _build_tab_artifacts() -> Control:
 		slot_select.add_item(ArtifactSlot.get_slot_name(slot))
 		slot_select.set_item_metadata(slot_select.item_count - 1, int(slot))
 	row.add_child(slot_select)
-
-	var equip0 := Button.new()
-	equip0.text = "装备专属(50%)"
-	row.add_child(equip0)
-
-	var equip1 := Button.new()
-	equip1.text = "升到100%"
-	row.add_child(equip1)
+	
+	var equip := Button.new()
+	equip.text = "获得并装备槽位(100%)"
+	row.add_child(equip)
 
 	var unequip := Button.new()
 	unequip.text = "卸下槽位"
 	row.add_child(unequip)
-
+	
 	var equip_all := Button.new()
-	equip_all.text = "装备全部五件(100%)"
+	equip_all.text = "获得并装备全部五件(100%)"
 	row.add_child(equip_all)
-
+	
 	var hint := Label.new()
-	hint.text = "说明：同一圣遗物装备第二次会自动升到 100%（系统规则）。"
+	hint.text = "说明：当前版本圣遗物获得即 100% 效果，不再存在 50%/100% 等级机制。"
 	hint.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
 	tab.add_child(hint)
 
 	var get_slot := func() -> int:
 		return int(slot_select.get_selected_metadata())
 
-	var equip_slot := func(slot: int, target_level: int) -> void:
+	var equip_slot := func(slot: int) -> void:
 		if not RunManager:
 			return
 		var art: ArtifactData = RunManager.get_artifact_from_character_set(slot)
@@ -735,18 +647,11 @@ func _build_tab_artifacts() -> Control:
 			return
 		# 确保进入库存（即便当前不在战斗，后续创建角色节点会自动装备）
 		RunManager.add_artifact_to_inventory(art, slot)
-		# 装备一次：0级(50%)
+		# 装备一次：获得即 100%
 		RunManager.equip_artifact_to_character(art, slot)
-		# 再装备一次：升到1级(100%)
-		if target_level >= 1:
-			RunManager.equip_artifact_to_character(art, slot)
 
-	equip0.pressed.connect(func():
-		equip_slot.call(get_slot.call(), 0)
-	)
-
-	equip1.pressed.connect(func():
-		equip_slot.call(get_slot.call(), 1)
+	equip.pressed.connect(func():
+		equip_slot.call(get_slot.call())
 	)
 
 	unequip.pressed.connect(func():
@@ -757,9 +662,135 @@ func _build_tab_artifacts() -> Control:
 
 	equip_all.pressed.connect(func():
 		for s in ArtifactSlot.get_all_slots():
-			equip_slot.call(int(s), 1)
+			equip_slot.call(int(s))
 	)
 
+	return tab
+
+
+# =========================
+# Tab: 事件
+# =========================
+func _build_tab_events() -> Control:
+	var tab := VBoxContainer.new()
+	tab.name = "事件"
+	tab.add_theme_constant_override("separation", 10)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	tab.add_child(row)
+
+	var event_select := OptionButton.new()
+	event_select.custom_minimum_size = Vector2(460, 0)
+	row.add_child(event_select)
+
+	var refresh_btn := Button.new()
+	refresh_btn.text = "刷新列表"
+	row.add_child(refresh_btn)
+
+	var enter_btn := Button.new()
+	enter_btn.text = "进入事件"
+	row.add_child(enter_btn)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tab.add_child(scroll)
+
+	var info := RichTextLabel.new()
+	info.bbcode_enabled = false
+	info.scroll_active = false
+	info.selection_enabled = true
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(info)
+
+	var _get_selected_event_id := func() -> String:
+		var md: Variant = event_select.get_selected_metadata()
+		return str(md) if md != null else ""
+
+	var _event_type_name := func(t: int) -> String:
+		match t:
+			EventData.EventType.REWARD:
+				return "奖励"
+			EventData.EventType.CHOICE:
+				return "选择"
+			EventData.EventType.BATTLE:
+				return "战斗"
+			EventData.EventType.SHOP:
+				return "商店"
+			EventData.EventType.REST:
+				return "休息"
+			EventData.EventType.UPGRADE:
+				return "升级"
+			EventData.EventType.RANDOM:
+				return "随机"
+			EventData.EventType.CUSTOM:
+				return "自定义"
+			_:
+				return "未知"
+
+	var _update_info := func() -> void:
+		var id := str(_get_selected_event_id.call())
+		if id.is_empty():
+			info.text = "未选择事件"
+			return
+		var e: EventData = null
+		if EventRegistry and EventRegistry.has_method("get_event"):
+			e = EventRegistry.get_event(id) as EventData
+		if e == null:
+			info.text = "找不到事件：%s" % id
+			return
+		var tags_text := ""
+		if e.tags.size() > 0:
+			tags_text = ", ".join(e.tags)
+		var header := "名称：%s\nID：%s\n类型：%s\n稀有度：%s\n标签：%s\n\n" % [
+			e.display_name,
+			e.id,
+			str(_event_type_name.call(int(e.event_type))),
+			e.get_rarity_name(),
+			tags_text,
+		]
+		info.text = header + str(e.description)
+
+	var _refresh_list := func() -> void:
+		event_select.clear()
+		var all_events: Array = []
+		if EventRegistry and EventRegistry.has_method("get_all_events"):
+			all_events = EventRegistry.get_all_events()
+		all_events.sort_custom(func(a, b):
+			var an: String = str(a.display_name) if a else ""
+			var bn: String = str(b.display_name) if b else ""
+			return an < bn
+		)
+		for e in all_events:
+			if not e:
+				continue
+			event_select.add_item("%s (%s)" % [e.display_name, e.id])
+			event_select.set_item_metadata(event_select.item_count - 1, e.id)
+		if event_select.item_count <= 0:
+			event_select.add_item("（无事件）")
+			event_select.set_item_metadata(0, "")
+		_update_info.call()
+
+	event_select.item_selected.connect(func(_i: int) -> void:
+		_update_info.call()
+	)
+	refresh_btn.pressed.connect(func() -> void:
+		_refresh_list.call()
+	)
+	enter_btn.pressed.connect(func() -> void:
+		var id := str(_get_selected_event_id.call())
+		if id.is_empty():
+			return
+		if EventRegistry and EventRegistry.has_method("force_next_event"):
+			EventRegistry.force_next_event(id)
+		if GameManager:
+			GameManager.enter_event()
+		if _panel_window:
+			_panel_window.hide()
+	)
+
+	_refresh_list.call()
 	return tab
 
 # =========================

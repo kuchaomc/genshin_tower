@@ -37,6 +37,8 @@ var direction: Vector2 = Vector2.RIGHT
 # 发射者角色（用于统一伤害计算、飘字、命中音效等）
 var owner_character: BaseCharacter = null
 
+var radius_multiplier: float = 1.0
+
 # 命中去重：避免同一帧多次触发（Area + Body 回调等）
 var _hit_enemies: Array[Node2D] = []
 
@@ -59,6 +61,14 @@ func _ready() -> void:
 	monitoring = true
 	monitorable = true
 
+	var mul := maxf(0.01, radius_multiplier)
+	if mul != 1.0:
+		dot_radius *= mul
+		glow_radius *= mul
+		var cs := _find_first_collision_shape(self)
+		if cs:
+			cs.scale *= mul
+
 	_rng.randomize()
 
 	# 立即刷新一次绘制
@@ -66,6 +76,19 @@ func _ready() -> void:
 
 	var timer := get_tree().create_timer(lifetime)
 	timer.timeout.connect(queue_free)
+
+
+func _find_first_collision_shape(root: Node) -> CollisionShape2D:
+	if root == null:
+		return null
+	for c in root.get_children():
+		var cs := c as CollisionShape2D
+		if cs != null:
+			return cs
+		var nested := _find_first_collision_shape(c)
+		if nested != null:
+			return nested
+	return null
 
 
 func _draw() -> void:

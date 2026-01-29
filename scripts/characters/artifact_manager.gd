@@ -8,7 +8,7 @@ class_name ArtifactManager
 var equipped_set: ArtifactSetData = null
 
 ## 圣遗物等级字典（槽位 -> 等级）
-## 等级0 = 50%效果，等级1 = 100%效果
+## 兼容字段：当前版本圣遗物获得即 100% 效果，等级恒为 1
 var artifact_levels: Dictionary = {}
 
 ## 初始化圣遗物管理器
@@ -17,9 +17,6 @@ func initialize(artifact_set: ArtifactSetData) -> void:
 	artifact_levels.clear()
 
 ## 装备圣遗物到指定槽位
-## 规则：同名圣遗物需要获得两次才能达到最大效果
-## - 第1次获得：等级0（50%效果）
-## - 第2次及以上：等级1（100%效果）
 func equip_artifact(slot: ArtifactSlot.SlotType, artifact: ArtifactData) -> bool:
 	if not equipped_set:
 		push_error("ArtifactManager: 未初始化圣遗物套装")
@@ -27,27 +24,15 @@ func equip_artifact(slot: ArtifactSlot.SlotType, artifact: ArtifactData) -> bool
 	
 	var current_artifact = equipped_set.get_artifact(slot)
 	
-	var obtained_count: int = 1
-	if is_instance_valid(RunManager):
-		obtained_count = RunManager.get_artifact_obtained_count(artifact.name, slot)
-	var desired_level: int = 0 if obtained_count < 2 else 1
-	var prev_level: int = artifact_levels.get(slot, 0)
-	
 	# 始终确保槽位装备为该圣遗物（不同圣遗物则替换）
 	if not current_artifact or current_artifact.name != artifact.name:
 		equipped_set.set_artifact(slot, artifact)
-		artifact_levels[slot] = desired_level
-		print("装备圣遗物：%s（等级%d，效果%d%%）" % [artifact.name, desired_level, _get_effect_percent(desired_level)])
+		artifact_levels[slot] = 1
+		print("装备圣遗物：%s（效果100%%）" % artifact.name)
 		return true
-	
-	# 相同圣遗物：根据获得次数刷新等级
-	if prev_level != desired_level:
-		artifact_levels[slot] = desired_level
-		print("圣遗物升级：%s 等级 %d -> %d（效果：%d%%）" % [artifact.name, prev_level, desired_level, _get_effect_percent(desired_level)])
-		return true
-	
-	# 已是目标等级，无需变化
-	print("圣遗物已满级：%s" % artifact.name)
+
+	# 相同圣遗物：重复获得不再提升效果
+	print("圣遗物已装备：%s" % artifact.name)
 	return false
 
 ## 卸载指定槽位的圣遗物
@@ -75,20 +60,10 @@ func get_all_equipped_artifacts() -> Dictionary:
 
 ## 获取指定槽位的圣遗物等级
 func get_artifact_level(slot: ArtifactSlot.SlotType) -> int:
-	return artifact_levels.get(slot, 0)
-
-## 获取指定槽位的效果百分比（0级=50%，1级=100%）
-func _get_effect_percent(level: int) -> int:
-	match level:
-		0:
-			return 50
-		1:
-			return 100
-		_:
-			return 50
+	return artifact_levels.get(slot, 1)
 
 ## 应用圣遗物属性加成到角色属性
-## 返回一个字典，包含所有属性加成（根据等级计算）
+## 返回一个字典，包含所有属性加成（当前版本：获得即满效果）
 func apply_stat_bonuses() -> Dictionary:
 	if not equipped_set:
 		return {}
@@ -98,15 +73,11 @@ func apply_stat_bonuses() -> Dictionary:
 	for slot in ArtifactSlot.get_all_slots():
 		var artifact = equipped_set.get_artifact(slot)
 		if artifact:
-			var level = artifact_levels.get(slot, 0)
-			var effect_multiplier = 0.5 if level == 0 else 1.0  # 0级=50%，1级=100%
-			
 			var bonuses = artifact.get_all_stat_bonuses()
 			for stat_name in bonuses:
 				if not total_bonuses.has(stat_name):
 					total_bonuses[stat_name] = 0.0
-				# 根据等级应用效果
-				total_bonuses[stat_name] += bonuses[stat_name] * effect_multiplier
+				total_bonuses[stat_name] += bonuses[stat_name]
 	
 	return total_bonuses
 

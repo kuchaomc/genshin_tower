@@ -380,7 +380,11 @@ func set_floor(floor_num: int) -> void:
 
 ## 增加金币
 func add_gold(amount: int) -> void:
-	gold += amount
+	var final_amount := amount
+	var mult := 1.0 + get_stat_percent_bonus(UpgradeData.TargetStat.PICKUP_MULTIPLIER)
+	if mult != 1.0:
+		final_amount = maxi(0, roundi(float(amount) * mult))
+	gold += final_amount
 	emit_signal("gold_changed", gold)
 
 
@@ -388,10 +392,14 @@ func add_gold(amount: int) -> void:
 func add_primogems(amount: int) -> void:
 	if amount <= 0:
 		return
-	primogems_earned += amount
+	var final_amount := amount
+	var mult := 1.0 + get_stat_percent_bonus(UpgradeData.TargetStat.PICKUP_MULTIPLIER)
+	if mult != 1.0:
+		final_amount = maxi(0, roundi(float(amount) * mult))
+	primogems_earned += final_amount
 	emit_signal("primogems_earned_changed", primogems_earned)
 	if GameManager:
-		GameManager.add_primogems(amount)
+		GameManager.add_primogems(final_amount)
 
 ## 消耗金币
 func spend_gold(amount: int) -> bool:
@@ -552,6 +560,8 @@ func _apply_stat_to_character(character: Node, current_stats: Resource, base_sta
 	
 	var base_value = base_stats.get(property_name)
 	var final_value = calculate_final_stat(base_value, target_stat)
+	if property_name == "defense_percent":
+		final_value = clamp(final_value, 0.0, 0.80)
 	current_stats.set(property_name, final_value)
 	
 	# 特殊处理：同步到角色节点

@@ -40,6 +40,8 @@ var _weapon_tooltip_label: Label = null
 var _minimap_map_view: Node = null
 
 var _artifacts_title_label: Label = null
+var _artifact_tooltip: PanelContainer = null
+var _artifact_tooltip_label: RichTextLabel = null
 
 # 设置界面引用
 var settings_menu: Control = null
@@ -138,6 +140,7 @@ func _ready() -> void:
 	call_deferred("_prewarm_minimap")
 	_relocate_artifacts_ui()
 	_setup_weapon_ui()
+	_setup_artifact_tooltip_ui()
 	
 	# 右侧角色信息面板在当前风格下默认不存在，这里不再主动刷新，避免空引用
 
@@ -152,6 +155,14 @@ func _process(_delta: float) -> void:
 		pos.x = clampf(pos.x, 8.0, maxf(8.0, vp_size.x - tip_size.x - 8.0))
 		pos.y = clampf(pos.y, 8.0, maxf(8.0, vp_size.y - tip_size.y - 8.0))
 		_weapon_tooltip.position = pos
+	if is_instance_valid(_artifact_tooltip) and _artifact_tooltip.visible:
+		var mouse := get_viewport().get_mouse_position()
+		var pos := mouse + Vector2(18, 18)
+		var vp_size := get_viewport_rect().size
+		var tip_size := _artifact_tooltip.size
+		pos.x = clampf(pos.x, 8.0, maxf(8.0, vp_size.x - tip_size.x - 8.0))
+		pos.y = clampf(pos.y, 8.0, maxf(8.0, vp_size.y - tip_size.y - 8.0))
+		_artifact_tooltip.position = pos
 
 
 func _setup_weapon_ui() -> void:
@@ -235,6 +246,80 @@ func _on_weapon_icon_mouse_entered() -> void:
 func _on_weapon_icon_mouse_exited() -> void:
 	if is_instance_valid(_weapon_tooltip):
 		_weapon_tooltip.visible = false
+
+
+func _setup_artifact_tooltip_ui() -> void:
+	if is_instance_valid(_artifact_tooltip):
+		return
+	_artifact_tooltip = PanelContainer.new()
+	_artifact_tooltip.name = "ArtifactTooltip"
+	_artifact_tooltip.visible = false
+	_artifact_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_artifact_tooltip)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_artifact_tooltip.add_child(margin)
+
+	_artifact_tooltip_label = RichTextLabel.new()
+	_artifact_tooltip_label.bbcode_enabled = true
+	_artifact_tooltip_label.fit_content = true
+	_artifact_tooltip_label.scroll_active = false
+	_artifact_tooltip_label.custom_minimum_size = Vector2(420, 0)
+	_artifact_tooltip_label.size_flags_horizontal = Control.SIZE_FILL
+	_artifact_tooltip_label.add_theme_font_size_override("normal_font_size", 18)
+	margin.add_child(_artifact_tooltip_label)
+
+
+func _on_artifact_icon_mouse_entered(slot: ArtifactSlot.SlotType, artifact: ArtifactData) -> void:
+	if not is_instance_valid(_artifact_tooltip) or not is_instance_valid(_artifact_tooltip_label):
+		return
+	_artifact_tooltip_label.text = _build_artifact_tooltip_bbcode(slot, artifact)
+	_artifact_tooltip.visible = true
+
+
+func _on_artifact_icon_mouse_exited() -> void:
+	if is_instance_valid(_artifact_tooltip):
+		_artifact_tooltip.visible = false
+
+
+func _build_artifact_tooltip_bbcode(slot: ArtifactSlot.SlotType, artifact: ArtifactData) -> String:
+	var lines: Array[String] = []
+	lines.append("[b]%s[/b]" % artifact.name)
+	lines.append("槽位: %s" % ArtifactSlot.get_slot_name(slot))
+	lines.append("")
+	lines.append("[b]属性加成:[/b]")
+	var bonuses = artifact.get_all_stat_bonuses()
+	for stat_name in bonuses:
+		var base_value: float = float(bonuses[stat_name])
+		var stat_display_name = _get_stat_display_name(stat_name)
+		var formatted_value = _format_stat_value(stat_name, base_value)
+		lines.append("  %s: %s" % [stat_display_name, formatted_value])
+
+	if RunManager and RunManager.current_character_node:
+		var artifact_manager = RunManager.current_character_node.get_artifact_manager()
+		if artifact_manager:
+			var pieces: int = artifact_manager.get_equipped_count()
+			var set_name: String = ""
+			if RunManager.current_character and RunManager.current_character.artifact_set:
+				set_name = RunManager.current_character.artifact_set.set_name
+			lines.append("")
+			if not set_name.is_empty():
+				lines.append("[b]套装状态:[/b] %s（%d/5）" % [set_name, pieces])
+			else:
+				lines.append("[b]套装状态:[/b] （%d/5）" % pieces)
+			if RunManager.current_character and RunManager.current_character.id == "kamisato_ayaka":
+				var active := "[color=#ffcc66]"
+				var inactive := "[color=#ffffff]"
+				var endc := "[/color]"
+				var two_prefix := active if pieces >= 2 else inactive
+				var four_prefix := active if pieces >= 4 else inactive
+				lines.append(two_prefix + "2件套：暴击率+15%，暴击冻结敌人1秒" + endc)
+				lines.append(four_prefix + "4件套：暴击率+20%，冻结敌人伤害+20%" + endc)
+	return "\n".join(lines)
 
 func _setup_minimap() -> void:
 	if _minimap_viewport == null or _minimap_viewport_container == null:
@@ -637,7 +722,7 @@ func _preserve_charged_effect_visibility() -> void:
 	var battle_manager = get_tree().get_first_node_in_group("battle_manager")
 	if not battle_manager:
 		var scene_root = get_tree().current_scene
-		if scene_root and scene_root is BattleManager:
+		if scene_root != null and scene_root is BattleManager:
 			battle_manager = scene_root
 	
 	if battle_manager and battle_manager.has_method("get_player"):
@@ -944,8 +1029,10 @@ func _create_artifact_slot_display(slot: ArtifactSlot.SlotType, artifact: Artifa
 			icon_rect.texture = icon
 	
 	# 设置工具提示
-	var tooltip_text = _create_artifact_tooltip(slot, artifact, level)
-	icon_rect.tooltip_text = tooltip_text
+	icon_rect.tooltip_text = ""
+	if artifact:
+		icon_rect.mouse_entered.connect(_on_artifact_icon_mouse_entered.bind(slot, artifact))
+		icon_rect.mouse_exited.connect(_on_artifact_icon_mouse_exited)
 	
 	# 鼠标悬停时改变光标
 	icon_rect.mouse_default_cursor_shape = Control.CURSOR_ARROW
@@ -955,14 +1042,10 @@ func _create_artifact_slot_display(slot: ArtifactSlot.SlotType, artifact: Artifa
 	# 添加等级指示（如果已装备）
 	if artifact and level >= 0:
 		var level_label = Label.new()
-		var effect_percent = 50 if level == 0 else 100
-		level_label.text = "Lv.%d (%d%%)" % [level, effect_percent]
+		level_label.text = "已装备"
 		level_label.add_theme_font_size_override("font_size", 12)
 		level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		if level == 0:
-			level_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.5))
-		else:
-			level_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
+		level_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
 		slot_container.add_child(level_label)
 	
 	artifacts_container.add_child(slot_container)
@@ -975,17 +1058,13 @@ func _create_artifact_tooltip(slot: ArtifactSlot.SlotType, artifact: ArtifactDat
 		# 已装备的圣遗物
 		tooltip_lines.append(artifact.name)
 		tooltip_lines.append("槽位: %s" % ArtifactSlot.get_slot_name(slot))
-		
-		var effect_multiplier = 0.5 if level == 0 else 1.0
-		var effect_percent = 50 if level == 0 else 100
-		tooltip_lines.append("等级: %d (效果: %d%%)" % [level, effect_percent])
 		tooltip_lines.append("")
 		tooltip_lines.append("属性加成:")
 		
 		var bonuses = artifact.get_all_stat_bonuses()
 		for stat_name in bonuses:
 			var base_value = bonuses[stat_name]
-			var actual_value = base_value * effect_multiplier
+			var actual_value = base_value
 			var stat_display_name = _get_stat_display_name(stat_name)
 			var formatted_value = _format_stat_value(stat_name, actual_value)
 			tooltip_lines.append("  %s: %s" % [stat_display_name, formatted_value])
@@ -1045,10 +1124,14 @@ func _get_stat_display_name(stat_name: String) -> String:
 	match stat_name:
 		"max_health":
 			return "生命值"
+		"max_health_percent":
+			return "生命值百分比"
 		"defense_percent":
 			return "减伤"
 		"attack":
 			return "攻击力"
+		"damage_multiplier":
+			return "总伤"
 		"attack_percent":
 			return "攻击力百分比"
 		"attack_speed":
@@ -1067,7 +1150,7 @@ func _get_stat_display_name(stat_name: String) -> String:
 ## 格式化属性值显示
 func _format_stat_value(stat_name: String, value: float) -> String:
 	# 百分比属性显示为百分比
-	if stat_name == "defense_percent" or stat_name == "crit_rate" or stat_name == "attack_percent":
+	if stat_name == "defense_percent" or stat_name == "crit_rate" or stat_name == "attack_percent" or stat_name == "crit_damage" or stat_name == "damage_multiplier" or stat_name == "max_health_percent":
 		return "%.1f%%" % (value * 100.0)
 	# 其他属性显示为数值
 	return "%.1f" % value

@@ -24,6 +24,16 @@ var _events_by_rarity: Dictionary = {}
 ## 已触发的事件ID列表（用于one_time_only检查）
 var _triggered_events: Array[String] = []
 
+var _forced_next_event_id: String = ""
+
+func force_next_event(event_id: String) -> void:
+	_forced_next_event_id = str(event_id)
+
+func consume_forced_event_id() -> String:
+	var id := _forced_next_event_id
+	_forced_next_event_id = ""
+	return id
+
 # ========== 初始化 ==========
 
 func _ready() -> void:
@@ -44,18 +54,20 @@ func _load_custom_events() -> void:
 	# 注意：导出版本里 res:// 通常是只读包体，运行时不应尝试创建目录/写入。
 	# 自定义事件优先从 user://data/events/ 读取（可由玩家/外部写入），其次从 res://data/events/ 读取（随包体发布）。
 	_load_custom_events_from_dir("user://data/events/")
-	_load_custom_events_from_dir("res://data/events/")
+	var loaded_from_res := _load_custom_events_from_dir("res://data/events/")
+	if loaded_from_res <= 0:
+		_register_export_fallback_events()
 
-func _load_custom_events_from_dir(events_dir: String) -> void:
+func _load_custom_events_from_dir(events_dir: String) -> int:
 	var dir := DirAccess.open(events_dir)
 	if dir == null:
 		if DebugLogger:
 			DebugLogger.log_debug("未找到事件目录 %s" % events_dir, "EventRegistry")
-		return
+		return 0
 	
 	dir.list_dir_begin()
 	var file_name: String = dir.get_next()
-	var loaded_count = 0
+	var loaded_count := 0
 	
 	while file_name != "":
 		if not dir.current_is_dir():
@@ -102,6 +114,43 @@ func _load_custom_events_from_dir(events_dir: String) -> void:
 	if loaded_count > 0:
 		if DebugLogger:
 			DebugLogger.log_info("从 %s 共加载 %d 个自定义事件" % [events_dir, loaded_count], "EventRegistry")
+	return loaded_count
+
+func _register_export_fallback_events() -> void:
+	var fallback_events := _get_export_fallback_event_resources()
+	for e in fallback_events:
+		if not e:
+			continue
+		if e.id.is_empty():
+			continue
+		if _events.has(e.id):
+			continue
+		if not _is_event_valid_for_register(e):
+			continue
+		e.set_meta("source_path", "res://data/events/")
+		_register_event(e)
+
+static func _get_export_fallback_event_resources() -> Array[EventData]:
+	return [
+		preload("res://data/events/adventurer_thanks.tres"),
+		preload("res://data/events/antique_shop.tres"),
+		preload("res://data/events/domain_fork.tres"),
+		preload("res://data/events/example_choice_event.tres"),
+		preload("res://data/events/example_healing_event.tres"),
+		preload("res://data/events/example_treasure_event.tres"),
+		preload("res://data/events/fate_dice.tres"),
+		preload("res://data/events/fine_treasure.tres"),
+		preload("res://data/events/god_blessing.tres"),
+		preload("res://data/events/hilichurl_camp.tres"),
+		preload("res://data/events/liyue_inn.tres"),
+		preload("res://data/events/luxury_treasure.tres"),
+		preload("res://data/events/roadside_treasure.tres"),
+		preload("res://data/events/ruins_gift.tres"),
+		preload("res://data/events/springvale_rest.tres"),
+		preload("res://data/events/thirsty_traveler.tres"),
+		preload("res://data/events/training_insight.tres"),
+		preload("res://data/events/weather_change.tres"),
+	]
 
 ## 注册所有内置事件
 func _register_builtin_events() -> void:

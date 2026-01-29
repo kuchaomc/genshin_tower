@@ -85,179 +85,156 @@ func _load_custom_upgrades() -> void:
 
 ## 注册所有内置升级
 func _register_builtin_upgrades() -> void:
-	# ========== 基础属性升级 ==========
-	
-	# 生命值升级
+	# ========== 通用升级（大多可重复获取；部分有上限） ==========
 	_register_upgrade(_create_stat_upgrade(
-		"health_flat", "生命强化", "增加 {value} 点最大生命值",
-		UpgradeData.TargetStat.MAX_HEALTH, UpgradeData.UpgradeType.STAT_FLAT,
-		20.0, 10, UpgradeData.Rarity.COMMON, ["stat", "defensive"]
-	))
-	
-	_register_upgrade(_create_stat_upgrade(
-		"health_percent", "生命提升", "增加 {value} 最大生命值",
+		"common_max_health", "提升最大生命值", "最大生命值提高 {value}",
 		UpgradeData.TargetStat.MAX_HEALTH, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.10, 5, UpgradeData.Rarity.UNCOMMON, ["stat", "defensive"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "stat"]
 	))
-	
-	# 攻击力升级
 	_register_upgrade(_create_stat_upgrade(
-		"attack_flat", "攻击强化", "增加 {value} 点攻击力",
-		UpgradeData.TargetStat.ATTACK, UpgradeData.UpgradeType.STAT_FLAT,
-		5.0, 10, UpgradeData.Rarity.COMMON, ["stat", "offensive"]
-	))
-	
-	_register_upgrade(_create_stat_upgrade(
-		"attack_percent", "攻击提升", "增加 {value} 攻击力",
+		"common_attack", "提升攻击力", "攻击力提高 {value}",
 		UpgradeData.TargetStat.ATTACK, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.10, 5, UpgradeData.Rarity.UNCOMMON, ["stat", "offensive"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "stat"]
 	))
-	
-	# 防御升级
 	_register_upgrade(_create_stat_upgrade(
-		"defense", "防御提升", "增加 {value} 减伤比例",
+		"common_damage_reduction", "百分比减伤", "减伤提高 {value}",
 		UpgradeData.TargetStat.DEFENSE_PERCENT, UpgradeData.UpgradeType.STAT_FLAT,
-		0.05, 5, UpgradeData.Rarity.UNCOMMON, ["stat", "defensive"]
+		0.10, 8, UpgradeData.Rarity.UNCOMMON, ["common", "defensive"]
 	))
-	
-	# 移动速度升级
 	_register_upgrade(_create_stat_upgrade(
-		"move_speed_flat", "迅捷", "增加 {value} 点移动速度",
-		UpgradeData.TargetStat.MOVE_SPEED, UpgradeData.UpgradeType.STAT_FLAT,
-		15.0, 5, UpgradeData.Rarity.COMMON, ["stat", "mobility"]
-	))
-	
-	_register_upgrade(_create_stat_upgrade(
-		"move_speed_percent", "疾风", "增加 {value} 移动速度",
+		"common_move_speed", "移动速度提升", "移动速度提高 {value}",
 		UpgradeData.TargetStat.MOVE_SPEED, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.10, 3, UpgradeData.Rarity.RARE, ["stat", "mobility"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "mobility"]
 	))
-	
-	# 攻击速度升级
 	_register_upgrade(_create_stat_upgrade(
-		"attack_speed", "攻速提升", "增加 {value} 攻击速度",
+		"common_attack_speed", "普攻速度提升", "攻击速度提高 {value}",
 		UpgradeData.TargetStat.ATTACK_SPEED, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.10, 5, UpgradeData.Rarity.UNCOMMON, ["stat", "offensive"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "offensive"]
 	))
-	
-	# ========== 暴击属性升级 ==========
-	
 	_register_upgrade(_create_stat_upgrade(
-		"crit_rate", "暴击率提升", "增加 {value} 暴击率",
+		"common_weapon_range", "武器变大", "武器/近战范围提高 {value}",
+		UpgradeData.TargetStat.WEAPON_RANGE, UpgradeData.UpgradeType.STAT_PERCENT,
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "offensive"]
+	))
+	_register_upgrade(_create_stat_upgrade(
+		"common_crit_rate", "提升暴击率", "暴击率提高 {value}",
 		UpgradeData.TargetStat.CRIT_RATE, UpgradeData.UpgradeType.STAT_FLAT,
-		0.05, 10, UpgradeData.Rarity.UNCOMMON, ["stat", "offensive", "crit"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "crit"]
 	))
-	
 	_register_upgrade(_create_stat_upgrade(
-		"crit_damage", "暴击伤害提升", "增加 {value} 暴击伤害",
+		"common_crit_damage", "提升暴击伤害", "暴击伤害提高 {value}",
 		UpgradeData.TargetStat.CRIT_DAMAGE, UpgradeData.UpgradeType.STAT_FLAT,
-		0.15, 10, UpgradeData.Rarity.UNCOMMON, ["stat", "offensive", "crit"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "crit"]
 	))
-	
-	# ========== 闪避属性升级 ==========
-	
 	_register_upgrade(_create_stat_upgrade(
-		"dodge_distance", "闪避距离", "增加 {value} 点闪避距离",
-		UpgradeData.TargetStat.DODGE_DISTANCE, UpgradeData.UpgradeType.STAT_FLAT,
-		20.0, 5, UpgradeData.Rarity.UNCOMMON, ["special", "mobility", "dodge"]
+		"common_dodge_distance", "闪避距离提升", "闪避距离提高 {value}",
+		UpgradeData.TargetStat.DODGE_DISTANCE, UpgradeData.UpgradeType.STAT_PERCENT,
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "dodge"]
 	))
-	
 	_register_upgrade(_create_stat_upgrade(
-		"dodge_cooldown", "闪避冷却", "减少 {value} 秒闪避冷却时间",
-		UpgradeData.TargetStat.DODGE_COOLDOWN, UpgradeData.UpgradeType.STAT_FLAT,
-		-0.1, 5, UpgradeData.Rarity.RARE, ["special", "mobility", "dodge"]
+		"common_dodge_cooldown", "闪避冷却降低", "闪避冷却降低 {value}",
+		UpgradeData.TargetStat.DODGE_COOLDOWN, UpgradeData.UpgradeType.STAT_PERCENT,
+		-0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "dodge"]
 	))
-	
 	_register_upgrade(_create_stat_upgrade(
-		"invincibility", "无敌延长", "增加 {value} 秒受伤无敌时间",
+		"common_invincibility", "增加受伤后无敌时间", "受伤无敌时间增加 {value} 秒",
 		UpgradeData.TargetStat.INVINCIBILITY_DURATION, UpgradeData.UpgradeType.STAT_FLAT,
-		0.2, 3, UpgradeData.Rarity.RARE, ["special", "defensive"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "defensive"]
 	))
-	
-	# ========== 技能属性升级 ==========
-	
 	_register_upgrade(_create_stat_upgrade(
-		"skill_damage", "技能伤害", "增加 {value} 技能伤害",
+		"common_skill_damage", "提高技能伤害", "技能伤害提高 {value}",
 		UpgradeData.TargetStat.SKILL_DAMAGE, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.15, 5, UpgradeData.Rarity.RARE, ["ability", "offensive"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "ability"]
 	))
-	
 	_register_upgrade(_create_stat_upgrade(
-		"skill_cooldown", "技能冷却", "减少 {value} 技能冷却时间",
+		"common_skill_cooldown", "减少技能冷却", "技能冷却降低 {value}",
 		UpgradeData.TargetStat.SKILL_COOLDOWN, UpgradeData.UpgradeType.STAT_PERCENT,
-		-0.10, 5, UpgradeData.Rarity.RARE, ["ability"]
+		-0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "ability"]
 	))
-	
 	_register_upgrade(_create_stat_upgrade(
-		"skill_radius", "技能范围", "增加 {value} 技能范围",
+		"common_skill_radius", "增加技能范围", "技能范围提高 {value}",
 		UpgradeData.TargetStat.SKILL_RADIUS, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.15, 5, UpgradeData.Rarity.RARE, ["ability"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "ability"]
 	))
-	
-	# ========== 大招属性升级 ==========
-	
 	_register_upgrade(_create_stat_upgrade(
-		"burst_damage", "大招伤害", "增加 {value} 大招伤害",
+		"common_burst_damage", "增加大招伤害", "大招伤害提高 {value}",
 		UpgradeData.TargetStat.BURST_DAMAGE, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.20, 5, UpgradeData.Rarity.EPIC, ["ability", "offensive"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "ability"]
 	))
-	
 	_register_upgrade(_create_stat_upgrade(
-		"energy_gain", "充能效率", "增加 {value} 充能获取量",
+		"common_energy_gain", "提升充能效率", "充能效率提高 {value}",
 		UpgradeData.TargetStat.ENERGY_GAIN, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.20, 5, UpgradeData.Rarity.RARE, ["ability"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "ability"]
 	))
-	
-	# 拾取范围升级
 	_register_upgrade(_create_stat_upgrade(
-		"pickup_range_flat", "拾取范围", "增加 {value} 点拾取范围",
-		UpgradeData.TargetStat.PICKUP_RANGE, UpgradeData.UpgradeType.STAT_FLAT,
-		20.0, 5, UpgradeData.Rarity.COMMON, ["stat", "utility"]
-	))
-	
-	_register_upgrade(_create_stat_upgrade(
-		"pickup_range_percent", "拾取强化", "增加 {value} 拾取范围",
+		"common_pickup_range", "扩大拾取范围", "拾取范围提高 {value}",
 		UpgradeData.TargetStat.PICKUP_RANGE, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.10, 5, UpgradeData.Rarity.UNCOMMON, ["stat", "utility"]
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "utility"]
 	))
-	
-	# ========== 特殊升级 ==========
-	
 	_register_upgrade(_create_stat_upgrade(
-		"knockback_force", "击退强化", "增加 {value} 击退力度",
-		UpgradeData.TargetStat.KNOCKBACK_FORCE, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.40, 5, UpgradeData.Rarity.UNCOMMON, ["special", "offensive"]
+		"common_pickup_multiplier", "提升拾取倍率", "拾取获得的摩拉/原石数量提高 {value}",
+		UpgradeData.TargetStat.PICKUP_MULTIPLIER, UpgradeData.UpgradeType.STAT_PERCENT,
+		0.10, 10, UpgradeData.Rarity.UNCOMMON, ["common", "utility"]
 	))
-	
-	# ========== 角色专属升级示例（神里绫华） ==========
-	
-	# 霜华绽放 - 增加重击范围
-	var ayaka_charged = _create_stat_upgrade(
-		"ayaka_charged_radius", "霜华绽放", "增加 {value} 重击范围",
-		UpgradeData.TargetStat.SKILL_RADIUS, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.20, 3, UpgradeData.Rarity.RARE, ["ability", "character_specific", "ayaka"]
-	)
-	ayaka_charged.required_character_ids.append("kamisato_ayaka")
-	_register_upgrade(ayaka_charged)
-	
-	# 神里流·冰华 - E技能额外伤害
-	var ayaka_skill = _create_stat_upgrade(
-		"ayaka_skill_damage", "神里流·冰华", "增加 {value} E技能伤害",
-		UpgradeData.TargetStat.SKILL_DAMAGE, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.25, 3, UpgradeData.Rarity.EPIC, ["ability", "character_specific", "ayaka"]
-	)
-	ayaka_skill.required_character_ids.append("kamisato_ayaka")
-	_register_upgrade(ayaka_skill)
-	
-	# 寒天宣命祝词 - 大招伤害和充能效率
-	var ayaka_burst = _create_stat_upgrade(
-		"ayaka_burst_enhance", "寒天宣命祝词", "增加 {value} 大招伤害",
-		UpgradeData.TargetStat.BURST_DAMAGE, UpgradeData.UpgradeType.STAT_PERCENT,
-		0.30, 3, UpgradeData.Rarity.LEGENDARY, ["ability", "character_specific", "ayaka"]
-	)
-	ayaka_burst.required_character_ids.append("kamisato_ayaka")
-	_register_upgrade(ayaka_burst)
-	
+	_register_upgrade(_create_stat_upgrade(
+		"common_knockback_force", "增加击退力度", "击退力度提高 {value}",
+		UpgradeData.TargetStat.KNOCKBACK_FORCE, UpgradeData.UpgradeType.STAT_PERCENT,
+		0.10, 0, UpgradeData.Rarity.UNCOMMON, ["common", "offensive"]
+	))
+
+	# ========== 绫华专属升级（全部只能拿一次） ==========
+	var ayaka_1 := UpgradeData.new()
+	ayaka_1.id = "ayaka_skill_cd_reduce_on_hit"
+	ayaka_1.display_name = "冰华余势"
+	ayaka_1.description = "普攻及重击命中敌人时，有50%的几率使神里流·冰华的冷却时间缩减0.3秒。该效果每0.1秒只能触发一次。"
+	ayaka_1.upgrade_type = UpgradeData.UpgradeType.CUSTOM
+	ayaka_1.target_stat = UpgradeData.TargetStat.CUSTOM
+	ayaka_1.max_level = 1
+	ayaka_1.value_per_level = 1.0
+	ayaka_1.rarity = UpgradeData.Rarity.EPIC
+	ayaka_1.tags = ["character_specific", "ayaka"]
+	ayaka_1.required_character_ids.append("kamisato_ayaka")
+	_register_upgrade(ayaka_1)
+
+	var ayaka_2 := UpgradeData.new()
+	ayaka_2.id = "ayaka_burst_extra_projectiles"
+	ayaka_2.display_name = "霜灭·散射"
+	ayaka_2.description = "施放大招时，会额外释放两个投射物（扇形散射）。"
+	ayaka_2.upgrade_type = UpgradeData.UpgradeType.CUSTOM
+	ayaka_2.target_stat = UpgradeData.TargetStat.CUSTOM
+	ayaka_2.max_level = 1
+	ayaka_2.value_per_level = 1.0
+	ayaka_2.rarity = UpgradeData.Rarity.EPIC
+	ayaka_2.tags = ["character_specific", "ayaka"]
+	ayaka_2.required_character_ids.append("kamisato_ayaka")
+	_register_upgrade(ayaka_2)
+
+	var ayaka_3 := UpgradeData.new()
+	ayaka_3.id = "ayaka_burst_defense_shred"
+	ayaka_3.display_name = "霜见雪关扉"
+	ayaka_3.description = "敌人受到神里流·霜灭造成的伤害后，防御力降低30%，持续6秒。"
+	ayaka_3.upgrade_type = UpgradeData.UpgradeType.CUSTOM
+	ayaka_3.target_stat = UpgradeData.TargetStat.CUSTOM
+	ayaka_3.max_level = 1
+	ayaka_3.value_per_level = 1.0
+	ayaka_3.rarity = UpgradeData.Rarity.LEGENDARY
+	ayaka_3.tags = ["character_specific", "ayaka"]
+	ayaka_3.required_character_ids.append("kamisato_ayaka")
+	_register_upgrade(ayaka_3)
+
+	var ayaka_4 := UpgradeData.new()
+	ayaka_4.id = "ayaka_thin_ice_dance"
+	ayaka_4.display_name = "薄冰舞踏"
+	ayaka_4.description = "每过10秒，神里绫华会获得「薄冰舞踏」，使重击造成的伤害提高100%。薄冰舞踏效果将在重击命中敌人的0.5秒后清除，并重新开始计算时间。"
+	ayaka_4.upgrade_type = UpgradeData.UpgradeType.CUSTOM
+	ayaka_4.target_stat = UpgradeData.TargetStat.CUSTOM
+	ayaka_4.max_level = 1
+	ayaka_4.value_per_level = 1.0
+	ayaka_4.rarity = UpgradeData.Rarity.LEGENDARY
+	ayaka_4.tags = ["character_specific", "ayaka"]
+	ayaka_4.required_character_ids.append("kamisato_ayaka")
+	_register_upgrade(ayaka_4)
+
 	print("UpgradeRegistry: 已注册 %d 个升级" % _upgrades.size())
 
 ## 创建属性升级的辅助方法

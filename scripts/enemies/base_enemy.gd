@@ -45,9 +45,20 @@ var is_stunned: bool = false
 var stun_timer: float = 0.0
 @export var stun_duration: float = 0.3  # 僵直持续时间（秒）
 
+# ========== 冻结系统 ==========
+var is_frozen: bool = false
+var freeze_timer: float = 0.0
+@export var freeze_tint: Color = Color(0.55, 0.8, 1.0, 1.0)
+var _original_modulate_animated: Color = Color.WHITE
+var _original_modulate_sprite: Color = Color.WHITE
+var _freeze_paused_animation: bool = false
+var _anim_speed_scale_before_freeze: float = 1.0
+
 # 碰撞/接触伤害节流，避免连续帧内多次结算
 @export var contact_damage_cooldown: float = 0.6
 var _recently_damaged_bodies: Dictionary = {}
+# 反射方法签名缓存：避免频繁 get_method_list() 带来的开销
+var _method_param_count_cache: Dictionary = {}
 
 # ========== 状态 ==========
 var is_spawned: bool = false
@@ -60,9 +71,6 @@ var _has_ready_run: bool = false
 var _cached_player: CharacterBody2D = null
 var _player_lookup_timer: float = 0.0
 const _PLAYER_LOOKUP_INTERVAL: float = 0.5
-
-# 方法参数数量缓存：避免 get_method_list 在高频碰撞伤害中造成尖峰
-static var _method_param_count_cache: Dictionary = {}
 
 ## 初始化敌人
 func initialize(data: EnemyData) -> void:
@@ -124,6 +132,12 @@ func _ready() -> void:
 	animated_sprite = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
 	sprite_2d = get_node_or_null("Sprite2D") as Sprite2D
 	collision_shape = get_node_or_null("CollisionShape2D") as CollisionShape2D
+	
+	# 记录初始颜色：用于冻结“变蓝”指示，解冻后能正确恢复
+	if animated_sprite:
+		_original_modulate_animated = animated_sprite.modulate
+	if sprite_2d:
+		_original_modulate_sprite = sprite_2d.modulate
 	
 	# 创建警告图标
 	_create_warning_sprite()
@@ -195,10 +209,25 @@ func _physics_process(delta: float) -> void:
 			is_stunned = false
 			stun_timer = 0.0
 	
+	# 更新冻结计时器
+	if is_frozen:
+		freeze_timer -= delta
+		if freeze_timer <= 0.0:
+			is_frozen = false
+			freeze_timer = 0.0
+			_clear_freeze_animation()
+			_clear_freeze_visual()
+		else:
+			_apply_freeze_visual()
+			# 冻结期间：不执行AI、不移动（确保冻结确实“控住敌人”）
+			velocity = Vector2.ZERO
+			_process_collisions(delta)
+			return
+	
 	# 执行AI行为（子类可重写）
 	perform_ai_behavior(delta)
 	
-	if is_knockback_active or is_stunned:
+	if is_knockback_active or is_stunned or is_frozen:
 		velocity = Vector2.ZERO
 	else:
 		move_and_slide()
@@ -246,7 +275,7 @@ func perform_ai_behavior(delta: float) -> void:
 
 ## 追逐玩家（默认行为）
 func chase_player(delta: float) -> void:
-	if is_knockback_active or is_stunned:
+	if is_knockback_active or is_stunned or is_frozen:
 		velocity = Vector2.ZERO
 		return
 	
@@ -469,12 +498,70 @@ func apply_stun_effect(duration: float = -1.0) -> void:
 	if OS.is_debug_build():
 		print("敌人被僵直，持续时间: ", duration, "秒")
 
+
+func apply_freeze(duration: float = 1.0) -> void:
+	if is_dead:
+		return
+	if duration <= 0.0:
+		return
+	var was_frozen: bool = is_frozen
+	is_frozen = true
+	freeze_timer = maxf(freeze_timer, duration)
+	if not was_frozen:
+		_apply_freeze_animation()
+	_apply_freeze_visual()
+	if OS.is_debug_build():
+		print("敌人被冻结，持续时间: ", duration, "秒")
+
+
+func _apply_freeze_visual() -> void:
+	# 冻结指示：让敌人整体偏蓝（仅做颜色调制，不改贴图资源）
+	if animated_sprite:
+		animated_sprite.modulate = _original_modulate_animated * freeze_tint
+	if sprite_2d:
+		sprite_2d.modulate = _original_modulate_sprite * freeze_tint
+
+
+func _clear_freeze_visual() -> void:
+	# 解冻/回收：恢复初始颜色，避免对象池复用后仍保持蓝色
+	if animated_sprite:
+		animated_sprite.modulate = _original_modulate_animated
+	if sprite_2d:
+		sprite_2d.modulate = _original_modulate_sprite
+
+
+func _apply_freeze_animation() -> void:
+	# 冻结时暂停动画：保持当前帧不动
+	if not animated_sprite:
+		return
+	if _freeze_paused_animation:
+		return
+	_anim_speed_scale_before_freeze = animated_sprite.speed_scale
+	animated_sprite.speed_scale = 0.0
+	_freeze_paused_animation = true
+
+
+func _clear_freeze_animation() -> void:
+	# 解冻/回收：恢复动画播放速度
+	if not _freeze_paused_animation:
+		return
+	_freeze_paused_animation = false
+	if not animated_sprite:
+		return
+	animated_sprite.speed_scale = _anim_speed_scale_before_freeze
+
+
+func is_frozen_state() -> bool:
+	return is_frozen
+
 ## 死亡处理
 func on_death() -> void:
 	if is_dead:
 		return
 	
 	is_dead = true
+	_clear_freeze_animation()
+	_clear_freeze_visual()
 	if DebugLogger:
 		DebugLogger.log_debug("敌人死亡", "BaseEnemy")
 	
@@ -592,6 +679,10 @@ func prepare_for_pool() -> void:
 	# 复位僵直/碰撞伤害状态
 	is_stunned = false
 	stun_timer = 0.0
+	is_frozen = false
+	freeze_timer = 0.0
+	_clear_freeze_animation()
+	_clear_freeze_visual()
 	_recently_damaged_bodies.clear()
 
 	# 清理减抗：避免对象池复用后残留
@@ -620,10 +711,14 @@ func reset_for_reuse() -> void:
 	is_dead = false
 	is_spawned = false
 	velocity = Vector2.ZERO
+	_clear_freeze_animation()
+	_clear_freeze_visual()
 	
 	# 复位状态
 	is_stunned = false
 	stun_timer = 0.0
+	is_frozen = false
+	freeze_timer = 0.0
 	_recently_damaged_bodies.clear()
 
 	# 复位减抗

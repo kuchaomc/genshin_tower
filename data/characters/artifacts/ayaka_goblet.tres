@@ -6,5 +6,5 @@
 script = ExtResource("1_artifact")
 name = "遍结寒霜的傲骨"
 stat_bonuses = {
-"attack_percent": 0.5
+"damage_multiplier": 0.5
 }

@@ -6,5 +6,5 @@
 script = ExtResource("1_artifact")
 name = "破冰踏雪的回音"
 stat_bonuses = {
-"crit_damage": 0.622
+"crit_damage": 0.7
 }

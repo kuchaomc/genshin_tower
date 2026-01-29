@@ -89,7 +89,7 @@ func is_critical_hit() -> bool:
 ## raw_damage: 原始伤害值
 ## 返回值: 实际受到的伤害
 func calculate_damage_taken(raw_damage: float) -> float:
-	var defense_multiplier = 1.0 - clamp(defense_percent, 0.0, 1.0)
+	var defense_multiplier = 1.0 - clamp(defense_percent, 0.0, 0.80)
 	return raw_damage * defense_multiplier
 
 ## 创建属性的副本（用于运行时修改，不影响原始数据）
@@ -119,6 +119,7 @@ func apply_bonuses(bonuses: Dictionary) -> void:
 		return
 
 	var attack_percent_total := 0.0
+	var max_health_percent_total := 0.0
 	var valid_props: Dictionary = {}
 	for p in get_property_list():
 		# property list entries are Dictionaries, "name" is the key we need
@@ -132,6 +133,11 @@ func apply_bonuses(bonuses: Dictionary) -> void:
 		# 特殊处理：attack_percent 作用于 attack
 		if stat_name == "attack_percent":
 			attack_percent_total += bonus_value
+			continue
+
+		# 特殊处理：max_health_percent 作用于 max_health
+		if stat_name == "max_health_percent":
+			max_health_percent_total += bonus_value
 			continue
 
 		# 忽略不存在的字段（保持兼容，避免硬崩）
@@ -151,13 +157,20 @@ func apply_bonuses(bonuses: Dictionary) -> void:
 
 		# clamp 范围类属性
 		if stat_key == &"defense_percent" or stat_key == &"crit_rate":
-			new_value = clamp(new_value, 0.0, 1.0)
+			if stat_key == &"defense_percent":
+				new_value = clamp(new_value, 0.0, 0.80)
+			else:
+				new_value = clamp(new_value, 0.0, 1.0)
 
 		set(stat_key, new_value)
 
 	# 应用攻击力百分比加成（基于“已叠加完固定攻击力后的 attack”）
 	if attack_percent_total != 0.0:
 		attack = attack * (1.0 + attack_percent_total)
+
+	# 应用生命值百分比加成（基于“已叠加完固定生命值后的 max_health”）
+	if max_health_percent_total != 0.0:
+		max_health = max_health * (1.0 + max_health_percent_total)
 
 ## 获取属性摘要（调试用）
 func get_summary() -> String:

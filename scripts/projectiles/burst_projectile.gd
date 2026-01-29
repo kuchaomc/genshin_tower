@@ -72,6 +72,8 @@ func _handle_enemy_collision(enemy: Node2D) -> void:
 			true,   # apply_knockback: 应用击退
 			false   # apply_stun: 不应用僵直
 		)
+		if owner_character.has_method("on_burst_projectile_hit_enemy"):
+			owner_character.call("on_burst_projectile_hit_enemy", enemy)
 		var final_damage = damage_result[0]
 		var actual_is_crit = damage_result[1]
 		

@@ -64,6 +64,9 @@ const _MAIN_MENU_SHOP_PANEL_SCRIPT: Script = preload("res://scripts/ui/main_menu
 # 预加载游戏场景
 var game_scene = preload("res://scenes/battle/battle_scene.tscn")
 
+# 3D 场景入口（在 Inspector 里配置具体场景路径）
+@export_file("*.tscn") var three_d_scene_path: String = ""
+
 # 左侧菜单引用（用于进入主菜单时的滑入动画）
 @onready var left_menu: Control = $CanvasLayer/LeftMenu
 
@@ -105,6 +108,7 @@ var _help_button: Button = null
 var _settings_button: Button = null
 var _cg_button: Button = null
 var _shop_button: Button = null
+var _three_d_button: Button = null
 var _quit_button: Button = null
 
 var cg_gallery_panel: CGGalleryPanel = null
@@ -156,6 +160,7 @@ func _ready() -> void:
 	_settings_button = $CanvasLayer.find_child("Button4", true, false) as Button
 	_cg_button = $CanvasLayer.find_child("Button5", true, false) as Button
 	_shop_button = $CanvasLayer.find_child("ButtonShop", true, false) as Button
+	_three_d_button = $CanvasLayer.find_child("Button3D", true, false) as Button
 	_quit_button = $CanvasLayer.find_child("Button3", true, false) as Button
 	
 	if _start_button:
@@ -168,6 +173,8 @@ func _ready() -> void:
 		_cg_button.pressed.connect(_on_cg_button_pressed)
 	if _shop_button:
 		_shop_button.pressed.connect(_on_shop_button_pressed)
+	if _three_d_button:
+		_three_d_button.pressed.connect(_on_3d_button_pressed)
 	if _quit_button:
 		_quit_button.pressed.connect(_on_quit_button_pressed)
 	if close_button:
@@ -198,9 +205,19 @@ func _ready() -> void:
 	_load_cg_gallery_panel()
 	_load_shop_panel()
 	_update_cg_button_enabled_state_from_settings()
+	_update_3d_button_enabled_state()
 	_consume_open_character_select_request()
 	
 	print("主界面脚本已加载，帮助弹窗已初始化")
+
+
+func _update_3d_button_enabled_state() -> void:
+	if not _three_d_button:
+		return
+	if three_d_scene_path.is_empty():
+		_three_d_button.disabled = true
+		return
+	_three_d_button.disabled = not ResourceLoader.exists(three_d_scene_path)
 
 
 func _consume_open_character_select_request() -> void:
@@ -595,52 +612,12 @@ func _setup_menu_hover_effects() -> void:
 		_bind_hover_for_button(_cg_button)
 	if _shop_button:
 		_bind_hover_for_button(_shop_button)
+	if _three_d_button:
+		_bind_hover_for_button(_three_d_button)
 	if _quit_button:
 		_bind_hover_for_button(_quit_button)
 
-func _load_cg_gallery_panel() -> void:
-	if cg_gallery_panel != null:
-		return
-	cg_gallery_panel = CGGalleryPanel.new()
-	if not cg_gallery_panel:
-		return
-	if is_instance_valid(right_content_holder):
-		right_content_holder.add_child(cg_gallery_panel)
-		cg_gallery_panel.visible = false
-		cg_gallery_panel.closed.connect(_on_cg_gallery_closed)
-
-func _load_shop_panel() -> void:
-	if shop_panel != null:
-		return
-	if not _MAIN_MENU_SHOP_PANEL_SCRIPT:
-		return
-	shop_panel = _MAIN_MENU_SHOP_PANEL_SCRIPT.new() as MainMenuShopPanel
-	if not shop_panel:
-		return
-	if is_instance_valid(right_content_holder):
-		right_content_holder.add_child(shop_panel)
-		shop_panel.visible = false
-		shop_panel.closed.connect(_on_shop_panel_closed)
-
-func _load_character_select_panel() -> void:
-	if character_select_panel != null:
-		return
-	if not _CHARACTER_SELECT_PANEL_SCENE:
-		return
-	character_select_panel = _CHARACTER_SELECT_PANEL_SCENE.instantiate()
-	if character_select_panel == null:
-		return
-	if is_instance_valid(right_content_holder):
-		right_content_holder.add_child(character_select_panel)
-		character_select_panel.visible = false
-		if character_select_panel.has_signal("closed"):
-			character_select_panel.closed.connect(_on_character_select_closed)
-
-func _on_character_select_closed() -> void:
-	_hide_right_overlay()
-
 func _bind_hover_for_button(button: Button) -> void:
-	# 通过按钮父节点(HBoxContainer)定位IndicatorSpace与Indicator
 	var row := button.get_parent() as Node
 	if row == null:
 		return
@@ -651,17 +628,14 @@ func _bind_hover_for_button(button: Button) -> void:
 	if indicator == null:
 		return
 
-	# 初始化为“未悬停”状态
 	indicator.visible = false
 	indicator.modulate = Color(1, 1, 1, 0)
 	indicator_space.custom_minimum_size = Vector2(0, 0)
 
-	# 鼠标进入/离开
 	if not button.mouse_entered.is_connected(_on_menu_button_mouse_entered.bind(row)):
 		button.mouse_entered.connect(_on_menu_button_mouse_entered.bind(row))
 	if not button.mouse_exited.is_connected(_on_menu_button_mouse_exited.bind(row)):
 		button.mouse_exited.connect(_on_menu_button_mouse_exited.bind(row))
-	# 键盘焦点进入/离开（方向键/手柄导航时也有同款高亮反馈）
 	if not button.focus_entered.is_connected(_on_menu_button_mouse_entered.bind(row)):
 		button.focus_entered.connect(_on_menu_button_mouse_entered.bind(row))
 	if not button.focus_exited.is_connected(_on_menu_button_mouse_exited.bind(row)):
@@ -704,6 +678,51 @@ func _play_hover_animation(row: Node, hovered: bool) -> void:
 			if is_instance_valid(indicator):
 				indicator.visible = false
 		)
+
+
+func _load_character_select_panel() -> void:
+	if is_instance_valid(character_select_panel):
+		return
+	if not is_instance_valid(right_content_holder):
+		return
+	if not _CHARACTER_SELECT_PANEL_SCENE:
+		return
+	var panel := _CHARACTER_SELECT_PANEL_SCENE.instantiate() as Control
+	if panel == null:
+		return
+	right_content_holder.add_child(panel)
+	character_select_panel = panel
+	character_select_panel.visible = false
+	if character_select_panel.has_signal("closed"):
+		character_select_panel.closed.connect(_on_character_select_panel_closed)
+
+
+func _load_cg_gallery_panel() -> void:
+	if is_instance_valid(cg_gallery_panel):
+		return
+	if not is_instance_valid(right_content_holder):
+		return
+	cg_gallery_panel = CGGalleryPanel.new()
+	right_content_holder.add_child(cg_gallery_panel)
+	cg_gallery_panel.visible = false
+	if cg_gallery_panel.has_signal("closed"):
+		cg_gallery_panel.closed.connect(_on_cg_gallery_closed)
+
+
+func _load_shop_panel() -> void:
+	if is_instance_valid(shop_panel):
+		return
+	if not is_instance_valid(right_content_holder):
+		return
+	if not _MAIN_MENU_SHOP_PANEL_SCRIPT:
+		return
+	shop_panel = _MAIN_MENU_SHOP_PANEL_SCRIPT.new() as MainMenuShopPanel
+	if shop_panel == null:
+		return
+	right_content_holder.add_child(shop_panel)
+	shop_panel.visible = false
+	if shop_panel.has_signal("closed"):
+		shop_panel.closed.connect(_on_shop_panel_closed)
 
 ## 加载设置界面
 func _load_settings_menu() -> void:
@@ -771,6 +790,18 @@ func _on_shop_button_pressed() -> void:
 		shop_panel.show_panel()
 	_show_right_overlay(false, false, false, true)
 
+func _on_3d_button_pressed() -> void:
+	print("3D场景按钮被点击")
+	_update_3d_button_enabled_state()
+	if three_d_scene_path.is_empty():
+		return
+	if not ResourceLoader.exists(three_d_scene_path):
+		return
+	if GameManager and GameManager.has_method("change_scene_to"):
+		GameManager.change_scene_to(three_d_scene_path)
+		return
+	get_tree().change_scene_to_file(three_d_scene_path)
+
 func _on_nsfw_changed(_is_enabled: bool) -> void:
 	if not _cg_button:
 		return
@@ -801,6 +832,11 @@ func _on_cg_gallery_closed() -> void:
 
 func _on_shop_panel_closed() -> void:
 	_hide_right_overlay()
+
+func _on_character_select_panel_closed() -> void:
+	_hide_right_overlay()
+	if is_instance_valid(_start_button):
+		_start_button.grab_focus()
 
 # 退出游戏按钮回调
 func _on_quit_button_pressed() -> void:

@@ -52,6 +52,8 @@ enum TargetStat {
 	# 特殊属性
 	INVINCIBILITY_DURATION,  # 无敌时间
 	PICKUP_RANGE,            # 拾取范围
+	WEAPON_RANGE,            # 武器/攻击范围倍率
+	PICKUP_MULTIPLIER,       # 拾取收益倍率（摩拉/经验/原石等）
 	
 	# 自定义（不直接映射到属性）
 	CUSTOM

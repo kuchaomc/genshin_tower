@@ -378,13 +378,11 @@ theme_override_constants/separation = 10
 alignment = 1
 
 [node name="PortraitColumn" type="VBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox"]
-custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
 [node name="PortraitPanel" type="PanelContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn"]
-custom_minimum_size = Vector2(360, 420)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_RoundedPortrait")
@@ -399,13 +397,6 @@ theme_override_constants/margin_bottom = 18
 [node name="VBox" type="VBoxContainer" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/PortraitPanel/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 12
-
-[node name="PortraitTitle" type="Label" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/PortraitPanel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0, 0, 0, 1)
-theme_override_font_sizes/font_size = 22
-text = "角色立绘"
-horizontal_alignment = 1
 
 [node name="CharacterPortrait" type="TextureRect" parent="RightArea/RightMargin/VBox/TopRow/CharacterPanel/HBox/PortraitColumn/PortraitPanel/Margin/VBox"]
 custom_minimum_size = Vector2(388.23, 493.58)

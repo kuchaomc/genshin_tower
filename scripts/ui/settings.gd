@@ -66,12 +66,6 @@ var _burst_ready_effect_enabled: bool = true
 var _movement_trail_enabled: bool = true
 var _nsfw_enabled: bool = false
 
-const _DEV_PASSWORD: String = "kuchao"
-
-var _nsfw_pwd_window: Window
-var _nsfw_pwd_edit: LineEdit
-var _nsfw_pwd_error: Label
-
 var _bgm_volume_linear: float = 1.0
 var _sfx_volume_linear: float = 1.0
 var _voice_volume_linear: float = 1.0
@@ -221,9 +215,7 @@ func update_ui_state() -> void:
 		movement_trail_switch.button_pressed = _movement_trail_enabled
 		_update_movement_trail_status_display(_movement_trail_enabled)
 	if nsfw_switch and nsfw_status_label:
-		nsfw_switch.set_block_signals(true)
 		nsfw_switch.button_pressed = _nsfw_enabled
-		nsfw_switch.set_block_signals(false)
 		_update_nsfw_status_display(_nsfw_enabled)
 	if bgm_volume_slider and bgm_value_label:
 		bgm_volume_slider.set_value_no_signal(_bgm_volume_linear)
@@ -455,12 +447,7 @@ func _on_movement_trail_toggled(button_pressed: bool) -> void:
 
 ## NSFW表情开关切换
 func _on_nsfw_toggled(button_pressed: bool) -> void:
-	if button_pressed:
-		# 先将开关弹回关闭，再进行密码验证；验证通过才真正开启
-		_set_nsfw_switch_pressed_no_signal(false)
-		_open_nsfw_password_prompt()
-		return
-	_apply_nsfw(false)
+	_apply_nsfw(button_pressed)
 	_request_save_settings()
 
 func _on_bgm_volume_changed(value: float) -> void:
@@ -513,95 +500,6 @@ func _apply_nsfw(is_enabled: bool) -> void:
 	_update_nsfw_status_display(is_enabled)
 	_apply_nsfw_to_all_battle_scenes(is_enabled)
 	nsfw_changed.emit(is_enabled)
-
-
-func _set_nsfw_switch_pressed_no_signal(is_pressed: bool) -> void:
-	if not nsfw_switch:
-		return
-	nsfw_switch.set_block_signals(true)
-	nsfw_switch.button_pressed = is_pressed
-	nsfw_switch.set_block_signals(false)
-
-
-func _open_nsfw_password_prompt() -> void:
-	# 懒加载创建一次即可
-	if _nsfw_pwd_window == null:
-		_build_nsfw_password_window()
-	if _nsfw_pwd_error:
-		_nsfw_pwd_error.text = ""
-	if _nsfw_pwd_edit:
-		_nsfw_pwd_edit.text = ""
-	_nsfw_pwd_window.popup_centered()
-	await get_tree().process_frame
-	if _nsfw_pwd_edit:
-		_nsfw_pwd_edit.grab_focus()
-
-
-func _build_nsfw_password_window() -> void:
-	_nsfw_pwd_window = Window.new()
-	_nsfw_pwd_window.title = "开发者验证"
-	_nsfw_pwd_window.visible = false
-	_nsfw_pwd_window.transient = true
-	_nsfw_pwd_window.exclusive = true
-	_nsfw_pwd_window.unresizable = true
-	_nsfw_pwd_window.size = Vector2i(420, 170)
-	_nsfw_pwd_window.close_requested.connect(func(): _nsfw_pwd_window.hide())
-	add_child(_nsfw_pwd_window)
-
-	var v := VBoxContainer.new()
-	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.offset_left = 12
-	v.offset_top = 12
-	v.offset_right = -12
-	v.offset_bottom = -12
-	v.add_theme_constant_override("separation", 8)
-	_nsfw_pwd_window.add_child(v)
-
-	var tip := Label.new()
-	tip.text = "请输入开发者密码："
-	v.add_child(tip)
-
-	_nsfw_pwd_edit = LineEdit.new()
-	_nsfw_pwd_edit.placeholder_text = "密码"
-	_nsfw_pwd_edit.secret = true
-	_nsfw_pwd_edit.text_submitted.connect(func(_t: String): _submit_nsfw_password())
-	v.add_child(_nsfw_pwd_edit)
-
-	_nsfw_pwd_error = Label.new()
-	_nsfw_pwd_error.text = ""
-	_nsfw_pwd_error.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
-	v.add_child(_nsfw_pwd_error)
-
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
-	v.add_child(h)
-
-	var ok := Button.new()
-	ok.text = "确认"
-	ok.pressed.connect(_submit_nsfw_password)
-	h.add_child(ok)
-
-	var cancel := Button.new()
-	cancel.text = "取消"
-	cancel.pressed.connect(func(): _nsfw_pwd_window.hide())
-	h.add_child(cancel)
-
-
-func _submit_nsfw_password() -> void:
-	if _nsfw_pwd_edit == null:
-		return
-	var input := _nsfw_pwd_edit.text.strip_edges()
-	if input == _DEV_PASSWORD:
-		_apply_nsfw(true)
-		_set_nsfw_switch_pressed_no_signal(true)
-		_request_save_settings()
-		if _nsfw_pwd_window:
-			_nsfw_pwd_window.hide()
-	else:
-		if _nsfw_pwd_error:
-			_nsfw_pwd_error.text = "密码错误"
-		_nsfw_pwd_edit.select_all()
-		_nsfw_pwd_edit.grab_focus()
 
 ## 将设置同步给当前场景中的所有角色（实时生效）
 func _apply_movement_trail_to_all_characters(is_enabled: bool) -> void:

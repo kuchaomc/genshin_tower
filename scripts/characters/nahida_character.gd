@@ -185,7 +185,9 @@ func _start_normal_attack() -> void:
 	if Time.get_ticks_msec() < _normal_attack_next_ready_ms:
 		_attack_mode = AttackMode.NONE
 		return
-	_normal_attack_next_ready_ms = Time.get_ticks_msec() + int(normal_attack_interval * 1000.0)
+	var atk_spd := maxf(0.01, get_attack_speed())
+	var interval := normal_attack_interval / atk_spd
+	_normal_attack_next_ready_ms = Time.get_ticks_msec() + int(interval * 1000.0)
 
 	_reset_charged_charge_visuals()
 	_attack_mode = AttackMode.NORMAL
@@ -220,15 +222,16 @@ func _perform_normal_attack() -> void:
 	if dir == Vector2.ZERO:
 		dir = _last_nonzero_move_dir
 
-	var inst := normal_projectile_scene.instantiate() as Area2D
+	var inst := normal_projectile_scene.instantiate() as NahidaNormalProjectile
 	if inst == null:
 		finish_attack()
 		return
 
 	inst.global_position = global_position + normal_projectile_spawn_offset
-	inst.set("direction", dir)
-	inst.set("owner_character", self)
-	inst.set("damage_multiplier", normal_attack_multiplier)
+	inst.direction = dir
+	inst.owner_character = self
+	inst.damage_multiplier = normal_attack_multiplier
+	inst.radius_multiplier = get_weapon_range_multiplier()
 
 	var p := get_parent()
 	if p:
@@ -584,7 +587,7 @@ func _trigger_skill_seed_explosion() -> void:
 		if not is_instance_valid(t):
 			continue
 		_remove_skill_seed_mark_icon(t)
-		deal_damage_to(t, skill_seed_explode_damage_multiplier * get_weapon_skill_burst_damage_multiplier(), false, false, false, true)
+		deal_damage_to(t, skill_seed_explode_damage_multiplier * get_skill_damage_multiplier_bonus() * get_weapon_skill_burst_damage_multiplier(), false, false, false, true)
 		_add_burst_energy(energy_per_hit * get_energy_gain_multiplier())
 
 
@@ -707,7 +710,7 @@ func _try_skill_damage(target: Node2D) -> void:
 		return
 
 	_skill_next_hit_ms_by_enemy_id[enemy_id] = now_ms + int(maxf(0.02, skill_tick_interval) * 1000.0)
-	deal_damage_to(target, skill_damage_multiplier * get_weapon_skill_burst_damage_multiplier(), false, false, false, true)
+	deal_damage_to(target, skill_damage_multiplier * get_skill_damage_multiplier_bonus() * get_weapon_skill_burst_damage_multiplier(), false, false, false, true)
 	_add_burst_energy(energy_per_hit * get_energy_gain_multiplier())
 
 
@@ -777,7 +780,7 @@ func _apply_burst_tick(area: Area2D) -> void:
 			continue
 		if (n.global_position - center).length() > burst_radius:
 			continue
-		deal_damage_to(n, burst_damage_multiplier * get_weapon_skill_burst_damage_multiplier(), false, false, false, false)
+		deal_damage_to(n, burst_damage_multiplier * get_burst_damage_multiplier_bonus() * get_weapon_skill_burst_damage_multiplier(), false, false, false, false)
 
 
 func _add_burst_energy(amount: float) -> void:

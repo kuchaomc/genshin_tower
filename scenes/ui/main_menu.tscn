@@ -309,6 +309,33 @@ theme_override_font_sizes/font_size = 28
 text = "商店"
 flat = true
 
+[node name="ThreeDRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IndicatorSpace" type="Control" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ThreeDRow"]
+layout_mode = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ThreeDRow/IndicatorSpace"]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Indicator" type="ColorRect" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ThreeDRow/IndicatorSpace/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+color = Color(0.2, 0.6, 1, 1)
+
+[node name="Button3D" type="Button" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox/ThreeDRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "3D场景"
+flat = true
+
 [node name="QuitRow" type="HBoxContainer" parent="CanvasLayer/LeftMenu/MarginContainer/VBoxContainer/MenuBox"]
 layout_mode = 2
 theme_override_constants/separation = 12

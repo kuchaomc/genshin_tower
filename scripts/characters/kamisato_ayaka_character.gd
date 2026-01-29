@@ -29,6 +29,15 @@ var _phase1_trail: SwordTrail
 ## 剑的显示Sprite（用于蓄力发光与呼吸缩放）
 var _sword_sprite: Sprite2D
 var _sword_sprite_base_scale: Vector2 = Vector2.ONE
+var _sword_sprite_original_scale: Vector2 = Vector2.ONE
+## 缓存武器布局（用于“武器变大”时保持旋转枢轴不漂移）
+var _weapon_layout_cached: bool = false
+var _sword_sprite_original_position: Vector2 = Vector2.ZERO
+var _sword_tip_original_position: Vector2 = Vector2.ZERO
+var _sword_collision_shape_original_position: Vector2 = Vector2.ZERO
+var _sword_sprite_anchor_target: Vector2 = Vector2.ZERO
+var _sword_collision_anchor_target: Vector2 = Vector2.ZERO
+var _sword_collision_anchor_local: Vector2 = Vector2.ZERO
 ## 剑的枢轴偏移位置（相对于角色中心，用于正确的旋转中心）
 @export var sword_pivot_offset: Vector2 = Vector2(15, -5)
 ## 蓄力发光Sprite（运行时创建，叠加Add混合）
@@ -72,8 +81,18 @@ var _sword_sprite_original_material: Material
 # ========== 攻击状态 ==========
 ## 攻击阶段：0=未攻击, 1=第一段, 2=第二段
 var attack_phase: int = 0
-## 第二段伤害当前命中次数
+## 第二段攻击伤害当前命中次数
 var phase2_current_hit: int = 0
+## 重击范围半径基础值
+var _base_charged_radius_value: float = 0.0
+## 剑的碰撞半径基础值
+var _base_sword_collision_radius: float = 0.0
+## 重击碰撞半径基础值
+var _base_charged_collision_radius: float = 0.0
+## 剑的碰撞缩放基础值
+var _base_sword_collision_scale: Vector2 = Vector2.ONE
+## 重击碰撞缩放基础值
+var _base_charged_collision_scale: Vector2 = Vector2.ONE
 
 var swing_tween: Tween
 var position_tween: Tween
@@ -151,8 +170,38 @@ var _last_q_pressed: bool = false
 var _mistsplitter_timed_stack_expire: Array[float] = []
 var _mistsplitter_energy_stack_active: bool = false
 
+const _UPG_SKILL_CD_REDUCE_ON_HIT: StringName = &"ayaka_skill_cd_reduce_on_hit"
+const _UPG_BURST_EXTRA_PROJECTILES: StringName = &"ayaka_burst_extra_projectiles"
+const _UPG_BURST_DEFENSE_SHRED: StringName = &"ayaka_burst_defense_shred"
+const _UPG_THIN_ICE_DANCE: StringName = &"ayaka_thin_ice_dance"
+
+var _has_skill_cd_reduce_on_hit: bool = false
+var _has_burst_extra_projectiles: bool = false
+var _has_burst_defense_shred: bool = false
+var _has_thin_ice_dance: bool = false
+
+var _skill_cd_reduce_last_trigger_s: float = -999.0
+
+var _burst_def_shred_source_id: int = 0
+var _burst_def_shred_expire_ms_by_enemy_id: Dictionary = {}
+
+var _thin_ice_next_ready_s: float = 0.0
+var _thin_ice_buff_active: bool = false
+var _thin_ice_clear_pending: bool = false
+const _THIN_ICE_DAMAGE_MULTIPLIER: float = 2.0
+const _THIN_ICE_INTERVAL_S: float = 10.0
+const _THIN_ICE_CLEAR_DELAY_S: float = 0.5
+const _BURST_DEF_SHRED_AMOUNT: float = 0.30
+const _BURST_DEF_SHRED_DURATION_S: float = 6.0
+const _SKILL_CD_REDUCE_CHANCE: float = 0.5
+const _SKILL_CD_REDUCE_INTERNAL_CD_S: float = 0.1
+const _SKILL_CD_REDUCE_SECONDS: float = 0.3
+const _BURST_EXTRA_SPREAD_DEGREES: float = 18.0
+
 func _ready() -> void:
 	super._ready()
+	_burst_def_shred_source_id = int(get_instance_id())
+	_thin_ice_next_ready_s = _now_seconds() + _THIN_ICE_INTERVAL_S
 	
 	# 如果没有手动分配剑区域，则自动查找
 	if sword_area == null:
@@ -162,7 +211,9 @@ func _ready() -> void:
 		# 缓存剑显示Sprite（用于蓄力发光/呼吸缩放）
 		_sword_sprite = sword_area.get_node_or_null("Sprite2D") as Sprite2D
 		if _sword_sprite:
-			_sword_sprite_base_scale = _sword_sprite.scale
+			_sword_sprite_original_scale = _sword_sprite.scale
+			_sword_sprite_base_scale = _sword_sprite_original_scale
+			_sword_sprite_original_position = _sword_sprite.position
 			_ensure_weapon_glow_material()
 			_apply_equipped_weapon_visual()
 		
@@ -178,6 +229,8 @@ func _ready() -> void:
 	# 剑尖采样点（用于刀光轨迹）
 	if sword_tip == null:
 		sword_tip = get_node_or_null("SwordArea/SwordTip") as Node2D
+	if is_instance_valid(sword_tip):
+		_sword_tip_original_position = sword_tip.position
 	
 	# 初始化技能区域和特效
 	if skill_area == null:
@@ -211,9 +264,13 @@ func _ready() -> void:
 		charged_area.body_entered.connect(_on_charged_body_entered)
 		charged_area.monitoring = false
 		# 设置重击范围
-		var collision_shape = charged_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		var collision_shape := _find_first_collision_shape(charged_area)
 		if collision_shape and collision_shape.shape is CircleShape2D:
 			(collision_shape.shape as CircleShape2D).radius = charged_radius
+			_base_charged_collision_radius = (collision_shape.shape as CircleShape2D).radius
+		if collision_shape:
+			_base_charged_collision_scale = collision_shape.scale
+		_base_charged_radius_value = charged_radius
 	
 	if charged_effect == null:
 		charged_effect = get_node_or_null("ChargedEffect") as AnimatedSprite2D
@@ -221,8 +278,75 @@ func _ready() -> void:
 	if charged_effect:
 		charged_effect.visible = false
 
+	if sword_area:
+		var cs := _find_first_collision_shape(sword_area)
+		if cs and cs.shape is CircleShape2D:
+			_base_sword_collision_radius = (cs.shape as CircleShape2D).radius
+		if cs:
+			_base_sword_collision_scale = cs.scale
+			_sword_collision_shape_original_position = cs.position
+		_cache_weapon_layout_if_needed()
+
+	_apply_weapon_range_to_melee()
+
+
+func apply_upgrades(run_manager: Node) -> void:
+	super.apply_upgrades(run_manager)
+	_has_skill_cd_reduce_on_hit = false
+	_has_burst_extra_projectiles = false
+	_has_burst_defense_shred = false
+	_has_thin_ice_dance = false
+	if run_manager and run_manager.has_method("get_upgrade_level"):
+		_has_skill_cd_reduce_on_hit = int(run_manager.call("get_upgrade_level", String(_UPG_SKILL_CD_REDUCE_ON_HIT))) > 0
+		_has_burst_extra_projectiles = int(run_manager.call("get_upgrade_level", String(_UPG_BURST_EXTRA_PROJECTILES))) > 0
+		_has_burst_defense_shred = int(run_manager.call("get_upgrade_level", String(_UPG_BURST_DEFENSE_SHRED))) > 0
+		_has_thin_ice_dance = int(run_manager.call("get_upgrade_level", String(_UPG_THIN_ICE_DANCE))) > 0
+	_apply_weapon_range_to_melee()
+
+
+func _apply_weapon_range_to_melee() -> void:
+	var mul := get_weapon_range_multiplier()
+	_cache_weapon_layout_if_needed()
+
+	if sword_area:
+		var cs := _find_first_collision_shape(sword_area)
+		if cs:
+			cs.scale = _base_sword_collision_scale * mul
+			_apply_sword_collision_anchored_position(cs)
+			if cs.shape is CircleShape2D and _base_sword_collision_radius > 0.0:
+				(cs.shape as CircleShape2D).radius = _base_sword_collision_radius
+		if is_instance_valid(_sword_sprite):
+			_sword_sprite_base_scale = _sword_sprite_original_scale * mul
+			_sword_sprite.scale = _sword_sprite_base_scale
+			_apply_sword_sprite_anchored_position()
+	if is_instance_valid(sword_tip):
+		sword_tip.position = _sword_tip_original_position * mul
+
+	if _base_charged_radius_value > 0.0:
+		charged_radius = _base_charged_radius_value * mul
+	if charged_area:
+		var cs2 := _find_first_collision_shape(charged_area)
+		if cs2:
+			cs2.scale = _base_charged_collision_scale * mul
+			if cs2.shape is CircleShape2D and _base_charged_collision_radius > 0.0:
+				(cs2.shape as CircleShape2D).radius = _base_charged_collision_radius
+
+
+func _find_first_collision_shape(root: Node) -> CollisionShape2D:
+	if root == null:
+		return null
+	for c in root.get_children():
+		var cs := c as CollisionShape2D
+		if cs != null:
+			return cs
+		var nested := _find_first_collision_shape(c)
+		if nested != null:
+			return nested
+	return null
+
 func _physics_process(delta: float) -> void:
 	if not is_game_over:
+		_update_thin_ice_dance()
 		_update_mistsplitter_runtime()
 		# 处理E键技能输入
 		handle_skill_input()
@@ -344,6 +468,64 @@ func _apply_equipped_weapon_visual() -> void:
 	var tex: Texture2D = RunManager.get_weapon_world_texture(weapon_id)
 	if tex:
 		_sword_sprite.texture = tex
+		# 贴图切换后，重新按锚点修正一次（避免不同贴图尺寸导致“剑柄点”漂移）
+		_apply_sword_sprite_anchored_position()
+		if sword_area:
+			var cs := _find_first_collision_shape(sword_area)
+			if cs:
+				_apply_sword_collision_anchored_position(cs)
+
+
+func _cache_weapon_layout_if_needed() -> void:
+	if _weapon_layout_cached:
+		return
+	if sword_area == null:
+		return
+	if not is_instance_valid(_sword_sprite):
+		_sword_sprite = sword_area.get_node_or_null("Sprite2D") as Sprite2D
+	if is_instance_valid(_sword_sprite):
+		_sword_sprite_original_scale = _sword_sprite.scale
+		_sword_sprite_base_scale = _sword_sprite_original_scale
+		_sword_sprite_original_position = _sword_sprite.position
+		var r := _sword_sprite.get_rect()
+		var anchor_local := r.position + Vector2(r.size.x * 0.5, r.size.y)
+		_sword_sprite_anchor_target = _sword_sprite.position + anchor_local * _sword_sprite.scale
+	if not is_instance_valid(sword_tip):
+		sword_tip = get_node_or_null("SwordArea/SwordTip") as Node2D
+	if is_instance_valid(sword_tip):
+		_sword_tip_original_position = sword_tip.position
+	var cs := _find_first_collision_shape(sword_area)
+	if cs:
+		_base_sword_collision_scale = cs.scale
+		_sword_collision_shape_original_position = cs.position
+		if cs.shape is RectangleShape2D:
+			var rect := cs.shape as RectangleShape2D
+			_sword_collision_anchor_local = Vector2(0.0, rect.size.y * 0.5)
+			_sword_collision_anchor_target = cs.position + _sword_collision_anchor_local * cs.scale
+		else:
+			_sword_collision_anchor_local = Vector2.ZERO
+			_sword_collision_anchor_target = cs.position
+	_weapon_layout_cached = true
+
+
+func _apply_sword_sprite_anchored_position() -> void:
+	if not _weapon_layout_cached:
+		return
+	if not is_instance_valid(_sword_sprite):
+		return
+	var r := _sword_sprite.get_rect()
+	var anchor_local := r.position + Vector2(r.size.x * 0.5, r.size.y)
+	_sword_sprite.position = _sword_sprite_anchor_target - anchor_local * _sword_sprite.scale
+	if is_instance_valid(_charged_glow_sprite):
+		_charged_glow_sprite.position = _sword_sprite.position
+
+
+func _apply_sword_collision_anchored_position(cs: CollisionShape2D) -> void:
+	if not _weapon_layout_cached:
+		return
+	if cs == null:
+		return
+	cs.position = _sword_collision_anchor_target - _sword_collision_anchor_local * cs.scale
 
 
 func get_weapon_damage_multiplier() -> float:
@@ -440,7 +622,9 @@ func _start_phase1_swing(mouse_target: Vector2) -> void:
 	swing_tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	swing_tween.set_ease(Tween.EASE_OUT)
 	swing_tween.set_trans(Tween.TRANS_BACK)
-	swing_tween.tween_property(sword_area, "rotation", base_angle + swing_angle / 2, swing_duration)
+	var atk_spd := maxf(0.01, get_attack_speed())
+	var dur := swing_duration / atk_spd
+	swing_tween.tween_property(sword_area, "rotation", base_angle + swing_angle / 2, dur)
 	swing_tween.tween_callback(_on_phase1_swing_finished)
 
 ## 第一阶段挥剑动画完成
@@ -476,7 +660,9 @@ func _execute_phase2_attack() -> void:
 		swing_tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 		swing_tween.set_ease(Tween.EASE_IN_OUT)
 		swing_tween.set_trans(Tween.TRANS_QUAD)
-		swing_tween.tween_property(sword_area, "rotation", sheath_angle, 0.2)
+		var atk_spd := maxf(0.01, get_attack_speed())
+		var dur := 0.2 / atk_spd
+		swing_tween.tween_property(sword_area, "rotation", sheath_angle, dur)
 	
 	# 在准星位置生成重击特效
 	if charged_effect:
@@ -516,18 +702,21 @@ func _trigger_phase2_damage_sequence() -> void:
 		# 强制检查范围内的敌人
 		_force_check_charged_overlaps()
 		# 短暂启用后关闭（单次伤害检测）
-		var timer = get_tree().create_timer(0.1)
+		var atk_spd := maxf(0.01, get_attack_speed())
+		var timer = get_tree().create_timer(0.1 / atk_spd)
 		timer.timeout.connect(_on_charged_damage_finished)
 	
 	phase2_current_hit += 1
 	
 	# 如果还有剩余伤害次数，继续触发
 	if phase2_current_hit < charged_hit_count and attack_phase == 2:
-		var timer = get_tree().create_timer(charged_hit_interval)
+		var atk_spd := maxf(0.01, get_attack_speed())
+		var timer = get_tree().create_timer(charged_hit_interval / atk_spd)
 		timer.timeout.connect(_trigger_phase2_damage_sequence)
 	else:
 		# 所有伤害完成，等待特效播放完成后结束
-		var finish_timer = get_tree().create_timer(0.5)
+		var atk_spd := maxf(0.01, get_attack_speed())
+		var finish_timer = get_tree().create_timer(0.5 / atk_spd)
 		finish_timer.timeout.connect(_on_phase2_finished)
 
 ## 重击伤害检测完成
@@ -844,6 +1033,7 @@ func _handle_sword_hit(target: Node2D) -> void:
 		_add_burst_energy(actual_energy)
 		# 雾切：普攻造成伤害时获得1层，持续5秒
 		_add_mistsplitter_timed_stack(5.0)
+		_try_trigger_skill_cd_reduce_on_hit()
 
 ## 主动检查覆盖，避免物理帧遗漏
 func _force_check_sword_overlaps() -> void:
@@ -880,8 +1070,11 @@ func _handle_charged_hit(target: Node2D) -> void:
 		var apply_knockback = is_final_hit
 		var apply_stun = not is_final_hit
 		
+		var dmg_mul := charged_attack_multiplier
+		if _thin_ice_buff_active:
+			dmg_mul *= _THIN_ICE_DAMAGE_MULTIPLIER
 		# 使用统一伤害计算系统（75%攻击力）
-		var damage_result = deal_damage_to(target, charged_attack_multiplier, false, false, apply_knockback, apply_stun)
+		var damage_result = deal_damage_to(target, dmg_mul, false, false, apply_knockback, apply_stun)
 		var damage = damage_result[0]
 		var is_crit = damage_result[1]
 		
@@ -895,6 +1088,8 @@ func _handle_charged_hit(target: Node2D) -> void:
 		_add_burst_energy(actual_energy)
 		# 雾切：普攻造成伤害时获得1层，持续5秒
 		_add_mistsplitter_timed_stack(5.0)
+		_try_trigger_skill_cd_reduce_on_hit()
+		_try_consume_thin_ice_on_charged_hit()
 
 ## 强制检查重击范围内的敌人
 func _force_check_charged_overlaps() -> void:
@@ -1014,7 +1209,7 @@ func _handle_skill_hit(target: Node2D) -> void:
 	# 造成伤害
 	if target.has_method("take_damage"):
 		# 使用统一伤害计算系统（技能伤害通过攻击力提升）
-		var damage_result = deal_damage_to(target, skill_damage_multiplier * get_weapon_skill_burst_damage_multiplier())
+		var damage_result = deal_damage_to(target, skill_damage_multiplier * get_skill_damage_multiplier_bonus() * get_weapon_skill_burst_damage_multiplier())
 		var damage = damage_result[0]
 		var is_crit = damage_result[1]
 		
@@ -1104,26 +1299,39 @@ func use_burst() -> void:
 		print("错误：大招投射物场景未加载")
 		return
 	
+	# 设置投射物方向
+	var mouse_position = get_global_mouse_position()
+	var direction = (mouse_position - global_position).normalized()
+	if direction == Vector2.ZERO:
+		direction = Vector2.RIGHT  # 默认向右
+
+	_spawn_burst_projectile(direction)
+	if _has_burst_extra_projectiles:
+		var spread := deg_to_rad(_BURST_EXTRA_SPREAD_DEGREES)
+		_spawn_burst_projectile(direction.rotated(-spread))
+		_spawn_burst_projectile(direction.rotated(spread))
+
+	print("使用大招：向鼠标方向发射")
+
+
+func _spawn_burst_projectile(dir: Vector2) -> void:
 	# 创建大招投射物实例
 	var burst_instance = burst_scene.instantiate()
 	if not burst_instance:
 		print("错误：无法实例化大招投射物")
 		return
-	
-	# 设置投射物位置和方向
-	var mouse_position = get_global_mouse_position()
-	var direction = (mouse_position - global_position).normalized()
+	var direction := dir.normalized()
 	if direction == Vector2.ZERO:
-		direction = Vector2.RIGHT  # 默认向右
-	
+		direction = Vector2.RIGHT
+
 	burst_instance.global_position = global_position
 	burst_instance.direction = direction
 	burst_instance.speed = burst_speed
-	
+
 	# 设置角色引用和伤害倍率（用于deal_damage_to）
 	burst_instance.owner_character = self
-	burst_instance.damage_multiplier = burst_damage_multiplier * get_weapon_skill_burst_damage_multiplier()
-	
+	burst_instance.damage_multiplier = burst_damage_multiplier * get_burst_damage_multiplier_bonus() * get_weapon_skill_burst_damage_multiplier()
+
 	# 预计算伤害用于显示（可选，用于调试）
 	if current_stats:
 		var damage_result = current_stats.calculate_damage(burst_instance.damage_multiplier, 0.0, false, false)
@@ -1132,15 +1340,104 @@ func use_burst() -> void:
 	else:
 		burst_instance.damage = burst_damage
 		burst_instance.is_crit = false
-	
+
 	# 添加到场景树（添加到当前节点的父节点或根节点）
 	var parent_node = get_parent()
 	if parent_node:
 		parent_node.add_child(burst_instance)
 	else:
 		get_tree().root.add_child(burst_instance)
-	
-	print("使用大招：向鼠标方向发射")
+
+
+func _try_trigger_skill_cd_reduce_on_hit() -> void:
+	if not _has_skill_cd_reduce_on_hit:
+		return
+	var now := _now_seconds()
+	if now - _skill_cd_reduce_last_trigger_s < _SKILL_CD_REDUCE_INTERNAL_CD_S:
+		return
+	var chance := _SKILL_CD_REDUCE_CHANCE
+	var roll := randf()
+	if RunManager and RunManager.has_method("get_rng"):
+		roll = float(RunManager.get_rng().randf())
+	if roll > chance:
+		return
+	_skill_cd_reduce_last_trigger_s = now
+	_reduce_skill_cooldown(_SKILL_CD_REDUCE_SECONDS)
+
+
+func _reduce_skill_cooldown(seconds: float) -> void:
+	var sec := maxf(0.0, seconds)
+	if sec <= 0.0:
+		return
+	var now_ms := Time.get_ticks_msec()
+	if now_ms >= skill_next_ready_ms:
+		return
+	var reduce_ms := int(sec * 1000.0)
+	skill_next_ready_ms = maxi(now_ms, skill_next_ready_ms - reduce_ms)
+
+
+func on_burst_projectile_hit_enemy(enemy: Node2D) -> void:
+	if not _has_burst_defense_shred:
+		return
+	if not is_instance_valid(enemy):
+		return
+	if not enemy.is_in_group("enemies"):
+		return
+	if not enemy.has_method("apply_resistance_reduction"):
+		return
+	if not enemy.has_method("remove_resistance_reduction"):
+		return
+
+	var enemy_id := int(enemy.get_instance_id())
+	var now_ms := Time.get_ticks_msec()
+	var expire_ms := now_ms + int(_BURST_DEF_SHRED_DURATION_S * 1000.0)
+	_burst_def_shred_expire_ms_by_enemy_id[enemy_id] = expire_ms
+	enemy.call("apply_resistance_reduction", _burst_def_shred_source_id, _BURST_DEF_SHRED_AMOUNT)
+
+	var t := get_tree().create_timer(_BURST_DEF_SHRED_DURATION_S)
+	t.timeout.connect(_on_burst_def_shred_timeout.bind(enemy, enemy_id, expire_ms))
+
+
+func _on_burst_def_shred_timeout(enemy: Node2D, enemy_id: int, expected_expire_ms: int) -> void:
+	if not is_instance_valid(enemy):
+		_burst_def_shred_expire_ms_by_enemy_id.erase(enemy_id)
+		return
+	var current_expire := int(_burst_def_shred_expire_ms_by_enemy_id.get(enemy_id, 0))
+	if current_expire != expected_expire_ms:
+		return
+	_burst_def_shred_expire_ms_by_enemy_id.erase(enemy_id)
+	if enemy.has_method("remove_resistance_reduction"):
+		enemy.call("remove_resistance_reduction", _burst_def_shred_source_id)
+
+
+func _update_thin_ice_dance() -> void:
+	if not _has_thin_ice_dance:
+		return
+	var now := _now_seconds()
+	if _thin_ice_buff_active:
+		return
+	if now < _thin_ice_next_ready_s:
+		return
+	_thin_ice_buff_active = true
+	_thin_ice_clear_pending = false
+
+
+func _try_consume_thin_ice_on_charged_hit() -> void:
+	if not _has_thin_ice_dance:
+		return
+	if not _thin_ice_buff_active:
+		return
+	if _thin_ice_clear_pending:
+		return
+	_thin_ice_clear_pending = true
+	var t := get_tree().create_timer(_THIN_ICE_CLEAR_DELAY_S)
+	t.timeout.connect(_clear_thin_ice_dance)
+
+
+func _clear_thin_ice_dance() -> void:
+	_thin_ice_buff_active = false
+	_thin_ice_clear_pending = false
+	_thin_ice_next_ready_s = _now_seconds() + _THIN_ICE_INTERVAL_S
 
 ## 增加大招充能
 func _add_burst_energy(amount: float) -> void:

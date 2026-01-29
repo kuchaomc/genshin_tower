@@ -131,7 +131,7 @@ func _apply_tick() -> void:
 		var enemy := enemy_obj as Node2D
 		if enemy == null:
 			continue
-		owner_character.deal_damage_to(enemy, damage_multiplier * owner_character.get_weapon_skill_burst_damage_multiplier(), false, false, false, false)
+		owner_character.deal_damage_to(enemy, damage_multiplier * owner_character.get_burst_damage_multiplier_bonus() * owner_character.get_weapon_skill_burst_damage_multiplier(), false, false, false, false)
 
 
 
