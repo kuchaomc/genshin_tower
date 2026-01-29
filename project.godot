@@ -50,7 +50,7 @@ project/assembly_name="genshin"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/agent/plugin.cfg")
+enabled=PackedStringArray()
 
 [gui]
 

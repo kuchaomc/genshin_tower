@@ -6,5 +6,5 @@
 script = ExtResource("1_artifact")
 name = "贤智的定期"
 stat_bonuses = {
-"damage_multiplier": 0.1
+"energy_gain_multiplier": 0.5
 }

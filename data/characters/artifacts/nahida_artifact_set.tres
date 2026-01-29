@@ -11,7 +11,7 @@
 script = ExtResource("1_set")
 character_id = "nahida"
 set_name = "迷宫的游人"
-set_description = "纳西妲专属圣遗物套装。"
+set_description = "纳西妲专属圣遗物套装，行走迷宫，智识如蔓延之绿。"
 flower = ExtResource("2_flower")
 plume = ExtResource("3_plume")
 sands = ExtResource("4_sands")

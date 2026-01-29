@@ -304,21 +304,29 @@ func _build_artifact_tooltip_bbcode(slot: ArtifactSlot.SlotType, artifact: Artif
 		if artifact_manager:
 			var pieces: int = artifact_manager.get_equipped_count()
 			var set_name: String = ""
+			var set_description: String = ""
 			if RunManager.current_character and RunManager.current_character.artifact_set:
 				set_name = RunManager.current_character.artifact_set.set_name
+				set_description = RunManager.current_character.artifact_set.set_description
 			lines.append("")
 			if not set_name.is_empty():
 				lines.append("[b]套装状态:[/b] %s（%d/5）" % [set_name, pieces])
 			else:
 				lines.append("[b]套装状态:[/b] （%d/5）" % pieces)
-			if RunManager.current_character and RunManager.current_character.id == "kamisato_ayaka":
+			if not set_description.is_empty():
+				lines.append(set_description)
+			if RunManager.current_character:
 				var active := "[color=#ffcc66]"
 				var inactive := "[color=#ffffff]"
 				var endc := "[/color]"
 				var two_prefix := active if pieces >= 2 else inactive
 				var four_prefix := active if pieces >= 4 else inactive
-				lines.append(two_prefix + "2件套：暴击率+15%，暴击冻结敌人1秒" + endc)
-				lines.append(four_prefix + "4件套：暴击率+20%，冻结敌人伤害+20%" + endc)
+				if RunManager.current_character.id == "kamisato_ayaka":
+					lines.append(two_prefix + "2件套：暴击率+15%，暴击冻结敌人1秒" + endc)
+					lines.append(four_prefix + "4件套：暴击率+20%，冻结敌人伤害+20%" + endc)
+				elif RunManager.current_character.id == "nahida":
+					lines.append(two_prefix + "2件套：命中敌人时，有25%概率施加中毒，持续5秒（每秒造成攻击力25%的伤害）" + endc)
+					lines.append(four_prefix + "4件套：中毒概率提升至50%；目标中毒期间，降低其30%减伤" + endc)
 	return "\n".join(lines)
 
 func _setup_minimap() -> void:

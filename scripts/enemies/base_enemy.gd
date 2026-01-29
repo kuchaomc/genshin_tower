@@ -54,6 +54,16 @@ var _original_modulate_sprite: Color = Color.WHITE
 var _freeze_paused_animation: bool = false
 var _anim_speed_scale_before_freeze: float = 1.0
 
+# ========== 中毒系统（纳西妲套装 2/4 件套） ==========
+var is_poisoned: bool = false
+var poison_timer: float = 0.0
+@export var poison_damage_per_second_attacker_attack_ratio: float = 0.25
+@export var poison_tick_interval: float = 0.25
+var _poison_tick_accum: float = 0.0
+var _poison_attacker_attack: float = 0.0
+var _poison_shred_source_id: int = 0
+var _poison_shred_amount: float = 0.0
+
 # 碰撞/接触伤害节流，避免连续帧内多次结算
 @export var contact_damage_cooldown: float = 0.6
 var _recently_damaged_bodies: Dictionary = {}
@@ -201,6 +211,16 @@ func _physics_process(delta: float) -> void:
 	if not is_spawned or is_dead:
 		velocity = Vector2.ZERO
 		return
+	
+	# 更新中毒计时器与掉血
+	if is_poisoned:
+		poison_timer -= delta
+		_poison_tick_accum += delta
+		while _poison_tick_accum >= maxf(0.02, poison_tick_interval):
+			_poison_tick_accum -= maxf(0.02, poison_tick_interval)
+			_apply_poison_tick_damage()
+		if poison_timer <= 0.0:
+			_clear_poison_state()
 	
 	# 更新僵直计时器
 	if is_stunned:
@@ -432,6 +452,65 @@ func get_defense_percent() -> float:
 	if current_stats:
 		return current_stats.defense_percent
 	return 0.0
+
+
+## 施加中毒（持续掉血，可选减防）
+## duration: 持续时间（秒）
+## shred_source_id/shred_amount: 若提供，则在中毒期间降低 defense_percent（复用现有 apply_resistance_reduction）
+func apply_poison(duration: float = 5.0, shred_source_id: int = 0, shred_amount: float = 0.0, attacker_attack: float = 0.0) -> void:
+	if is_dead:
+		return
+	if duration <= 0.0:
+		return
+
+	# 若已有旧的减防来源，先移除（避免反复触发导致残留）
+	if _poison_shred_source_id != 0:
+		remove_resistance_reduction(_poison_shred_source_id)
+
+	is_poisoned = true
+	poison_timer = maxf(poison_timer, duration)
+	_poison_tick_accum = 0.0
+	_poison_attacker_attack = maxf(0.0, attacker_attack)
+
+	_poison_shred_source_id = shred_source_id
+	_poison_shred_amount = maxf(0.0, shred_amount)
+	if _poison_shred_source_id != 0 and _poison_shred_amount > 0.0:
+		apply_resistance_reduction(_poison_shred_source_id, _poison_shred_amount)
+
+
+func _apply_poison_tick_damage() -> void:
+	if not is_poisoned:
+		return
+	if is_dead or not is_spawned:
+		return
+	if _poison_attacker_attack <= 0.0:
+		return
+
+	var ratio: float = maxf(0.0, poison_damage_per_second_attacker_attack_ratio)
+	if ratio <= 0.0:
+		return
+	var tick_s: float = maxf(0.02, poison_tick_interval)
+	var damage_amount: float = _poison_attacker_attack * ratio * tick_s
+	if damage_amount <= 0.0:
+		return
+
+	# 中毒伤害不走 take_damage（避免套用减伤/击退/僵直），直接扣血
+	current_health -= damage_amount
+	current_health = maxf(0.0, current_health)
+	update_hp_display()
+	if current_health <= 0.0:
+		on_death()
+
+
+func _clear_poison_state() -> void:
+	if _poison_shred_source_id != 0:
+		remove_resistance_reduction(_poison_shred_source_id)
+	is_poisoned = false
+	poison_timer = 0.0
+	_poison_tick_accum = 0.0
+	_poison_attacker_attack = 0.0
+	_poison_shred_source_id = 0
+	_poison_shred_amount = 0.0
 
 
 ## 施加“抗性降低/减伤降低”（可叠加，多来源共存）
@@ -669,6 +748,7 @@ func prepare_for_pool() -> void:
 	is_spawned = false
 	is_dead = true
 	velocity = Vector2.ZERO
+	_clear_poison_state()
 	
 	# 结束击退 tween，避免复用后残留
 	if knockback_tween:
@@ -711,6 +791,7 @@ func reset_for_reuse() -> void:
 	is_dead = false
 	is_spawned = false
 	velocity = Vector2.ZERO
+	_clear_poison_state()
 	_clear_freeze_animation()
 	_clear_freeze_visual()
 	

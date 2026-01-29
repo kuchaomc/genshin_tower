@@ -41,6 +41,7 @@ bg_color = Color(0, 0, 0, 0)
 
 [node name="Node2D2" type="Node2D"]
 script = ExtResource("1_ki7t4")
+three_d_scene_path = "res://3d/base.tscn"
 
 [node name="Camera2D" type="Camera2D" parent="."]
 

@@ -103,6 +103,13 @@ const _CHARACTER_DEATH_CG_DIR: String = "res://textures/characters"
 var _death_cg_prompt: ConfirmationDialog = null
 var _prompt_layer: CanvasLayer = null
 
+# 加载遮罩（用于异步切场景）
+var _loading_layer: CanvasLayer = null
+var _loading_label: Label = null
+var _loading_timer: Timer = null
+var _loading_dots: int = 0
+var _scene_loading_in_progress: bool = false
+
 const _SETTINGS_FILE_PATH: String = "user://settings.cfg"
 const _SETTINGS_SECTION_UI: String = "ui"
 const _SETTINGS_KEY_NSFW_ENABLED: String = "nsfw_enabled"
@@ -204,6 +211,82 @@ func _ensure_prompt_layer() -> void:
 	# 必须高于 TransitionManager(100)，否则会被黑屏遮挡
 	_prompt_layer.layer = 180
 	get_tree().root.add_child.call_deferred(_prompt_layer)
+
+
+func _ensure_loading_overlay() -> void:
+	if is_instance_valid(_loading_layer):
+		if _loading_layer.is_inside_tree():
+			return
+		return
+	_loading_layer = CanvasLayer.new()
+	_loading_layer.name = "LoadingOverlay"
+	_loading_layer.layer = 160
+	_loading_layer.visible = false
+	get_tree().root.add_child.call_deferred(_loading_layer)
+
+	var root := Control.new()
+	root.name = "Root"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_loading_layer.add_child(root)
+
+	var bg := ColorRect.new()
+	bg.name = "Bg"
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0, 0, 0, 0)
+	root.add_child(bg)
+
+	_loading_label = Label.new()
+	_loading_label.name = "Label"
+	_loading_label.text = "加载中"
+	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_loading_label.set_anchors_preset(Control.PRESET_CENTER)
+	_loading_label.position = Vector2.ZERO
+	_loading_label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	root.add_child(_loading_label)
+
+	_loading_timer = Timer.new()
+	_loading_timer.name = "DotTimer"
+	_loading_timer.one_shot = false
+	_loading_timer.wait_time = 0.25
+	_loading_layer.add_child(_loading_timer)
+	_loading_timer.timeout.connect(_on_loading_timer_timeout)
+
+
+func _on_loading_timer_timeout() -> void:
+	_loading_dots = (_loading_dots + 1) % 4
+	if is_instance_valid(_loading_label):
+		_loading_label.text = "加载中" + ".".repeat(_loading_dots)
+
+
+func _show_loading_overlay(show: bool) -> void:
+	_ensure_loading_overlay()
+	if not is_instance_valid(_loading_layer):
+		return
+	# _ensure_loading_overlay() 使用 call_deferred 将节点挂到 root，当前帧可能尚未进入场景树。
+	# 此时直接 start Timer 会触发 “Unable to start the timer because it's not inside the scene tree”。
+	if not _loading_layer.is_inside_tree():
+		# 等待挂载完成（通常 1 帧足够；这里多等几帧提升稳定性）
+		for _i in 3:
+			await get_tree().process_frame
+			if _loading_layer.is_inside_tree():
+				break
+		if not _loading_layer.is_inside_tree():
+			return
+	_loading_layer.visible = show
+	if show:
+		_loading_dots = 0
+		if is_instance_valid(_loading_label):
+			_loading_label.text = "加载中"
+		if is_instance_valid(_loading_timer):
+			if _loading_timer.is_inside_tree():
+				_loading_timer.start()
+	else:
+		if is_instance_valid(_loading_timer):
+			if _loading_timer.is_inside_tree():
+				_loading_timer.stop()
+
 
 
 func _ensure_death_cg_prompt() -> void:
@@ -397,6 +480,64 @@ func change_scene_to(scene_path: String, use_transition: bool = false) -> void:
 		# 如果场景加载失败，返回主菜单
 		if scene_path != SCENE_MAIN_MENU:
 			go_to_main_menu()
+
+
+## 不走 DataManager 缓存的异步切场景（用于需要离开后可回收的场景，如3D展示）
+func change_scene_to_uncached_async(scene_path: String) -> void:
+	if _scene_loading_in_progress:
+		return
+	if scene_path.is_empty():
+		return
+	if not ResourceLoader.exists(scene_path):
+		return
+	_scene_loading_in_progress = true
+	_clear_ui_overlay_for_scene_change()
+
+	if TransitionManager:
+		TransitionManager.set_opaque()
+	_show_loading_overlay(true)
+
+	var err := ResourceLoader.load_threaded_request(scene_path, "", false, ResourceLoader.CACHE_MODE_IGNORE)
+	if err != OK:
+		_show_loading_overlay(false)
+		if TransitionManager:
+			await TransitionManager.fade_in(0.25)
+		_scene_loading_in_progress = false
+		return
+
+	var progress: Array = []
+	while true:
+		var status := ResourceLoader.load_threaded_get_status(scene_path, progress)
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			break
+		if status == ResourceLoader.THREAD_LOAD_FAILED or status == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			_show_loading_overlay(false)
+			if TransitionManager:
+				await TransitionManager.fade_in(0.25)
+			_scene_loading_in_progress = false
+			return
+		await get_tree().process_frame
+
+	var scene_res := ResourceLoader.load_threaded_get(scene_path)
+	var packed := scene_res as PackedScene
+	if packed:
+		get_tree().change_scene_to_packed(packed)
+		emit_signal("scene_changed", scene_path)
+		call_deferred("_apply_window_title")
+		if DebugLogger:
+			DebugLogger.log_info("异步切换到场景：%s" % scene_path, "GameManager")
+		if _pending_bgm_track.is_empty():
+			_pending_bgm_track = _get_bgm_track_for_state(current_state)
+		_apply_pending_bgm()
+	else:
+		if DebugLogger:
+			DebugLogger.log_error("异步场景加载失败：%s" % scene_path, "GameManager")
+
+	await get_tree().process_frame
+	_show_loading_overlay(false)
+	if TransitionManager:
+		await TransitionManager.fade_in(0.25)
+	_scene_loading_in_progress = false
 
 func _debug_after_scene_change(scene_path: String) -> void:
 	# 等一帧，确保 change_scene 后 current_scene/节点树已稳定

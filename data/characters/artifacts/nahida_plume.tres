@@ -6,5 +6,5 @@
 script = ExtResource("1_artifact")
 name = "翠蔓的智者"
 stat_bonuses = {
-"attack": 100.0
+"attack": 50.0
 }

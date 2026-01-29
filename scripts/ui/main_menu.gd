@@ -797,6 +797,9 @@ func _on_3d_button_pressed() -> void:
 		return
 	if not ResourceLoader.exists(three_d_scene_path):
 		return
+	if GameManager and GameManager.has_method("change_scene_to_uncached_async"):
+		GameManager.change_scene_to_uncached_async(three_d_scene_path)
+		return
 	if GameManager and GameManager.has_method("change_scene_to"):
 		GameManager.change_scene_to(three_d_scene_path)
 		return

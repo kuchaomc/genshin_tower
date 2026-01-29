@@ -722,6 +722,7 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 		return [0.0, false]
 	
 	var ayaka_set_pieces: int = _get_ayaka_artifact_set_pieces()
+	var nahida_set_pieces: int = _get_nahida_artifact_set_pieces()
 	
 	# 获取目标的减伤比例
 	var target_defense: float = 0.0
@@ -769,6 +770,30 @@ func deal_damage_to(target: Node, damage_multiplier: float = 1.0, force_crit: bo
 		if target != null and target.has_method("apply_freeze"):
 			target.call("apply_freeze", 1.0)
 	
+	# 纳西妲套装效果：2件/4件套
+	# 2件：命中敌人时 25% 概率施加中毒(5s)
+	# 4件：概率提高至 50%，且中毒状态下敌人减防 30%
+	if damage_dealt and nahida_set_pieces >= 2:
+		var chance: float = 0.25
+		if nahida_set_pieces >= 4:
+			chance = 0.50
+		var rng: RandomNumberGenerator = null
+		if RunManager:
+			rng = RunManager.get_rng()
+		if rng == null:
+			rng = RandomNumberGenerator.new()
+			rng.randomize()
+		if rng.randf() < chance:
+			if target != null and target.has_method("apply_poison"):
+				var poison_duration: float = 5.0
+				var shred_source_id: int = 0
+				var shred_amount: float = 0.0
+				if nahida_set_pieces >= 4:
+					shred_source_id = int(get_instance_id())
+					shred_amount = 0.30
+				var attacker_attack: float = current_stats.attack
+				target.call("apply_poison", poison_duration, shred_source_id, shred_amount, attacker_attack)
+	
 	# 如果成功造成伤害，播放命中音效
 	if damage_dealt and BGMManager:
 		BGMManager.play_hit_sound()
@@ -791,6 +816,16 @@ func _get_ayaka_artifact_set_pieces() -> int:
 	if character_data == null:
 		return 0
 	if character_data.id != "kamisato_ayaka":
+		return 0
+	if artifact_manager == null:
+		return 0
+	return artifact_manager.get_equipped_count()
+
+
+func _get_nahida_artifact_set_pieces() -> int:
+	if character_data == null:
+		return 0
+	if character_data.id != "nahida":
 		return 0
 	if artifact_manager == null:
 		return 0
@@ -1322,8 +1357,16 @@ func _apply_artifact_bonuses() -> void:
 	if bonuses.is_empty():
 		return
 	
+	var energy_bonus: float = 0.0
+	if bonuses.has("energy_gain_multiplier"):
+		energy_bonus = float(bonuses["energy_gain_multiplier"])
+		bonuses.erase("energy_gain_multiplier")
+	
 	# 统一交给 CharacterStats 处理，避免在角色脚本里维护“加成规则”
 	current_stats.apply_bonuses(bonuses)
+	# 圣遗物中的充能效率加成属于 BaseCharacter（不是 CharacterStats 字段）
+	if energy_bonus != 0.0:
+		energy_gain_multiplier = maxf(0.0, energy_gain_multiplier * (1.0 + energy_bonus))
 	
 	# 神里绫华套装效果：2件/4件套
 	var pieces: int = _get_ayaka_artifact_set_pieces()
