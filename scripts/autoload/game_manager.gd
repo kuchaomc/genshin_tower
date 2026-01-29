@@ -92,6 +92,9 @@ var shop_cg_unlocks: Dictionary = {}
 # 主界面商店武器解锁记录：weapon_id -> true
 var shop_weapon_unlocks: Dictionary = {}
 
+# 角色好感度（跨局持久化）：character_id -> favor(int)
+var character_favors: Dictionary = {}
+
 # 原石总数（跨局持久化）
 var primogems_total: int = 0
 
@@ -928,6 +931,12 @@ func save_run_record(record: Dictionary) -> void:
 	if run_records.size() > 50:
 		run_records = run_records.slice(-50)
 	
+	# 通关奖励：胜利则给对应角色好感 +10（上限100）
+	if bool(record.get("victory", false)):
+		var character_id: String = str(record.get("character_id", ""))
+		if not character_id.is_empty():
+			_add_character_favor_internal(character_id, 10, false)
+	
 	save_data()
 
 ## 获取所有结算记录
@@ -948,6 +957,7 @@ func save_data() -> void:
 		"shop_cg_unlocks": shop_cg_unlocks.keys(),
 		"shop_weapon_unlocks": shop_weapon_unlocks.keys(),
 		"primogems_total": primogems_total,
+		"character_favors": character_favors,
 		"version": SAVE_DATA_VERSION
 	}
 	
@@ -991,6 +1001,17 @@ func load_save_data() -> void:
 			var weapon_unlocked: Array = data.get("shop_weapon_unlocks", [])
 			for w in weapon_unlocked:
 				shop_weapon_unlocks[str(w)] = true
+			character_favors.clear()
+			var favors_data: Variant = data.get("character_favors", {})
+			if favors_data is Dictionary:
+				for k3 in (favors_data as Dictionary).keys():
+					var raw_id: String = str(k3)
+					var normalized_id: String = _normalize_character_id(raw_id)
+					character_favors[normalized_id] = clampi(int((favors_data as Dictionary).get(k3, 0)), 0, 100)
+			# 兼容：旧键名 ayaka -> kamisato_ayaka（如果两者都存在，以 kamisato_ayaka 为准）
+			if character_favors.has("ayaka") and (not character_favors.has("kamisato_ayaka")):
+				character_favors["kamisato_ayaka"] = clampi(int(character_favors.get("ayaka", 0)), 0, 100)
+				character_favors.erase("ayaka")
 			primogems_total = int(data.get("primogems_total", 0))
 			emit_signal("primogems_total_changed", primogems_total)
 			if not has_version:
@@ -1011,6 +1032,7 @@ func load_save_data() -> void:
 			shop_cg_unlocks.clear()
 			shop_weapon_unlocks.clear()
 			primogems_total = 0
+			character_favors.clear()
 			emit_signal("primogems_total_changed", primogems_total)
 	else:
 		if DebugLogger:
@@ -1020,6 +1042,7 @@ func load_save_data() -> void:
 		shop_cg_unlocks.clear()
 		shop_weapon_unlocks.clear()
 		primogems_total = 0
+		character_favors.clear()
 		emit_signal("primogems_total_changed", primogems_total)
 
 
@@ -1047,6 +1070,48 @@ func spend_primogems(amount: int) -> bool:
 	emit_signal("primogems_total_changed", primogems_total)
 	save_data()
 	return true
+
+
+## 获取角色好感度（0-100）
+func get_character_favor(character_id: String) -> int:
+	if character_id.is_empty():
+		return 0
+	var normalized_id: String = _normalize_character_id(character_id)
+	return clampi(int(character_favors.get(normalized_id, 0)), 0, 100)
+
+
+## 设置角色好感度（会写入存档）
+func set_character_favor(character_id: String, favor: int) -> void:
+	_set_character_favor_internal(character_id, favor, true)
+
+
+## 增加角色好感度（会写入存档）
+func add_character_favor(character_id: String, delta: int) -> void:
+	_add_character_favor_internal(character_id, delta, true)
+
+
+func _set_character_favor_internal(character_id: String, favor: int, should_save: bool) -> void:
+	if character_id.is_empty():
+		return
+	var normalized_id: String = _normalize_character_id(character_id)
+	var final_value: int = clampi(favor, 0, 100)
+	character_favors[normalized_id] = final_value
+	if should_save:
+		save_data()
+
+
+func _add_character_favor_internal(character_id: String, delta: int, should_save: bool) -> void:
+	if character_id.is_empty():
+		return
+	var normalized_id: String = _normalize_character_id(character_id)
+	var old_value: int = get_character_favor(normalized_id)
+	_set_character_favor_internal(normalized_id, old_value + delta, should_save)
+
+
+func _normalize_character_id(character_id: String) -> String:
+	if character_id == "ayaka":
+		return "kamisato_ayaka"
+	return character_id
 
 
 ## 主界面商店：解锁指定CG（用资源路径作为ID）

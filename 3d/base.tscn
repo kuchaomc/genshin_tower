@@ -1,11 +1,84 @@
-[gd_scene load_steps=2 format=3 uid="uid://dddegcd3uhder"]
+[gd_scene format=3 uid="uid://dddegcd3uhder"]
 
-[ext_resource type="PackedScene" uid="uid://dmtuyskv334ao" path="res://3d/character/ayaka_normal/ayakanormal.tscn" id="1_307k2"]
+
+[ext_resource type="Script" path="res://scripts/three_d/base_3d_scene.gd" id="1_0m5m3"]
 
 [node name="Node3D" type="Node3D"]
+ script = ExtResource("1_0m5m3")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 2)
 fov = 25.0
 
-[node name="Ayakanormal" parent="." instance=ExtResource("1_307k2")]
+[node name="UiLayer" type="CanvasLayer" parent="."]
+ layer = 10
+
+[node name="UiRoot" type="Control" parent="UiLayer"]
+ anchors_preset = 15
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ grow_horizontal = 2
+ grow_vertical = 2
+
+[node name="BackButton" type="Button" parent="UiLayer/UiRoot"]
+ unique_name_in_owner = true
+ anchors_preset = 0
+ offset_left = 16.0
+ offset_top = 16.0
+ offset_right = 136.0
+ offset_bottom = 56.0
+ text = "返回"
+
+[node name="RightPanel" type="PanelContainer" parent="UiLayer/UiRoot"]
+ anchor_left = 1.0
+ anchor_top = 0.0
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ offset_left = -320.0
+ offset_top = 0.0
+ offset_right = -16.0
+ offset_bottom = 0.0
+ grow_horizontal = 0
+ grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="UiLayer/UiRoot/RightPanel"]
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ grow_horizontal = 2
+ grow_vertical = 2
+ theme_override_constants/margin_left = 16
+ theme_override_constants/margin_top = 16
+ theme_override_constants/margin_right = 16
+ theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="UiLayer/UiRoot/RightPanel/Margin"]
+ anchor_right = 1.0
+ anchor_bottom = 1.0
+ grow_horizontal = 2
+ grow_vertical = 2
+ theme_override_constants/separation = 12
+
+[node name="CharacterName" type="Label" parent="UiLayer/UiRoot/RightPanel/Margin/VBox"]
+ unique_name_in_owner = true
+ text = "角色名"
+
+[node name="FavorRow" type="HBoxContainer" parent="UiLayer/UiRoot/RightPanel/Margin/VBox"]
+ theme_override_constants/separation = 8
+
+[node name="FavorTitle" type="Label" parent="UiLayer/UiRoot/RightPanel/Margin/VBox/FavorRow"]
+ text = "好感度："
+
+[node name="FavorValue" type="Label" parent="UiLayer/UiRoot/RightPanel/Margin/VBox/FavorRow"]
+ unique_name_in_owner = true
+ text = "-"
+
+[node name="Spacer" type="Control" parent="UiLayer/UiRoot/RightPanel/Margin/VBox"]
+ size_flags_vertical = 3
+
+[node name="SwitchCharacterButton" type="Button" parent="UiLayer/UiRoot/RightPanel/Margin/VBox"]
+ unique_name_in_owner = true
+ text = "切换角色"
+
+[node name="DialogueButton" type="Button" parent="UiLayer/UiRoot/RightPanel/Margin/VBox"]
+ unique_name_in_owner = true
+ text = "对话"
